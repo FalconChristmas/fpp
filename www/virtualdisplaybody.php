@@ -67,11 +67,11 @@
 		}
 	}
 	if ($f) {
-		// Skip any comment lines and the header; the dimensions were
+		// Skip any blank/comment lines and the header; the dimensions were
 		// validated above.
 		do {
 			$line = fgets($f);
-		} while ($line !== false && preg_match('/^#/', $line));
+		} while ($line !== false && (trim($line) === '' || $line[0] === '#'));
 
 		$previewWidth = $mapDimensions['width'];
 		$previewHeight = $mapDimensions['height'];
@@ -95,6 +95,8 @@
 
 			$line = trim($line);
 			$entry = explode(",", $line);
+			if (count($entry) < 5)
+				continue;
 
 			$ox = $entry[0];
 			$oy = $previewHeight - $entry[1];
@@ -133,6 +135,10 @@
 			}
 		}
 		fclose($f);
+
+		if (empty($scaleMap)) {
+			$previewError = "Virtual display preview '" . $previewInfo['mapName'] . "' contains no pixels.";
+		}
 	}
 
 	?>
@@ -247,8 +253,15 @@
 
 		// Clear the display after 6 seconds if no more events.  Max update time in test mode is 5 seconds.
 		clearTimer = setTimeout(function () {
-			if (imgWidth && imgHeight)
+			if (imgWidth && imgHeight) {
 				ctx.drawImage(img, 0, 0, imgWidth, imgHeight);
+			} else {
+				// A named preview without a -bg.jpg has no image to restore,
+				// so fall back to the black baseline instead of leaving the
+				// last frame on screen.
+				ctx.fillStyle = "black";
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+			}
 		}, 6000);
 	}
 

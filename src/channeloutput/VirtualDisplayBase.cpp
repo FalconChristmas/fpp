@@ -173,7 +173,7 @@ int VirtualDisplayBaseOutput::Init(Json::Value config) {
     // the original behaviour: default.vdm when it exists, otherwise
     // virtualdisplaymap, and default-bg.jpg before virtualdisplaybackground.jpg.
     std::string previewFile;
-    if (config.isMember("previewFile"))
+    if (config.isMember("previewFile") && config["previewFile"].isString())
         previewFile = TrimVirtualDisplayPreview(config["previewFile"].asString());
 
     if (previewFile.empty() || strcasecmp(previewFile.c_str(), "default.vdm") == 0) {

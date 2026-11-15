@@ -190,15 +190,17 @@ if (!isset($standalone)) {
         echo "var previewHeight = 1080;\n";
         echo "var modelBounds = { minX: 0, maxX: 100, minY: 0, maxY: 100, minZ: 0, maxZ: 100 };\n";
         echo "var modelCenter = { x: 50, y: 50, z: 50 };\n";
+        $previewWidth = 1920;
+        $previewHeight = 1080;
         $centerX = 50;
         $centerY = 50;
         $centerZ = 50;
     } else {
-        // Skip any comment lines and the header; the dimensions were
+        // Skip any blank/comment lines and the header; the dimensions were
         // validated above.
         do {
             $line = fgets($f);
-        } while ($line !== false && preg_match('/^#/', $line));
+        } while ($line !== false && (trim($line) === '' || $line[0] === '#'));
 
         $previewWidth = $mapDimensions['width'];
         $previewHeight = $mapDimensions['height'];
@@ -223,7 +225,7 @@ if (!isset($standalone)) {
             $line = trim($line);
             $entry = explode(",", $line);
 
-            if (count($entry) < 3)
+            if (count($entry) < 5)
                 continue;
 
             $ox = (int) $entry[0];

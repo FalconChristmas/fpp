@@ -185,8 +185,18 @@ function GetVirtualDisplayMapDimensions($mapFile)
     }
 
     $line = fgets($f);
-    while ($line !== false && preg_match('/^#/', $line)) {
-        $line = fgets($f);
+    while ($line !== false) {
+        // Match the output parser: '#' only starts a comment at column 0,
+        // and blank lines are skipped before the dimensions line.
+        if ($line !== '' && $line[0] === '#') {
+            $line = fgets($f);
+            continue;
+        }
+        if (trim($line) === '') {
+            $line = fgets($f);
+            continue;
+        }
+        break;
     }
     fclose($f);
 
