@@ -113,6 +113,18 @@ public:
     // holder's hands, and its destructor then leaves the names alone; a
     // buffer it allocates after this is private memory.
     void releaseSharedMemoryNames();
+    // For the manager, when it drops a model it built but never registered
+    // because another live model has its name: gives up the names without
+    // unlinking them, so its destructor leaves the other model's shared
+    // memory alone.
+    void abandonSharedMemoryNames();
+
+    // A model's name as the constructor makes it from a definition: "/" is
+    // not allowed in a name (it would be a path in a shm name or a file).
+    static std::string normalizedName(std::string name);
+    // The name a definition gives its model, read and cleaned exactly as the
+    // constructor does it; false if Name is an object or an array.
+    static bool configName(const Json::Value& c, std::string& out);
     // The absolute output channel buffer cell (x, y)'s first byte lands on,
     // or FPPD_OFF_CHANNEL for a hole or a cell outside the model.
     uint32_t outputChannelForCell(int x, int y) const;

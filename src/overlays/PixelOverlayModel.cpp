@@ -296,7 +296,7 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value& c) :
         markInvalid("a text field (Name, Type, BufferStyle, Orientation or StartCorner) is not text");
         return;
     }
-    replaceAll(name, "/", "_");
+    name = normalizedName(name);
     if (!configInt(config, "StartChannel", 0, startChannel) || !configInt(config, "ChannelCount", 0, channelCount) ||
         !configInt(config, "StringCount", 0, strings) || !configInt(config, "StrandsPerString", 0, sps) ||
         !configInt(config, "ChannelCountPerNode", 3, channelsPerNode) ||
@@ -643,6 +643,24 @@ PixelOverlayModel::~PixelOverlayModel() {
             free(overlayBufferData);
         }
     }
+}
+
+std::string PixelOverlayModel::normalizedName(std::string name) {
+    replaceAll(name, "/", "_");
+    return name;
+}
+
+bool PixelOverlayModel::configName(const Json::Value& c, std::string& out) {
+    if (!configString(c, "Name", out)) {
+        return false;
+    }
+    out = normalizedName(out);
+    return true;
+}
+
+void PixelOverlayModel::abandonSharedMemoryNames() {
+    std::lock_guard<std::mutex> l(s_overlayBufferAllocLock);
+    s_namesReleased.insert(this);
 }
 
 void PixelOverlayModel::releaseSharedMemoryNames() {

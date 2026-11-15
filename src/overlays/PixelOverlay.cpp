@@ -188,6 +188,22 @@ void PixelOverlayManager::addModel(Json::Value config) {
 
     std::string type = config["Type"].asString();
 
+    // The first definition of a name wins (see below). A second is turned away
+    // before it is built: building it mapped the first one's shared memory
+    // block by name, and deleting it unlinked it, so programs outside fppd
+    // lost their view of the model that stayed. The name is read and cleaned
+    // the way the constructor does it.
+    std::string newName;
+    if (PixelOverlayModel::configName(config, newName)) {
+        std::unique_lock<std::recursive_mutex> lock(modelsLock);
+        auto it = models.find(newName);
+        if (it != models.end() && it->second.model) {
+            LogWarn(VB_CHANNELOUT, "A pixel overlay model named \"%s\" already exists; ignoring the second definition\n",
+                    newName.c_str());
+            return;
+        }
+    }
+
     if (type == "Channel") {
         if (config.isMember("StartChannel") && config.isMember("ChannelCount") && config.isMember("StringCount")) {
             pmodel = new PixelOverlayModel(config);
@@ -219,9 +235,13 @@ void PixelOverlayManager::addModel(Json::Value config) {
         // Replacing the live model in place used to leak it, and freeing it
         // here instead would pull it out from under the active list and the
         // effect thread. The first definition of a name wins; anything that
-        // genuinely replaces a model removes the old one first.
-        LogWarn(VB_CHANNELOUT, "A pixel overlay model named \"%s\" already exists; ignoring the second definition\n",
+        // genuinely replaces a model removes the old one first. Only a name
+        // added from two threads at once gets this far (checked above); the
+        // one built second has mapped the first one's block, so it gives its
+        // names up without unlinking them before it goes.
+        LogWarn(VB_CHANNELOUT, "A pixel overlay model named \"%s\" already exists; ignoring the second definition (added concurrently)\n",
                 pmodel->getName().c_str());
+        pmodel->abandonSharedMemoryNames();
         delete pmodel;
         pmodel = nullptr;
     }
@@ -564,8 +584,7 @@ void PixelOverlayManager::loadSubModelIndex() {
                 WarningHolder::InvalidConfigEntry(file, "entry " + std::to_string(c + 1) + " has no Name");
                 continue;
             }
-            std::string nm = list[c]["Name"].asString();
-            replaceAll(nm, "/", "_"); // match PixelOverlayModel name sanitization
+            std::string nm = PixelOverlayModel::normalizedName(list[c]["Name"].asString());
             subModelConfigs[nm] = SaveJsonToString(list[c], "");
         }
     };
