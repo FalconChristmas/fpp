@@ -15,8 +15,12 @@ if (isset($_GET['os'])) {
     }
 }
 
+// Download Only is its own 'os-download' run, so it can't keep an older open
+// os-upgrade run "fresh" (#3187).
+$logOp = 'os-upgrade';
 if (isset($_GET['downloadOnly'])) {
     $applyUpdate = false;
+    $logOp = 'os-download';
 }
 
 if (isset($_GET['wrapped'])) {
@@ -53,7 +57,7 @@ require_once "common/updateLock.inc.php";
 
 // Before any output so a refusal is a 409 (downloadOnly too: it writes upload/<file>).
 if ($osIsUrl || (isset($_GET['os']) && !isset($_GET['downloadOnly']))) {
-    UpdateLockAcquireOrConflict('os-upgrade', $baseFile);
+    UpdateLockAcquireOrConflict($logOp, $baseFile);
 }
 
 if (!$wrapped) {
@@ -76,9 +80,9 @@ ignore_user_abort(true);
 // machine-parsed progress marker (see ParseLastStageMarker() in www/js/fpp.js).
 function logStage($msg)
 {
-    global $baseFile;
+    global $baseFile, $logOp;
     echo "===== $msg =====\n";
-    UpgradeLog('os-upgrade', $baseFile, "===== $msg =====");
+    UpgradeLog($logOp, $baseFile, "===== $msg =====");
 }
 
 function downloadImage($localFile): bool
@@ -158,9 +162,11 @@ if ($osIsUrl) {
     // and before the first stage so the stage is never empty mid-download.
     // upgradeOS-part1.sh emits its own outer START afterwards; the activity
     // endpoint treats that as a continuation of this run (stable runId).
-    // Skipped for downloadOnly (a mere download, not an upgrade run).
-    if (!isset($_GET['downloadOnly'])) {
-        UpgradeLog('os-upgrade', $baseFile, "===== os-upgrade START: " . $baseFile . " =====");
+    // A Download Only opens an os-download run instead, closed by its FINISH below.
+    UpgradeLog($logOp, $baseFile, "===== $logOp START: " . $baseFile . " =====");
+    if (isset($_GET['downloadOnly'])) {
+        $osDownloadStarted = true;
+    } else {
         $osUpgradeActivityStarted = true;
     }
     logStage("Downloading OS image");
@@ -168,14 +174,14 @@ if ($osIsUrl) {
     foreach ($urls as $idx => $url) {
         // Validate each URL (including mirror) before shell use
         if (!filter_var($url, FILTER_VALIDATE_URL) || !preg_match('#^https?://#i', $url)) {
-            UpgradeLog('os-upgrade', $baseFile, "Skipping invalid URL: " . $url);
+            UpgradeLog($logOp, $baseFile, "Skipping invalid URL: " . $url);
             continue;
         }
         if (count($urls) > 1) {
             if ($idx == 0) {
-                UpgradeEchoLog('os-upgrade', $baseFile, "Downloading from local FPP mirror {$upgradeSource}...\n");
+                UpgradeEchoLog($logOp, $baseFile, "Downloading from local FPP mirror {$upgradeSource}...\n");
             } else {
-                UpgradeEchoLog('os-upgrade', $baseFile, "Mirror download failed, falling back to GitHub...\n");
+                UpgradeEchoLog($logOp, $baseFile, "Mirror download failed, falling back to GitHub...\n");
             }
         }
         // --progress=dot:giga (not bar:force): the output of this command is
@@ -200,20 +206,20 @@ if ($osIsUrl) {
             // browser) is what matters on disk: which mirror was used, and how many
             // attempts it took. A 20-deep retry loop silently burning through
             // attempts was previously indistinguishable from a first-try success.
-            UpgradeLog('os-upgrade', $baseFile, "Downloading " . $url . " (attempt " . ($retryCount + 1) . " of " . $maxTries . ")");
+            UpgradeLog($logOp, $baseFile, "Downloading " . $url . " (attempt " . ($retryCount + 1) . " of " . $maxTries . ")");
             passthru($command, $rc);
             $retryCount++;
         }
-        UpgradeLog('os-upgrade', $baseFile, "wget rc=" . $rc . " after " . $retryCount . " attempt(s) from " . $url);
+        UpgradeLog($logOp, $baseFile, "wget rc=" . $rc . " after " . $retryCount . " attempt(s) from " . $url);
         if ($rc == 0) {
             break;
         }
     }
     if ($rc != 0) {
-        UpgradeEchoLog('os-upgrade', $baseFile, "Download aborted!\n");
+        UpgradeEchoLog($logOp, $baseFile, "Download aborted!\n");
         $applyUpdate = false;
     } else {
-        UpgradeEchoLog('os-upgrade', $baseFile, "Download complete...\n");
+        UpgradeEchoLog($logOp, $baseFile, "Download complete...\n");
     }
 
     /*
@@ -236,8 +242,8 @@ $full_fppos_path = "/home/fpp/media/upload/$baseFile";
 // path above already opened it; the flag keeps exactly one PHP-side START).
 // Every early abort below then pairs with the terminal Failed marker in the
 // wrapped !$applyUpdate branch, so re-attached viewers see the outcome
-// instead of a stale open run. downloadOnly stays unmarked (not an upgrade),
-// as do direct hits with no ?os= (no upgrade intent: avoids START/Failed
+// instead of a stale open run. downloadOnly opens no os-upgrade run, nor
+// do direct hits with no ?os= (no upgrade intent: avoids START/Failed
 // noise flipping the banner for a mere page load).
 if ((!isset($osUpgradeActivityStarted) || !$osUpgradeActivityStarted) && !isset($_GET['downloadOnly']) && isset($_GET['os'])) {
     UpgradeLog('os-upgrade', $baseFile, "===== os-upgrade START: " . $baseFile . " =====");
@@ -245,13 +251,13 @@ if ((!isset($osUpgradeActivityStarted) || !$osUpgradeActivityStarted) && !isset(
 }
 
 if (!file_exists($full_fppos_path)) {
-    UpgradeEchoLog('os-upgrade', $baseFile, "File does not exist, aborting: $full_fppos_path\n");
+    UpgradeEchoLog($logOp, $baseFile, "File does not exist, aborting: $full_fppos_path\n");
     $applyUpdate = false;
 } else if (filesize($full_fppos_path) == 0) {
-    UpgradeEchoLog('os-upgrade', $baseFile, "File is empty, aborting: $full_fppos_path\n");
+    UpgradeEchoLog($logOp, $baseFile, "File is empty, aborting: $full_fppos_path\n");
     $applyUpdate = false;
 } else {
-    UpgradeLog('os-upgrade', $baseFile, "Image ready: $full_fppos_path (" . filesize($full_fppos_path) . " bytes)");
+    UpgradeLog($logOp, $baseFile, "Image ready: $full_fppos_path (" . filesize($full_fppos_path) . " bytes)");
 }
 
 // The fppos upgrade re-flashes the running root filesystem in place
@@ -313,13 +319,20 @@ if ($applyUpdate) {
     system($SUDO . " $TMP_FILE /home/fpp/media/upload/$baseFile 2>&1", $return_code);
     UpgradeLog('os-upgrade', $baseFile, "upgradeOS-part1.sh rc=" . $return_code);
 } else {
-    UpgradeEchoLog('os-upgrade', $baseFile, "Skipping update\n");
+    UpgradeEchoLog($logOp, $baseFile, "Skipping update\n");
+}
+
+if (!empty($osDownloadStarted)) {
+    $downloadRc = ($rc == 0 && file_exists($full_fppos_path) && filesize($full_fppos_path) > 0) ? 0 : 1;
+    UpgradeLog($logOp, $baseFile, "===== os-download FINISH: " . $baseFile . " (rc=" . $downloadRc . ") =====");
 }
 
 if (!$wrapped) {
     // Non-streaming mode has no status line to drive, so log the outcome without
-    // echoing a stage marker into the HTML.
-    UpgradeLog('os-upgrade', $baseFile, ($applyUpdate && ($return_code == 0)) ? "===== Rebooting =====" : "===== Upgrade Failed =====");
+    // echoing a stage marker into the HTML. A Download Only closed its run above.
+    if (!isset($_GET['downloadOnly'])) {
+        UpgradeLog('os-upgrade', $baseFile, ($applyUpdate && ($return_code == 0)) ? "===== Rebooting =====" : "===== Upgrade Failed =====");
+    }
     ?></pre>
         ==========================================================================
         <? if ($applyUpdate && ($return_code == 0)) { ?>
@@ -339,7 +352,7 @@ if (!$wrapped) {
 } else if (!$applyUpdate) {
     // Close the PHP-side run opened above so re-attached viewers see the
     // outcome instead of a stale open run. downloadOnly is not a failure
-    // (and never opened a run).
+    // (its os-download run was closed above).
     if (!isset($_GET['downloadOnly']) && !empty($osUpgradeActivityStarted)) {
         UpgradeLog('os-upgrade', $baseFile, "===== Upgrade Failed =====");
     }

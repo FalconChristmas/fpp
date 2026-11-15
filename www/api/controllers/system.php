@@ -449,7 +449,7 @@ function GetUpdateStatus()
  */
 function UpdateActivityOuterOps()
 {
-    return array('fpp-update', 'fpp-upgrade', 'os-upgrade', 'fpp-branch-switch', 'fpp-version-checkout');
+    return array('fpp-update', 'fpp-upgrade', 'os-upgrade', 'os-download', 'fpp-branch-switch', 'fpp-version-checkout');
 }
 
 /**
@@ -461,6 +461,7 @@ function UpdateActivityKindLabel($op)
         'fpp-update' => 'FPP Update',
         'fpp-upgrade' => 'FPP Upgrade',
         'os-upgrade' => 'FPP OS Upgrade',
+        'os-download' => 'FPP OS Download',
         'fpp-branch-switch' => 'FPP Branch Switch',
         'fpp-version-checkout' => 'FPP Version Change',
         'fpp-rebuild' => 'FPP Rebuild'
@@ -588,7 +589,7 @@ function UpdateActivityRequestedLines()
 /**
  * Generic active payload for work the log cannot attribute to a run: a
  * worker with no START marker in view, or a lock holder other than the
- * log's last run (rebuildfpp.php, an OS image downloadOnly, a new request
+ * log's last run (rebuildfpp.php, a new request
  * that has not logged its START yet). Labelled from the lock holder's op
  * when known.
  */

@@ -80,7 +80,7 @@ function UpdateActivityBusySide() {
 	if (!fppUpdateActivity.inProgress) {
 		return null;
 	}
-	return fppUpdateActivity.op === 'os-upgrade' ? 'os' : 'fpp';
+	return fppUpdateActivity.op === 'os-upgrade' || fppUpdateActivity.op === 'os-download' ? 'os' : 'fpp';
 }
 
 // Ordering against stale echoes. Every server payload carries the log's

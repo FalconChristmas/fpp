@@ -1334,6 +1334,9 @@
 
             var url = osAssetMap[os].url;
             DisplayProgressDialog('osDownload', 'FPP Download OS Image');
+            if (typeof FPPUpdate_AddHideButton === 'function') {
+                FPPUpdate_AddHideButton('osDownload');
+            }
             StreamURL('upgradeOS.php?wrapped=1&downloadOnly=1&os=' + url, 'osDownloadText', 'OSDownloadDone', 'OSDownloadDone', 'POST');
         }
 
