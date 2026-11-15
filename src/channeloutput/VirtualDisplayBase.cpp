@@ -17,6 +17,8 @@
 #include <cctype>
 #include <climits>
 #include <cstdint>
+#include <cstring>
+#include <strings.h>
 
 #include <set>
 #include <tuple>
@@ -50,6 +52,7 @@ VirtualDisplayBaseOutput::VirtualDisplayBaseOutput(unsigned int startChannel,
                                                    unsigned int channelCount) :
     ChannelOutput(startChannel, channelCount),
     m_backgroundFilename("virtualdisplaybackground.jpg"),
+    m_mapFilename(FPP_DIR_CONFIG("/virtualdisplaymap")),
     m_backgroundBrightness(0.5),
     m_width(1280),
     m_height(1024),
@@ -90,6 +93,38 @@ VirtualDisplayBaseOutput::~VirtualDisplayBaseOutput() {
     }
 }
 
+namespace {
+
+std::string TrimVirtualDisplayPreview(const std::string& value) {
+    std::string::size_type first = value.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos) {
+        return "";
+    }
+    std::string::size_type last = value.find_last_not_of(" \t\r\n");
+    return value.substr(first, last - first + 1);
+}
+
+// A preview is a plain .vdm basename from the config directory.  Reject any
+// path component so a hand-edited config cannot make the map reader or the
+// background lookup escape those directories.
+bool IsValidVirtualDisplayPreviewFile(const std::string& name) {
+    if (name.empty()) {
+        return false;
+    }
+    if (name.find('/') != std::string::npos ||
+        name.find('\\') != std::string::npos ||
+        name.find('\0') != std::string::npos ||
+        name.find("..") != std::string::npos) {
+        return false;
+    }
+    if (name.size() < 5) {
+        return false;
+    }
+    return strcasecmp(name.substr(name.size() - 4).c_str(), ".vdm") == 0;
+}
+
+} // namespace
+
 /*
  *
  */
@@ -115,7 +150,9 @@ int VirtualDisplayBaseOutput::Init(Json::Value config) {
     if (config.isMember("colorOrder"))
         m_colorOrder = config["colorOrder"].asString();
 
+    bool backgroundConfigured = false;
     if (config.isMember("backgroundFilename")) {
+        backgroundConfigured = true;
         m_backgroundFilename = config["backgroundFilename"].asString();
         // Backgrounds live flat in images/: reject separators and parent
         // references so a crafted config cannot escape into FileExists/
@@ -131,6 +168,47 @@ int VirtualDisplayBaseOutput::Init(Json::Value config) {
 
     if (config.isMember("backgroundBrightness"))
         m_backgroundBrightness = 1.0 * config["backgroundBrightness"].asInt() / 100;
+
+    // Resolve the per-output preview selection.  An empty/missing value keeps
+    // the original behaviour: default.vdm when it exists, otherwise
+    // virtualdisplaymap, and default-bg.jpg before virtualdisplaybackground.jpg.
+    std::string previewFile;
+    if (config.isMember("previewFile"))
+        previewFile = TrimVirtualDisplayPreview(config["previewFile"].asString());
+
+    if (previewFile.empty() || strcasecmp(previewFile.c_str(), "default.vdm") == 0) {
+        m_mapFilename = FPP_DIR_CONFIG("/virtualdisplaymap");
+
+        std::string defaultMap = FPP_DIR_CONFIG("/default.vdm");
+        if (FileExists(defaultMap)) {
+            m_mapFilename = defaultMap;
+        }
+
+        if (!backgroundConfigured) {
+            if (FileExists(FPP_DIR_IMAGE("/default-bg.jpg"))) {
+                m_backgroundFilename = "default-bg.jpg";
+            } else {
+                m_backgroundFilename = "virtualdisplaybackground.jpg";
+            }
+        }
+    } else if (!IsValidVirtualDisplayPreviewFile(previewFile)) {
+        LogErr(VB_CHANNELOUT, "Invalid virtual display preview '%s'\n", previewFile.c_str());
+        AddOutputConfigWarning(41, "Invalid virtual display preview: " + previewFile);
+        m_mapFilename.clear();
+        m_backgroundFilename.clear();
+        return 0;
+    } else {
+        m_mapFilename = FPP_DIR_CONFIG("/" + previewFile);
+
+        std::string background = previewFile.substr(0, previewFile.size() - 4) + "-bg.jpg";
+        if (FileExists(FPP_DIR_IMAGE("/" + background))) {
+            m_backgroundFilename = background;
+        } else {
+            // A named preview without its own background gets no background
+            // rather than a default image that would not line up with it.
+            m_backgroundFilename.clear();
+        }
+    }
 
     return ChannelOutput::Init(config);
 }
@@ -150,7 +228,9 @@ size_t VirtualDisplayBaseOutput::virtualDisplayBufferBytes(int w, int h, int bpp
 }
 
 int VirtualDisplayBaseOutput::InitializePixelMap(void) {
-    std::string virtualDisplayMapFilename = FPP_DIR_CONFIG("/virtualdisplaymap");
+    std::string virtualDisplayMapFilename = m_mapFilename.empty()
+        ? FPP_DIR_CONFIG("/virtualdisplaymap")
+        : m_mapFilename;
 
     if (!FileExists(virtualDisplayMapFilename)) {
         LogErr(VB_CHANNELOUT, "Error: %s does not exist\n",
@@ -251,6 +331,10 @@ int VirtualDisplayBaseOutput::InitializePixelMap(void) {
                         fclose(file);
                         return 0;
                     }
+                    // With a named preview that has no -bg.jpg there is nothing
+                    // to draw first; start from black rather than uninitialised
+                    // heap bytes.
+                    std::memset(m_virtualDisplay, 0, bufBytes);
                 }
 
                 if ((1.0 * m_width / m_previewWidth) > (1.0 * m_height / m_previewHeight)) {
@@ -435,12 +519,11 @@ int VirtualDisplayBaseOutput::InitializePixelMap(void) {
 void VirtualDisplayBaseOutput::LoadBackgroundImage(void) {
     // Nothing to draw into (e.g. an empty map left no buffer): callers check
     // too, but never write through a null display from here.
-    if (m_virtualDisplay == nullptr) {
+    if (m_virtualDisplay == nullptr || m_backgroundFilename.empty()) {
         return;
     }
 
-    std::string bgFile = "/home/fpp/media/images/";
-    bgFile += m_backgroundFilename;
+    std::string bgFile = FPP_DIR_IMAGE("/" + m_backgroundFilename);
 
     if (!FileExists(bgFile)) {
         LogWarn(VB_CHANNELOUT, "Background image does not exist: %s\n",
@@ -621,6 +704,8 @@ void VirtualDisplayBaseOutput::DrawPixels(unsigned char* channelData) {
  */
 void VirtualDisplayBaseOutput::DumpConfig(void) {
     LogDebug(VB_CHANNELOUT, "VirtualDisplayBaseOutput::DumpConfig()\n");
+    LogDebug(VB_CHANNELOUT, "    map           : %s\n", m_mapFilename.c_str());
+    LogDebug(VB_CHANNELOUT, "    background    : %s\n", m_backgroundFilename.c_str());
     LogDebug(VB_CHANNELOUT, "    width         : %d\n", m_width);
     LogDebug(VB_CHANNELOUT, "    height        : %d\n", m_height);
     LogDebug(VB_CHANNELOUT, "    scale         : %0.3f\n", m_scale);

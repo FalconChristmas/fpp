@@ -1,3 +1,4 @@
+<?php require_once __DIR__ . '/common/virtualdisplay.inc.php'; ?>
 <script>
 	var cellColors = [];
 	var scaleMap = [];
@@ -16,24 +17,64 @@
 	}
 
 	$pixelSize = 1;
-	$content = file_get_contents($settings['configDirectory'] . "/co-other.json");
-	$json = json_decode($content, true);
-	foreach ($json['channelOutputs'] as $output) {
-		if ($output['type'] == 'HTTPVirtualDisplay') {
-			$pixelSize = $output['pixelSize'];
+	$previewFile = '';
+	$foundOutput = false;
+	$configFile = $settings['configDirectory'] . "/co-other.json";
+	if (file_exists($configFile)) {
+		$content = file_get_contents($configFile);
+		$json = json_decode($content, true);
+		if ($json && isset($json['channelOutputs']) && is_array($json['channelOutputs'])) {
+			foreach ($json['channelOutputs'] as $output) {
+				if (!isset($output['type']) || $output['type'] != 'HTTPVirtualDisplay') {
+					continue;
+				}
+
+				// Prefer an enabled output; if none is enabled, use the
+				// first configured one.
+				if (!$foundOutput || !empty($output['enabled'])) {
+					$pixelSize = isset($output['pixelSize']) ? $output['pixelSize'] : 1;
+					$previewFile = isset($output['previewFile']) ? $output['previewFile'] : '';
+					$foundOutput = true;
+				}
+
+				if (!empty($output['enabled'])) {
+					break;
+				}
+			}
 		}
 	}
-	echo "var pixelSize = " . $pixelSize . ";\n";
+	echo "var pixelSize = " . (int) $pixelSize . ";\n";
 
-	$f = fopen($settings['configDirectory'] . '/virtualdisplaymap', "r");
+	$previewInfo = GetVirtualDisplayPreviewInfo($previewFile);
+	$previewError = $previewInfo['error'];
+	$backgroundImage = $previewInfo['background'];
+	$backgroundURL = $backgroundImage === ''
+		? ''
+		: 'api/file/Images/' . rawurlencode($backgroundImage);
+	echo "var backgroundImageURL = " . json_encode($backgroundURL, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) . ";\n";
+
+	$f = false;
+	$mapDimensions = false;
+	if ($previewInfo['mapExists']) {
+		$mapDimensions = GetVirtualDisplayMapDimensions($previewInfo['mapFile']);
+		if ($mapDimensions === false) {
+			$previewError = "Virtual display preview '" . $previewInfo['mapName'] . "' has an invalid map header.";
+		} else {
+			$f = @fopen($previewInfo['mapFile'], "r");
+			if ($f === false) {
+				$previewError = "Virtual display preview '" . $previewInfo['mapName'] . "' could not be opened.";
+			}
+		}
+	}
 	if ($f) {
-		$line = fgets($f);
-		if (preg_match('/^#/', $line))
+		// Skip any comment lines and the header; the dimensions were
+		// validated above.
+		do {
 			$line = fgets($f);
-		$line = trim($line);
-		$parts = explode(',', $line);
-		$previewWidth = $parts[0];
-		$previewHeight = $parts[1];
+		} while ($line !== false && preg_match('/^#/', $line));
+
+		$previewWidth = $mapDimensions['width'];
+		$previewHeight = $mapDimensions['height'];
 
 		if (($previewWidth / $previewHeight) > ($canvasWidth / $canvasHeight))
 			$canvasHeight = (int) ($canvasWidth * $previewHeight / $previewWidth);
@@ -137,7 +178,8 @@
 			}
 			ctx.drawImage(img, 0, 0, imgWidth, imgHeight);
 		});
-		img.src = 'api/file/Images/virtualdisplaybackground.jpg';
+		if (backgroundImageURL != '')
+			img.src = backgroundImageURL;
 
 		buffer = document.createElement('canvas');
 		buffer.width = canvas.width * window.devicePixelRatio;
@@ -204,7 +246,10 @@
 		}
 
 		// Clear the display after 6 seconds if no more events.  Max update time in test mode is 5 seconds.
-		clearTimer = setTimeout(function () { ctx.drawImage(img, 0, 0, imgWidth, imgHeight); }, 6000);
+		clearTimer = setTimeout(function () {
+			if (imgWidth && imgHeight)
+				ctx.drawImage(img, 0, 0, imgWidth, imgHeight);
+		}, 6000);
 	}
 
 	// Apply one frame's worth of changed pixels to the off-screen buffer
@@ -230,6 +275,8 @@
 			var locs = data[1].split(';');
 			for (j = 0; j < locs.length; j++) {
 				var s = scaleMap[locs[j]];
+				if (!s)
+					continue;
 
 				// Draw a circle if size is greater than one pixel
 				if (s.size > 1) {
@@ -356,6 +403,12 @@
 	});
 
 </script>
+
+<? if ($previewError != '') { ?>
+	<div style='color: #b00020; font-weight: bold; margin: 0.5em 0;'>
+		<? echo htmlspecialchars($previewError, ENT_QUOTES, 'UTF-8'); ?>
+	</div>
+<? } ?>
 
 <input type='button' id='stopButton' onClick='stopSSE();' value='Stop Virtual Display'><br>
 <table border=0>

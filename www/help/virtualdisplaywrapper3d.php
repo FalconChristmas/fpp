@@ -54,6 +54,9 @@
     <li><b>FilePond configuration</b> — Label “Drag &amp; Drop 3D Asset Files or Click to Select”, server <code>api/file/virtualdisplay_assets</code> (<code>POST</code>), chunked uploads enabled (<code>64 MB</code> chunks, <code>chunkForce</code> true, 3 parallel), type detection by extension fallback, success → <code>$.jGrowl('File uploaded successfully: …')</code>, error → toast with <code>error.main</code>.</li>
 </ul>
 
+<h4>Preview selection</h4>
+<p>The <b>HTTP Virtual Display 3D</b> output on the <b>Virtuals</b> tab has a <b>Preview</b> dropdown. <b>Default</b> uses <code>config/default.vdm</code> when it exists (otherwise <code>config/virtualdisplaymap</code>). Any other value is a <code>.vdm</code> file in the config directory and is used as the pixel map for the 3D view.</p>
+
 <h4>Tips</h4>
 <ul>
     <li>Use <b>📋 Copy View URL</b> after framing the show once, then bookmark the URL with your chosen <code>brightness/ambientLight/pixelSize</code> so every browser opens the same view.</li>

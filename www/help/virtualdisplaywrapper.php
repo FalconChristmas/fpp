@@ -14,6 +14,9 @@
     <li><b>Zoom and pan</b> (3D variant) — Drag to orbit, scroll to zoom, right-drag to pan. The 2D variant is a fixed top-down view with no camera controls.</li>
 </ul>
 
+<h4>Preview selection</h4>
+<p>The <b>HTTP Virtual Display</b> and <b>Virtual Display</b> outputs on the <b>Virtuals</b> tab have a <b>Preview</b> dropdown. <b>Default</b> uses <code>config/default.vdm</code> when it exists (otherwise <code>config/virtualdisplaymap</code>) and <code>images/default-bg.jpg</code> when it exists (otherwise <code>images/virtualdisplaybackground.jpg</code>). Any other value is a <code>.vdm</code> file in the config directory; its background is the same name with <code>-bg.jpg</code> in the images directory, or no background when that file is absent.</p>
+
 <h4>Tips</h4>
 <ul>
     <li>If the preview stays blank, check that the virtual output is <b>Enabled</b> in <b>Input/Output Setup → Channel Outputs</b> and that its channel range matches the sequences you are playing.</li>
