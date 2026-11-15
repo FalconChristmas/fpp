@@ -606,6 +606,67 @@ const bootstrapTableOptions_Crashes = {
 	}
 };
 
+// Bootstrap Table options for Config table (developer mode, uiLevel >= 3)
+const bootstrapTableOptions_Config = {
+	theme: 'bootstrapTable',
+	striped: true,
+	bordered: false,
+	hover: true,
+	sortName: 'name',
+	sortOrder: 'asc',
+	sortable: true,
+	multiSort: false,
+	pagination: false,
+	showHeader: true,
+	showFooter: false,
+	showColumns: false,
+	selectItemName: 'btSelectItem',
+	singleSelect: false,
+	checkboxHeader: true,
+	// Fixed header with scrollable body
+	height: 300,
+	// Filter control
+	filterControl: true,
+	filterShowClear: true,
+	filter_hideFilters: false,
+	columns: [
+		{
+			field: 'filename',
+			title: 'File',
+			sortable: true,
+			searchable: true,
+			filterControl: 'input'
+		},
+		{
+			field: 'size',
+			title: 'Size',
+			sortable: true,
+			searchable: true,
+			align: 'right',
+			sorter: 'metricSorter',
+			filterControl: 'input'
+		},
+		{
+			field: 'dateModified',
+			title: 'Date Modified',
+			sortable: true,
+			searchable: true,
+			sorter: 'dateSorter',
+			filterControl: 'input'
+		}
+	],
+	classes: 'table table-hover table-sm',
+	locale: 'en-US',
+
+	// Event handlers for Bootstrap Table
+	onPostBody: function () {
+		UpdateFileCount('Config');
+	},
+	onPostFilter: function () {
+		UpdateFileCount('Config');
+	}
+};
+
 // Bootstrap Table options for Backups table
 const bootstrapTableOptions_Backups = {
 	theme: 'bootstrapTable',
@@ -818,3 +879,4 @@ window.bootstrapTableOptions_Logs = bootstrapTableOptions_Logs;
 window.bootstrapTableOptions_Uploads = bootstrapTableOptions_Uploads;
 window.bootstrapTableOptions_Crashes = bootstrapTableOptions_Crashes;
 window.bootstrapTableOptions_Backups = bootstrapTableOptions_Backups;
+window.bootstrapTableOptions_Config = bootstrapTableOptions_Config;
