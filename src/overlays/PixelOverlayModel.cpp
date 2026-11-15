@@ -82,6 +82,19 @@ static const char* ChannelDataOrder(int channelsPerNode) {
     }
 }
 
+// The shm names this fppd has mapped.  fppd never destroys the models at exit
+// (a restart execlp()s over itself, a stop ends in _exit(), and a crash or kill
+// skips everything), so their destructors never unlink the blocks, and the next
+// fppd mapped one with the last session's pixels still in it.  A block that
+// already exists is cleared the first time this fppd maps its name; a new one
+// is zero already and is left untouched, so its pages aren't all committed in
+// tmpfs.  Cleared rather than unlinked: a program outside fppd that maps a
+// model by name keeps writing to the same block across restarts, as it always
+// has.  A second live model under the same name (a duplicate, or a name cut
+// short to PSHMNAMLEN) shares the block and doesn't clear the first one's.
+static std::mutex s_modelMemoryNamesLock;
+static std::set<std::string> s_modelMemoryNamesMapped;
+
 // Both of a model's buffers (the channel data and the overlay buffer) are
 // allocated the same way and with the same fallbacks, so they share this.
 //
@@ -105,12 +118,16 @@ static uint8_t* createModelMemory(const std::string& dataName, uint32_t size, bo
     mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
     // No name: private memory, for a model that has given its names up.
     int f = dataName.empty() ? -1 : shm_open(dataName.c_str(), O_RDWR | O_CREAT, mode);
+    bool existed = false;
     if (f != -1) {
+        struct stat st;
+        existed = fstat(f, &st) == 0 && st.st_size > 0;
         int rc = ftruncate(f, size);
         if (rc == -1) {
             // if ftruncate fails, we need to completely reset
             close(f);
             shm_unlink(dataName.c_str());
+            existed = false;
             f = shm_open(dataName.c_str(), O_RDWR | O_CREAT, mode);
             if (f != -1 && ftruncate(f, size) == -1) {
                 close(f);
@@ -127,6 +144,10 @@ static uint8_t* createModelMemory(const std::string& dataName, uint32_t size, bo
         uint8_t* data = (uint8_t*)mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, f, 0);
         close(f);
         if (data != MAP_FAILED) {
+            std::lock_guard<std::mutex> l(s_modelMemoryNamesLock);
+            if (s_modelMemoryNamesMapped.insert(dataName).second && existed) {
+                memset(data, 0, size);
+            }
             return data;
         }
         LogWarn(VB_CHANNELOUT, "Could not mmap shared memory for %s:  %s\n",
