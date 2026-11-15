@@ -21,7 +21,17 @@ if (file_exists(__DIR__ . "/media_root.txt")) {
     }
     $mediaDirectory = $fppHome . "/fpp";
 }
-if (!is_dir($mediaDirectory)) {
+if (str_contains($mediaDirectory, "\0")) {
+    // fopen(), mkdir() and most other filesystem calls throw a ValueError on
+    // a NUL byte, which @ does not silence, so a path holding one would take
+    // down every page and API call.  Make it a harmless path that does not
+    // exist, so the missing-media banner reports it instead.
+    $mediaDirectory = str_replace("\0", "\\0", $mediaDirectory);
+} else if ($mediaDirectory == "" || $mediaDirectory[0] != '/') {
+    // A relative path would be created under the web server's working
+    // directory (inside /opt/fpp/www), pass is_dir(), and quietly collect
+    // every setting and upload there.  Leave it missing for the banner.
+} else if (!is_dir($mediaDirectory)) {
     // Recursive, because the usual shape of a wrong media_root.txt is a path
     // whose parent is missing too.  Silenced, because a path that cannot be
     // created is reported properly by the banner in menu.inc rather than as a
