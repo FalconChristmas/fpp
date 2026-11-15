@@ -217,6 +217,7 @@ function list_plugin_entries($menu)
     <div class="fppOuterContainer">
         <div class="fppMenuContainer">
             <?
+            require_once(dirname(__FILE__) . "/common/mediaDiagnose.inc.php");
             if (file_exists("/etc/fpp/rfs_version") && exec('grep "^[^#].*/home/pi/media" /etc/fstab')) {
                 $mounted = 0;
                 $needToMount = 0;
@@ -252,13 +253,20 @@ function list_plugin_entries($menu)
             // true -- so the page printed a PHP warning and then blamed the disk.
             // It is worth saying out loud either way. Everything FPP persists
             // lives under this path, so while it is missing nothing saves: not a
-            // setting, not a playlist, not an upload.
-            if (!is_dir($mediaDirectory)) {
+            // setting, not a playlist, not an upload.  Each banner says what is
+            // wrong and the evidence for it (common/mediaDiagnose.inc.php).
+            if (!is_dir($mediaDirectory) || $mediaDirectory == "" || $mediaDirectory[0] != '/') {
+                $mediaWhy = MediaDirectoryProblem($mediaDirectory, $mediaRootRaw, $mediaDirectoryMkdirError);
                 ?>
-                <div class="alert alert-danger"><b>WARNING:</b> the media directory <?= $mediaDirectory ?> does not
-                    exist. Nothing can be saved -- settings, playlists and uploads will all fail. It is set by
-                    <?= $fppDir ?>/www/media_root.txt.</div>
+                <div class="alert alert-danger"><b>WARNING:</b> the media directory <?= htmlspecialchars(MediaDiagnoseShow(is_string($mediaRootRaw) ? trim($mediaRootRaw) : $mediaDirectory)) ?> does not
+                    exist. Nothing can be saved -- settings, playlists and uploads will all fail.
+                    <?= htmlspecialchars($mediaDirectorySource) ?>.
+                    <br><b>Why:</b> <?= htmlspecialchars($mediaWhy['cause']) ?>.
+                    <? if (count($mediaWhy['details'])) { ?>
+                        <br><b>Details:</b> <?= htmlspecialchars(implode("; ", $mediaWhy['details'])) ?>.
+                    <? } ?></div>
                 <?
+                unset($mediaWhy);
             } else if (!is_writable($mediaDirectory)) {
                 ?>
                 <div class="alert alert-danger"><b>WARNING:</b> the media directory <?= $mediaDirectory ?> is not

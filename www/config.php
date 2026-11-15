@@ -8,13 +8,24 @@ $SUDO = "sudo";
 $debug = false;
 $fppRfsVersion = "Unknown";
 
+// Where $mediaDirectory came from, for the missing-media banner in menu.inc:
+// the sentence naming the source, media_root.txt's exact bytes (null when
+// there is no file, false when the web server cannot read it) and mkdir's
+// error, all handed to common/mediaDiagnose.inc.php when the banner shows.
+$mediaDirectorySource = "";
+$mediaRootRaw = null;
+$mediaDirectoryMkdirError = "";
 if (file_exists(__DIR__ . "/media_root.txt")) {
-    $mediaDirectory = trim(file_get_contents(__DIR__ . "/media_root.txt"));
+    $mediaDirectorySource = "It is set by " . __DIR__ . "/media_root.txt";
+    $mediaRootRaw = @file_get_contents(__DIR__ . "/media_root.txt");
+    $mediaDirectory = trim((string) $mediaRootRaw);
     $fppHome = dirname($mediaDirectory);
 } else if (is_dir("/home/fpp")) {
+    $mediaDirectorySource = "There is no " . __DIR__ . "/media_root.txt, so the /home/fpp/media default is used";
     $fppHome = "/home/fpp";
     $mediaDirectory = "/home/fpp/media";
 } else {
+    $mediaDirectorySource = "There is no " . __DIR__ . "/media_root.txt and no /home/fpp, so a temporary folder is used";
     $fppHome = sys_get_temp_dir() . "/fpp";
     if (!is_dir($fppHome)) {
         mkdir($fppHome);
@@ -25,18 +36,23 @@ if (str_contains($mediaDirectory, "\0")) {
     // fopen(), mkdir() and most other filesystem calls throw a ValueError on
     // a NUL byte, which @ does not silence, so a path holding one would take
     // down every page and API call.  Make it a harmless path that does not
-    // exist, so the missing-media banner reports it instead.
+    // exist; the banner reports the real bytes from $mediaRootRaw.
     $mediaDirectory = str_replace("\0", "\\0", $mediaDirectory);
+    $mediaDirectoryMkdirError = "not tried, the path contains a NUL byte";
 } else if ($mediaDirectory == "" || $mediaDirectory[0] != '/') {
     // A relative path would be created under the web server's working
     // directory (inside /opt/fpp/www), pass is_dir(), and quietly collect
-    // every setting and upload there.  Leave it missing for the banner.
+    // every setting and upload there.
+    $mediaDirectoryMkdirError = "not tried, the path is not absolute";
 } else if (!is_dir($mediaDirectory)) {
     // Recursive, because the usual shape of a wrong media_root.txt is a path
     // whose parent is missing too.  Silenced, because a path that cannot be
     // created is reported properly by the banner in menu.inc rather than as a
     // PHP warning printed into the middle of whatever page ran first.
-    @mkdir($mediaDirectory, 0777, true);
+    error_clear_last();
+    if (!@mkdir($mediaDirectory, 0777, true)) {
+        $mediaDirectoryMkdirError = preg_replace('/^mkdir\(\): /', '', error_get_last()['message'] ?? '');
+    }
 }
 $settingsFile = $mediaDirectory . "/settings";
 
