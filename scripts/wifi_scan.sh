@@ -225,8 +225,11 @@ while read -r wifi_device || [[ -n $wifi_device ]]; do
         # scans and just prefer the low-priority hint where the driver has it.
         printf "%s: connected to '%s'\n\n" "$wifi_device" "$ssid"
         # "lowpri", as iw spells it: "low-priority" is a usage error.
-        if iw_scan=$(iw dev "$wifi_device" scan lowpri 2>&1); then
+        # Time-limited: some drivers (mt7601u) accept it and never finish.
+        if iw_scan=$(timeout -k 1 5 iw dev "$wifi_device" scan lowpri 2>&1); then
             show "iw dev $wifi_device scan (nl80211, low-priority)" '^BSS ' parse_iw "$iw_scan"
+        elif rc=$?; [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
+            printf -- "----- iw dev %s scan (nl80211, low-priority) -----\ntimed out after 5s\n\n" "$wifi_device"
         else
             # Most in-kernel drivers (brcmfmac on the Pi's onboard radio
             # included) never advertise NL80211_FEATURE_LOW_PRIORITY_SCAN.

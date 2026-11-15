@@ -445,8 +445,9 @@ function network_wifi_run_scan($interface, $connected)
         // Kindest to the live link where the driver implements it.
         // "lowpri" is iw's word for it; iw refuses anything else as a usage
         // error, so "low-priority" never scanned and every connected scan fell
-        // through to a full one.
-        $attempts[] = array("sudo /sbin/iw dev $iface scan lowpri 2>/dev/null", 'network_parse_iw_scan');
+        // through to a full one. Time-limited: some drivers (mt7601u) accept
+        // it and never finish, and exec() time isn't in max_execution_time.
+        $attempts[] = array("sudo /usr/bin/timeout -k 1 5 /sbin/iw dev $iface scan lowpri 2>/dev/null", 'network_parse_iw_scan');
     }
 
     // Preferred path: nl80211 via `iw`. Works on modern in-kernel drivers
