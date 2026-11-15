@@ -638,6 +638,25 @@ function UpdateActivityBootAfter($lines)
 }
 
 /**
+ * True when an OS upgrade's part1 reported a finished copy ("Please reboot if
+ * the system does not do so automatically", printed only on success) and the
+ * box then booted: it rebooted into the new image, even though the reset lost
+ * the PHP side's "Rebooting" line.
+ */
+function UpdateActivityRebootedAfterCopy($lines)
+{
+    $copied = false;
+    foreach ($lines as $line) {
+        if (strpos($line, 'Please reboot if the system does not do so automatically') !== false) {
+            $copied = true;
+        } elseif ($copied && preg_match('/\[fpp-boot [0-9a-f-]+\] System booted/', $line)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * True when any liveness signal says an update is running: a worker process
  * is alive OR the update lock is held. The lock probe is cheap (no fork);
  * the ps probe forks, so callers on the hot path should check the lock
@@ -1138,6 +1157,12 @@ function GetUpdateActivityInternal($withLogTail = false)
         return UpdateActivityWorkersActive($empty, $holder, $tail['mtime'], $logStatSize, $withLogTail);
     }
     $alive = ($holder !== false) || UpdateActivityProcessAlive();
+    if (!$alive && $startOp === 'os-upgrade' && UpdateActivityRebootedAfterCopy($after)) {
+        if (!$withLogTail) {
+            UpdateActivityWriteCache($logStatSize, $logStatMtime, $base);
+        }
+        return $base;
+    }
     // A boot since the run's START ends it even when its closing lines were
     // lost to the reset (an upgrade from an older FPP still loses them, #3187).
     $recent = UpdateActivityLogFresh($tail['mtime']) && !UpdateActivityBootAfter($after);
