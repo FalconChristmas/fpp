@@ -18,6 +18,7 @@ if [ "$1" = "--source" ] || [ "$1" = "-s" ]; then
     WANT_SOURCE=1
 fi
 
+
 emit() {
     # emit <uuid> <source>
     if [ "$WANT_SOURCE" = "1" ]; then
@@ -235,28 +236,39 @@ if [[ -f /sbin/dmidecode  || -f /usr/sbin/dmidecode ]]; then
 fi
 
 #
-# systemd's machine-id.  The images write the literal "uninitialized" (see
-# SD/build-image-*.sh) so that each freshly flashed card generates its own on
-# first boot, and SD/upgradeOS-part2.sh saves and restores the file around the
-# upgrade rsync, so an in-place OS upgrade keeps the value the board had.
+# systemd's machine-id is deliberately NOT an identity source any more.
 #
-# "uninitialized" must never be emitted: it is what every image ships and what
-# the file briefly contains after an upgrade, before systemd regenerates it.
-# Older images did bake a real value in, so a board upgraded from one of those
-# can still carry an identity shared with its image siblings -- the uuidSource
-# field reports "machine-id" so those records stay distinguishable.
+# It was one (M4-), on the theory that a unique fallback beats no fallback.
+# The value is unique per INSTALL, not per board: it is baked into an image,
+# cloned with the card, and -- because SD/upgradeOS-part2.sh saves and restores
+# it -- carried across an in-place OS upgrade.  So every board flashed from one
+# image shares it, and the shared value outlives any attempt to fix it.  That is
+# the whole of the duplicate-UUID class: three unrelated controllers on one show
+# reporting the same M4- value, xLights marking one of them unavailable, and FPP
+# Connect failing until somebody overrides the setting by hand.
 #
-if [ -f "/etc/machine-id" ]; then
-    UUID=$(tr -d '\0' </etc/machine-id | head -1)
-    if [ "$UUID" != "uninitialized" ] && uuid_valid "$UUID"; then
-        emit "M4-$UUID" "machine-id"
-    fi
-fi
-
+# A candidate that cannot be unique by construction is worse than the generated
+# value below, which cannot collide at all -- so the chain now goes straight
+# from the hardware sources to that.  machine-id stays available to whoever
+# wants it as a diagnostic; it is just not an identity.
+#
 fi   # end of the host-hardware branches, skipped in a container
 
 #
-# If all else fails, generate one and persist it.
+# No source could prove uniqueness, so generate one and persist it.
+#
+# Random gives 122 bits, which cannot collide.  Persisting is what makes it
+# stable; the risk is that a card snapshot, a backup restore or a container
+# image carries the file to a different board, and a copied identity is exactly
+# what this script exists to avoid.  So what is stored is the UUID AND a
+# fingerprint of the things a card cannot copy -- the SoC serial in the device
+# tree and the MAC of every non-gadget interface.  If the two disagree, the file
+# was not written on this hardware and this board makes its own identity instead
+# of inheriting its neighbour's.
+#
+# A record with no fingerprint at all is not reused either: "generate once" is
+# only a guarantee if the file cannot be copied, and provenance that cannot be
+# checked is treated as provenance that is wrong.
 #
 # Kept in two places: /etc/fpp/fpp_uuid is canonical and is saved/restored
 # across an OS upgrade the same way machine-id is.  The copy under the media
@@ -266,40 +278,97 @@ fi   # end of the host-hardware branches, skipped in a container
 #
 UUIDFILE=${FPP_UUIDFILE:-/etc/fpp/fpp_uuid}
 UUIDMEDIAFILE=${FPP_UUIDMEDIAFILE:-/home/fpp/media/config/fpp_uuid}
-# Recover from the media copy if the canonical one was lost
-if [ ! -f $UUIDFILE ] && [ -f $UUIDMEDIAFILE ]; then
-    UUID=$(tr -d '\0' <$UUIDMEDIAFILE | head -1)
-    if uuid_valid "$UUID"; then
-        sudo mkdir -p /etc/fpp 2>/dev/null
-        echo "$UUID" | sudo tee $UUIDFILE >/dev/null 2>&1
-        sudo chmod 644 $UUIDFILE 2>/dev/null
-    fi
-fi
-if [ ! -f $UUIDFILE ]; then
-    sudo mkdir -p /etc/fpp 2>/dev/null
-    sudo cp /proc/sys/kernel/random/uuid $UUIDFILE 2>/dev/null
-    sudo chmod 644 $UUIDFILE 2>/dev/null
-fi
-if [ -f $UUIDFILE ]; then
-    UUID=$(tr -d '\0' <$UUIDFILE | head -1)
-    if uuid_valid "$UUID"; then
-        # Keep the media copy in step.  It is what survives an upgrade run by an
-        # older upgradeOS-part2.sh, and in a container it is the ONLY copy that
-        # survives the container being recreated -- so create the directory
-        # rather than skipping the mirror when it is not there yet.
-        MEDIADIR=$(dirname $UUIDMEDIAFILE)
-        if [ ! -d "$MEDIADIR" ] && [ -d "$(dirname $MEDIADIR)" ]; then
-            mkdir -p "$MEDIADIR" 2>/dev/null || sudo mkdir -p "$MEDIADIR" 2>/dev/null
-        fi
-        if [ -d "$MEDIADIR" ] && [ "$(cat $UUIDMEDIAFILE 2>/dev/null)" != "$UUID" ]; then
-            echo "$UUID" > $UUIDMEDIAFILE 2>/dev/null || true
-        fi
-        if [ "$IN_CONTAINER" = "y" ]; then
-            emit "$UUID" "container"
-        fi
-        emit "$UUID" "generated"
-    fi
+
+# A digest of the board, not of the install.  Gadget interfaces are excluded:
+# their MAC is generated per boot, so including one would make the fingerprint
+# -- and with it the identity -- change on every reboot.
+UUID_FP=""
+FP_PARTS=""
+for f in /proc/device-tree/serial-number /proc/device-tree/model; do
+    [ -r "$f" ] && FP_PARTS="${FP_PARTS}$(tr -d '\0' <"$f" | tr -d '[:space:]')"
+done
+for f in /sys/class/net/*/address; do
+    [ -r "$f" ] || continue
+    case "$f" in
+        */usb*/address|*/lo/address) continue ;;
+    esac
+    FP_PARTS="${FP_PARTS}$(tr -d ':' <"$f")"
+done
+if [ -n "$FP_PARTS" ]; then
+    UUID_FP=$(printf '%s' "$FP_PARTS" | sha256sum | cut -c1-16)
 fi
 
+# Reads one stored record into SU_UUID / SU_FP.  A record written before the
+# fingerprint existed has no second field, which reads as unknown provenance.
+read_uuid_file() {
+    SU_UUID=""
+    SU_FP=""
+    [ -f "$1" ] || return 1
+    read -r SU_UUID SU_FP < "$1" || true
+    [ -n "$SU_UUID" ] || return 1
+    return 0
+}
+
+# Prefer the canonical copy; fall back to the media one if it was lost.
+#
+# A record is adopted only when it names this hardware.  Two cases are not that:
+# a record whose fingerprint disagrees with this board (a copied file), and a
+# record with no fingerprint on a board where one can be computed (written by an
+# older get_uuid, so its provenance is unknown).  Both regenerate rather than
+# inherit.  On hardware where no fingerprint can be computed at all there is
+# nothing to compare, so a valid record is adopted -- the alternative would be
+# churning the identity on every boot of a board that cannot tell us apart from
+# a copy of itself.
+UUID=""
+UNCERTAIN=n
+for f in "$UUIDFILE" "$UUIDMEDIAFILE"; do
+    read_uuid_file "$f" || continue
+    uuid_valid "$SU_UUID" || continue
+    if [ -z "$UUID_FP" ] || [ "$SU_FP" = "$UUID_FP" ]; then
+        UUID="$SU_UUID"
+        break
+    fi
+    UNCERTAIN=y
+done
+
+if [ "$UNCERTAIN" = "y" ] && [ -z "$UUID" ]; then
+    echo "get_uuid: stored UUID was not written on this hardware (or has no provenance); generating a new one" >&2
+fi
+
+if [ -z "$UUID" ]; then
+    UUID=$(tr -d '\0' </proc/sys/kernel/random/uuid | head -1)
+    uuid_valid "$UUID" || UUID=""
+fi
+
+if [ -n "$UUID" ]; then
+    if [ -n "$UUID_FP" ]; then
+        RECORD="$UUID $UUID_FP"
+    else
+        RECORD="$UUID"
+    fi
+    # Canonical copy first; /etc/fpp is root-owned, hence sudo.
+    if [ "$(cat "$UUIDFILE" 2>/dev/null)" != "$RECORD" ]; then
+        sudo mkdir -p "$(dirname "$UUIDFILE")" 2>/dev/null
+        if ! echo "$RECORD" | sudo tee "$UUIDFILE" >/dev/null 2>&1; then
+            echo "get_uuid: could not write $UUIDFILE" >&2
+        fi
+        sudo chmod 644 "$UUIDFILE" 2>/dev/null
+    fi
+    # Keep the media copy in step.  It is what survives an upgrade run by an
+    # older upgradeOS-part2.sh, and in a container it is the ONLY copy that
+    # survives the container being recreated -- so create the directory rather
+    # than skipping the mirror when it is not there yet.
+    MEDIADIR=$(dirname "$UUIDMEDIAFILE")
+    if [ ! -d "$MEDIADIR" ] && [ -d "$(dirname "$MEDIADIR")" ]; then
+        mkdir -p "$MEDIADIR" 2>/dev/null || sudo mkdir -p "$MEDIADIR" 2>/dev/null
+    fi
+    if [ -d "$MEDIADIR" ] && [ "$(cat "$UUIDMEDIAFILE" 2>/dev/null)" != "$RECORD" ]; then
+        echo "$RECORD" > "$UUIDMEDIAFILE" 2>/dev/null || true
+    fi
+    if [ "$IN_CONTAINER" = "y" ]; then
+        emit "$UUID" "container"
+    fi
+    emit "$UUID" "generated"
+fi
 
 emit "Unknown" "none"
