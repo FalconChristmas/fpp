@@ -1853,7 +1853,8 @@
         $interfaces = network_list_interfaces_array();
         foreach ($interfaces as $iface) {
             $iface = preg_replace("/:$/", "", $iface);
-            echo "<option value='" . $iface;
+            $ifaceHtml = htmlspecialchars($iface, ENT_QUOTES, 'UTF-8');
+            echo "<option value='" . $ifaceHtml;
             echo "'";
             if ($iface === "eth0") {
                 echo " selected";
@@ -1869,7 +1870,7 @@
                 // If no speed is found, try to get the speed from the Speed line for the actual connection/link speed
                 $ifaceSpeed = exec("$SUDO ethtool $ifaceArg | grep -i 'Speed:' | grep -Eo '[0-9]{1,4}' | sort | tail -1");
             }
-            echo ">" . $iface . " (" . $ifaceSpeed . "Mbps)</option>";
+            echo ">" . $ifaceHtml . " (" . $ifaceSpeed . "Mbps)</option>";
         }
     }
     ?>
