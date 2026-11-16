@@ -1853,7 +1853,7 @@
         $interfaces = network_list_interfaces_array();
         foreach ($interfaces as $iface) {
             $iface = preg_replace("/:$/", "", $iface);
-            $ifaceHtml = htmlspecialchars($iface, ENT_QUOTES, 'UTF-8');
+            $ifaceHtml = htmlspecialchars($iface, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
             echo "<option value='" . $ifaceHtml;
             echo "'";
             if ($iface === "eth0") {
