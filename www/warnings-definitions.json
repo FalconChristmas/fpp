@@ -533,6 +533,13 @@
             "HelpTxt": "",
             "HelpPageType": "md",
             "WarningGroup": "Output_Warnings"
+        },
+        {
+            "id": 60,
+            "Title": "Duplicate System UUID",
+            "HelpTxt": "",
+            "HelpPageType": "md",
+            "WarningGroup": "Network_Warnings"
         }
     ]
 }

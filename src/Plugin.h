@@ -84,7 +84,11 @@
 // cannot be undone - drogon has no route removal - and so pins a plugin's .so
 // in memory for the life of the process. Registering through FPP keeps the
 // route in libfpp and lets a replacement build of the plugin take it over.
-#define FPP_PLUGIN_API_VERSION 6
+// 7: MultiSync gained two members (m_duplicateUUIDChecked,
+// m_duplicateUUIDWarning) for the duplicate-UUID check.  Plugins subclass
+// MultiSyncPlugin and call the inline isMultiSyncEnabled(), which reads
+// MultiSync's layout, so the size changed under them.
+#define FPP_PLUGIN_API_VERSION 7
 
 // Plugins compiled with these headers will export their API version.
 // weak linkage allows multiple TUs to define this; visibility ensures .so export.

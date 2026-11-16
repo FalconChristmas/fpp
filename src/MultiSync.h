@@ -381,6 +381,13 @@ public:
     void Discover(void);
     void PeriodicPing();
 
+    // One device, one identity: if a peer is advertising the UUID this device
+    // is advertising, this device is the duplicate to fix.  Called from
+    // PeriodicPing(); see the implementation for why the local side always
+    // yields and why it acts at most once per run.
+    void CheckForDuplicateUUID();
+    void setDuplicateUUIDWarning(const std::string& msg);
+
     void SendSeqOpenPacket(const std::string& filename);
     void SendSeqSyncStartPacket(const std::string& filename);
     void SendSeqSyncStopPacket(const std::string& filename);
@@ -503,6 +510,11 @@ private:
     void ProcessPingPacket(ControlPkt* pkt, int len, const std::string& src, MultiSyncStats* stats, const std::string& incomingIp = "");
     void ProcessPluginPacket(ControlPkt* pkt, int len, MultiSyncStats* stats);
     void ProcessFPPCommandPacket(ControlPkt* pkt, int len, MultiSyncStats* stats);
+
+    // Duplicate-UUID handling, touched only by CheckForDuplicateUUID(), which
+    // the main loop calls.
+    bool m_duplicateUUIDChecked = false;
+    std::string m_duplicateUUIDWarning;
 
     std::recursive_mutex m_systemsLock;
     std::vector<MultiSyncSystem> m_localSystems;

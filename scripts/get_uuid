@@ -18,6 +18,10 @@ if [ "$1" = "--source" ] || [ "$1" = "-s" ]; then
     WANT_SOURCE=1
 fi
 
+WANT_REGEN=0
+if [ "$1" = "--regenerate" ] || [ "$1" = "-r" ]; then
+    WANT_REGEN=1
+fi
 
 emit() {
     # emit <uuid> <source>
@@ -138,6 +142,55 @@ uuid_valid() {
     return 0
 }
 
+
+#
+# --regenerate: replace this board's identity with a new one.
+#
+# Called by fppd when MultiSync sees another device advertising our UUID (see
+# MultiSync::CheckForDuplicateUUID).  The source that is winning right now
+# decides what "replace" can mean, and this only performs the change that
+# source allows:
+#
+#   generated / container   drop the stored value; the normal path below then
+#                           makes a new one and persists it as usual
+#   setting                 rewrite the FPP_UUID override in the media settings
+#                           file, which fppd re-reads when it changes
+#   anything else           refuse with exit 3.  cpuinfo, device-tree, board
+#                           EEPROM and dmidecode values are burned into the
+#                           hardware, and machine-id is not ours to rewrite from
+#                           here -- a board whose identity comes from those
+#                           needs an override, and that is its owner's decision.
+#
+# Nothing extra is printed: the normal path emits the new value (and --source
+# its token), so callers parse the output exactly as they do today.
+#
+if [ "$WANT_REGEN" = "1" ]; then
+    REGEN_SRC=$("$0" --source)
+    case "$REGEN_SRC" in
+        generated|container)
+            sudo rm -f "${FPP_UUIDFILE:-/etc/fpp/fpp_uuid}" "${FPP_UUIDMEDIAFILE:-/home/fpp/media/config/fpp_uuid}" 2>/dev/null
+            rm -f /tmp/fpp_uuid /tmp/fpp_uuid_source 2>/dev/null
+            ;;
+        setting)
+            REGEN_SETTINGS=/home/fpp/media/settings
+            REGEN_NEW="$(tr -d '\0' </proc/sys/kernel/random/uuid | tr -d '[:space:]' | tr 'a-z' 'A-Z')"
+            REGEN_TMP=$(mktemp)
+            sed -e "0,/^FPP_UUID.*/s//FPP_UUID = ${REGEN_NEW}/" "$REGEN_SETTINGS" > "$REGEN_TMP"
+            # tee truncates in place, so the file keeps its owner and mode
+            if ! sudo tee "$REGEN_SETTINGS" < "$REGEN_TMP" >/dev/null; then
+                rm -f "$REGEN_TMP"
+                echo "get_uuid: could not rewrite FPP_UUID in $REGEN_SETTINGS" >&2
+                exit 3
+            fi
+            rm -f "$REGEN_TMP" /tmp/fpp_uuid /tmp/fpp_uuid_source 2>/dev/null
+            ;;
+        *)
+            echo "get_uuid: cannot regenerate: identity comes from '$REGEN_SRC'" >&2
+            exit 3
+            ;;
+    esac
+    # fall through: the chain re-derives and re-persists the value
+fi
 
 PLATFORM=$(uname);
 

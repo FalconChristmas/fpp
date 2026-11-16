@@ -22,6 +22,7 @@
 #include <net/if.h>
 #include <netinet/in.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -1890,7 +1891,126 @@ void MultiSync::Ping(int discover, bool broadcast) {
         }
     }
 }
+/*
+ * One device, one identity.
+ *
+ * MultiSync carries each peer's System UUID in its ping (v4, PING_V4_LEN), and
+ * the mDNS probe fills the same field in for peers found that way, so a
+ * duplicate is visible from here without an HTTP round trip -- which is what
+ * was missing when the previous attempt at this was reverted.
+ *
+ * A peer advertising our UUID breaks FPP Connect: xLights cannot tell the two
+ * devices apart and marks one of them unavailable.  The local side always
+ * yields rather than arbitrating who should change, because the peer may be an
+ * older FPP that knows nothing about this, and waiting for it to act on a
+ * tie-break could leave the duplicate in place indefinitely.  Two boxes running
+ * this code both regenerate on the same pass, which also converges -- random
+ * values differ -- and costs one identity change on a pair that was already
+ * broken.
+ *
+ * One attempt per fppd run.  A refusal (get_uuid exits 3 because the identity
+ * comes from hardware) raises a warning and is not retried: the same refusal
+ * twenty times a minute would only fill the log.
+ */
+void MultiSync::CheckForDuplicateUUID() {
+    std::string localUUID = getSetting("SystemUUID");
+    if (localUUID.empty() || localUUID == "Unknown") {
+        return;
+    }
+
+    std::vector<std::string> peers;
+    {
+        std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
+        for (auto& sys : m_remoteSystems) {
+            if (sys.uuid != localUUID) {
+                continue;
+            }
+            std::string who = sys.hostname.empty() ? sys.address : sys.hostname;
+            if (who.empty()) {
+                continue;
+            }
+            if (std::find(peers.begin(), peers.end(), who) == peers.end()) {
+                peers.push_back(who);
+            }
+        }
+    }
+
+    if (peers.empty()) {
+        // Nothing shares the identity any more: drop a warning we raised.
+        if (!m_duplicateUUIDWarning.empty()) {
+            WarningHolder::RemoveWarning(60, m_duplicateUUIDWarning);
+            m_duplicateUUIDWarning.clear();
+        }
+        return;
+    }
+
+    std::string who;
+    for (auto& p : peers) {
+        if (!who.empty()) {
+            who += ", ";
+        }
+        who += p;
+    }
+
+    if (m_duplicateUUIDChecked) {
+        return;
+    }
+    m_duplicateUUIDChecked = true;
+
+    std::string newUUID;
+    int status = -1;
+    std::string cmd = getFPPDDir("/scripts/get_uuid") + " --regenerate 2>/dev/null";
+    FILE* fp = popen(cmd.c_str(), "r");
+    if (fp) {
+        char buf[256] = {};
+        if (fgets(buf, sizeof(buf), fp)) {
+            newUUID = buf;
+            newUUID.erase(newUUID.find_last_not_of(" \t\r\n") + 1);
+        }
+        int rc = pclose(fp);
+        status = (rc == -1) ? -1 : WEXITSTATUS(rc);
+    }
+
+    if (status == 0 && !newUUID.empty() && newUUID != localUUID) {
+        // Apply now so the value the next ping carries is already the new one;
+        // the script has persisted it, so a restart agrees with this.
+        setSetting("SystemUUID", newUUID, false);
+        unlink("/tmp/fpp_uuid");
+        unlink("/tmp/fpp_uuid_source");
+        LogWarn(VB_SYNC, "Duplicate UUID %s is also advertised by %s; regenerated this device as %s\n",
+                localUUID.c_str(), who.c_str(), newUUID.c_str());
+        // Deliberately no UI warning: the duplicate is gone, and a warning that
+        // clears itself a minute later is worse than none.  The identity change
+        // is in the log, and xLights shows the new UUID on the next FPP Connect.
+        return;
+    }
+
+    LogWarn(VB_SYNC, "Duplicate UUID %s is also advertised by %s and could not be regenerated\n",
+            localUUID.c_str(), who.c_str());
+    setDuplicateUUIDWarning("Another device on the network (" + who + ") is using this device's UUID, and "
+                            "this device's UUID comes from its hardware, so it cannot be regenerated. Set "
+                            "'Override UUID' in FPP Settings on one of the two devices.");
+}
+
+void MultiSync::setDuplicateUUIDWarning(const std::string& msg) {
+    if (msg == m_duplicateUUIDWarning) {
+        return;
+    }
+    if (!m_duplicateUUIDWarning.empty()) {
+        WarningHolder::RemoveWarning(60, m_duplicateUUIDWarning);
+    }
+    WarningHolder::AddWarning(60, msg);
+    m_duplicateUUIDWarning = msg;
+}
+
 void MultiSync::PeriodicPing() {
+    // Before any of the timers below: a duplicate UUID is visible as soon as a
+    // peer's ping has been parsed, and making the user wait up to a minute for
+    // the once-a-minute sweep to notice is a minute of FPP Connect not working.
+    // The check is a lock and a string compare per known remote until there is
+    // a duplicate, and it acts at most once per run.
+    CheckForDuplicateUUID();
+
     time_t t = time(NULL);
     if (m_lastCheckTime == 0) {
         m_lastCheckTime = (unsigned long)t;
