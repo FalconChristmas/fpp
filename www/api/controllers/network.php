@@ -845,7 +845,11 @@ function network_persistentNames_create()
     $count = 0;
     foreach ($interfaces as $iface) {
         $iface = preg_replace("/:$/", "", $iface);
-        $cmd = "ip link show " . $iface . " | grep ether | awk '{split($0, a,\" \"); print a[2];}'";
+        // Kernel interface names are passed to a shell below; quote the value
+        // so metacharacters cannot start a second command.  The raw name is
+        // still used for paths and comparisons.
+        $ifaceArg = escapeshellarg($iface);
+        $cmd = "ip link show " . $ifaceArg . " | grep ether | awk '{split($0, a,\" \"); print a[2];}'";
         exec($cmd, $output, $return_val);
         $macAddress = $output[0];
 
@@ -855,7 +859,7 @@ function network_persistentNames_create()
             $cont = $cont . "\nOriginalName=wl*";
         }
 
-        $mod = shell_exec("cat /sys/class/net/" . $iface . "/device/modalias");
+        $mod = shell_exec("cat /sys/class/net/" . $ifaceArg . "/device/modalias");
         if (substr_compare($iface, "eth", 0, 3) == 0 && substr_compare($mod, "usb", 0, 3) == 0) {
             //USB ethernet adapter, the iface name is going to end up changing, we need to rename the
             //FPP config file
@@ -870,7 +874,7 @@ function network_persistentNames_create()
             $cont = $cont . "\n\n[Link]\nNamePolicy=\nName=" . $iface . "\n";
         }
         file_put_contents("/tmp/5" . strval($count) . "-fpp-" . $iface . ".link", $cont);
-        shell_exec("sudo mv /tmp/5" . strval($count) . "-fpp-" . $iface . ".link /etc/systemd/network/");
+        shell_exec("sudo mv /tmp/5" . strval($count) . "-fpp-" . $ifaceArg . ".link /etc/systemd/network/");
 
         unset($output);
         $count = $count + 1;
