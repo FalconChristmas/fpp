@@ -3,7 +3,7 @@
 // from a player nobody can reach names the exact problem and holds enough to
 // find what caused it.  menu.inc loads it on every page for the free-space
 // check (one stat -f); everything else only runs when a banner shows.  It
-// states what is wrong; it does not suggest fixes.
+// states what is wrong; only MediaMountProblem() also says how to undo it.
 //
 // MediaDirectoryProblem() walks the path one folder at a time from /,
 // following symlinks the way the kernel does, and stops at the first step
@@ -29,6 +29,22 @@ function MediaDiagnoseUnescapeMount($s)
     return preg_replace_callback('/\\\\([0-7]{3})/', function ($m) {
         return chr(octdec($m[1]));
     }, $s);
+}
+
+// A /dev name as a user knows it, for banner wording; sysfs says SD card or eMMC.
+function MediaDriveName($dev)
+{
+    $name = preg_replace('#^/dev/#', '', (string) $dev);
+    if (preg_match('/^sd[a-z]/', $name)) {
+        return "USB drive";
+    }
+    if (preg_match('/^nvme/', $name)) {
+        return "NVMe drive";
+    }
+    if (preg_match('/^(mmcblk[0-9]+)/', $name, $m)) {
+        return (trim((string) @file_get_contents("/sys/block/" . $m[1] . "/device/type")) == "MMC") ? "eMMC" : "SD card";
+    }
+    return "drive";
 }
 
 // Lines of a mount table as arrays of fields, comments and blanks skipped
@@ -482,3 +498,43 @@ function MediaSpaceProblem($dir)
     return array("kind" => $kind, "summary" => $summary, "details" => $details);
 }
 
+// The media-drive banner: null when fine, else array("text" => what is wrong,
+// "fix" => the lead-in to the Storage tab advice, or "" when that tab cannot
+// change the line: UUID=, a share, another media folder, or an unusual root).
+// The fstab line that counts is an exact mount-point match, so a share
+// mounted inside media neither raises this nor hides it.
+function MediaMountProblem($dir)
+{
+    $mount = rtrim($dir, '/');
+    $dev = "";
+    foreach (MediaDiagnoseMountTable("/etc/fstab") as $f) {
+        if (rtrim($f[1], '/') == $mount && !in_array("noauto", explode(",", $f[3] ?? ""))) {
+            $dev = $f[0];
+        }
+    }
+    if ($dev == "") {
+        return null;
+    }
+    foreach (MediaDiagnoseMountTable("/proc/mounts") as $f) {
+        if (rtrim($f[1], '/') == $mount && ($f[2] ?? "") != "autofs") {
+            return null;
+        }
+    }
+    // findmnt, as the Storage tab uses for its "(current storage device)" tag
+    $out = array();
+    exec('findmnt -n -o SOURCE -T ' . escapeshellarg($mount) . ' 2>/dev/null', $out);
+    $under = $out[0] ?? "";
+    $instead = "the " . MediaDriveName($under) . (preg_match('#^/dev/([A-Za-z0-9]+)$#', $under, $m) ? " (" . $m[1] . ")" : "");
+    if (!preg_match('#^/dev/[A-Za-z0-9]+$#', $dev) || $mount != "/home/fpp/media" ||
+        !preg_match('#^/dev/(sd|mmcblk|nvme)[A-Za-z0-9]+$#', $under)) {
+        return array("text" => "/etc/fstab mounts " . MediaDiagnoseShow($dev) . " at " . MediaDiagnoseShow($mount) .
+            " but it is not mounted, so FPP is saving your show files to $instead instead. Fix or remove that line in /etc/fstab.", "fix" => "");
+    }
+    $drive = "the " . MediaDriveName($dev) . " (" . substr($dev, 5) . ")";
+    if (!file_exists($dev)) {
+        return array("text" => "FPP is set up to keep your show files on $drive, but that drive isn't connected. " .
+            "Until it is, FPP is saving them to $instead instead.", "fix" => "If you don't use that drive any more,");
+    }
+    return array("text" => "FPP is set up to keep your show files on $drive. It's connected but couldn't be used " .
+        "(it may need checking), so FPP is saving them to $instead instead.", "fix" => "To stop using it,");
+}

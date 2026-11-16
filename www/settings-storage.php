@@ -107,6 +107,7 @@ require_once('common.php');
 function PrintStorageDeviceSelect($platform)
 {
     global $SUDO;
+    global $settings;
 
     //exec('lsblk -l | grep ' . GetDirSetting('boot') . ' | cut -f1 -d" " | sed -e "s/p[0-9]$//"', $output, $return_val);
     exec('lsblk -l | grep ' . GetDirSetting('boot') . ' | cut -f1 -d" "', $output, $return_val);
@@ -174,7 +175,7 @@ function PrintStorageDeviceSelect($platform)
             $key = $fileName . " ";
             $type = "";
 
-            if (preg_match("/^$storageDevice/", $fileName)) {
+            if ($storageDevice !== "" && $fileName === $storageDevice) {
                 $type .= " (current storage device)";
             }
 
@@ -195,18 +196,16 @@ function PrintStorageDeviceSelect($platform)
         }
     }
 
-    // A media drive that /etc/fstab names but that is not attached.  Without
-    // this the setting shows what the media folder is on now -- the boot
-    // device, since the folder underneath the missing mount is what is in
-    // use -- so the boot device cannot be chosen (it is already selected)
-    // and the stale line can never be taken out of /etc/fstab from here.
+    $fstabDevice = "";
     foreach (@file("/etc/fstab") ?: array() as $fsLine) {
         $f = preg_split('/\s+/', trim($fsLine));
         if (count($f) >= 2 && preg_match('#^/dev/([A-Za-z0-9]+)$#', $f[0], $m) &&
-            rtrim($f[1], '/') == '/home/fpp/media' && !file_exists($f[0])) {
-            $values[$m[1] . " - (in /etc/fstab, not attached)"] = $m[1];
-            $storageDevice = $m[1];
-            $found = 1;
+            rtrim($f[1], '/') == '/home/fpp/media' && !in_array("noauto", explode(",", $f[3] ?? ""))) {
+            $fstabDevice = $m[1];
+            if (!file_exists($f[0])) {
+                $values[$m[1] . " - (in /etc/fstab, not attached)"] = $m[1];
+                $found = 1;
+            }
         }
     }
 
@@ -214,11 +213,20 @@ function PrintStorageDeviceSelect($platform)
         $arr = array_reverse($values, true);
         $values = $arr;
     }
-    if ($storageDevice == "") {
-        $storageDevice = $rootDevice;
-    }
 
-    PrintSettingSelect('StorageDevice', 'storageDevice', 0, 1, $storageDevice, $values, "", "checkFormatStorage");
+    // Preselect what the next boot mounts; the saved value can be stale (#3188).
+    $selectedDevice = "";
+    foreach (array($fstabDevice, $storageDevice, $rootDevice) as $d) {
+        if ($selectedDevice == "" && preg_match('/^[A-Za-z0-9]+$/', $d)) {
+            $selectedDevice = $d;
+        }
+    }
+    if ($selectedDevice != "" && !in_array($selectedDevice, $values, true)) {
+        $values[$selectedDevice . ($selectedDevice == $fstabDevice ? " - (in /etc/fstab)" : " - (current)")] = $selectedDevice;
+    }
+    unset($settings['storageDevice']);
+
+    PrintSettingSelect('StorageDevice', 'storageDevice', 0, 1, $selectedDevice, $values, "", "checkFormatStorage");
 }
 
 
