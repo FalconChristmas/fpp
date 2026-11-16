@@ -515,8 +515,8 @@ if (isset($_GET['cpu'])) {
             $mediaFree = disk_free_space($mediaDirectory);
             $mediaSeparate = false;
 
-            if (file_exists("/bin/findmnt")) {
-                exec('findmnt -n -o SOURCE ' . $mediaDirectory . ' | colrm 1 5', $output2, $return_val2);
+            if ($mediaDirectory !== '' && file_exists("/bin/findmnt")) {
+                exec('findmnt -n -o SOURCE ' . escapeshellarg($mediaDirectory) . ' | colrm 1 5', $output2, $return_val2);
                 if ($return_val2 == 0 && !empty($output2[0])) {
                     $mediaDevice = trim($output2[0]);
                     $mediaSeparate = ($mediaDevice !== $rootDevice);
