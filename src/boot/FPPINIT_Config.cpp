@@ -697,7 +697,7 @@ bool checkUnpartitionedSpace() {
             sourceDev = execAndReturn("/usr/bin/findmnt -n -o SOURCE /");
             TrimWhiteSpace(sourceDev);
         }
-        if (!sourceDev.empty()) {
+        if (startsWith(sourceDev, "/dev/")) {
             sourceDev = sourceDev.substr(5);
             std::string osd;
             getRawSetting("storageDevice", osd);
