@@ -789,7 +789,7 @@ function network_persistentNames_delete()
 {
     global $settings;
 
-    shell_exec("sudo rm -f /etc/systemd/network/5?-fpp-*.link");
+    shell_exec("sudo rm -f /etc/systemd/network/5*-fpp-*.link");
     shell_exec("sudo ln -sf /dev/null /etc/systemd/network/99-default.link");
     shell_exec("sudo ln -sf /dev/null /etc/systemd/network/73-usb-net-by-mac.link");
 
