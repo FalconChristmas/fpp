@@ -242,6 +242,44 @@ static void setupBBBMemoryMap() {
         }
     }
 #endif
+#ifdef PLATFORM_BBB
+    // AM335x chip labels and line names may be absent; bus paths identify the hardware bank.
+    const char* bankPaths[] = { "/44e07000.gpio/", "/4804c000.gpio/", "/481ac000.gpio/", "/481ae000.gpio/" };
+    int discovered[4] = { -1, -1, -1, -1 };
+    const std::string busDir("/sys/bus/gpio/devices");
+    if (DIR* dir = opendir(busDir.c_str())) {
+        struct dirent* entry;
+        while ((entry = readdir(dir)) != nullptr) {
+            std::string name(entry->d_name);
+            if (!name.starts_with("gpiochip")) {
+                continue;
+            }
+            const char* suffix = name.c_str() + 8;
+            char* end = nullptr;
+            long chipNum = strtol(suffix, &end, 10);
+            if (end == suffix || *end != '\0' || chipNum < 0 || chipNum > 255 || !FileExists("/dev/" + name)) {
+                continue;
+            }
+            char target[PATH_MAX + 1];
+            if (!realpath((busDir + "/" + name).c_str(), target)) {
+                continue;
+            }
+            std::string resolvedPath(target);
+            for (int bank = 0; bank < 4; bank++) {
+                if (resolvedPath.contains(bankPaths[bank])) {
+                    discovered[bank] = chipNum;
+                    break;
+                }
+            }
+        }
+        closedir(dir);
+    }
+    if (discovered[0] >= 0 && discovered[1] >= 0 && discovered[2] >= 0 && discovered[3] >= 0) {
+        for (int bank = 0; bank < 4; bank++) {
+            bbGPIOMap[bank] = discovered[bank];
+        }
+    }
+#endif
     registersMemMapped = true;
 }
 
