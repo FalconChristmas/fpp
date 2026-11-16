@@ -670,9 +670,15 @@ Segment &Segment::setName(const char *newName) {
   if (newName) {
     const int newLen = min(strlen(newName), (size_t)WLED_MAX_SEGNAME_LEN);
     if (newLen) {
-      if (name) name = static_cast<char*>(realloc(name, newLen+1));
-      else      name = static_cast<char*>(malloc(newLen+1));
-      if (name) strncpy(name, newName, newLen+1);
+      // realloc() into a temporary.  Assigning its result straight to name
+      // would drop the old pointer on failure and leave name null, and the
+      // terminator write below would then dereference it.  Keep the current
+      // name when memory cannot be had.
+      char *grown = static_cast<char*>(name ? realloc(name, newLen+1)
+                                            : malloc(newLen+1));
+      if (!grown) return *this;
+      name = grown;
+      strncpy(name, newName, newLen+1);
       name[newLen] = 0;
       return *this;
     }
