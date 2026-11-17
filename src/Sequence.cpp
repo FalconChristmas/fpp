@@ -1307,7 +1307,16 @@ void Sequence::CloseSequenceFile(void) {
 bool Sequence::WriteBridgeData(uint8_t* data, int startChannel, int len) {
     if (this->IsSequenceRunning()) {
         if (m_warn_if_bridging) {
-            WarningHolder::AddWarningTimeout(60 ,11, "Received bridging data while sequence is running.");
+            // Called for every bridged packet, so refresh the warning at most
+            // once a second rather than taking the warnings lock (and logging)
+            // hundreds of times a second.  The 60s timeout still tracks the
+            // last packet to within a second.
+            static std::atomic<long long> lastWarnMS{ 0 };
+            long long now = GetMonotonicTimeMS();
+            long long last = lastWarnMS.load(std::memory_order_relaxed);
+            if (now - last >= 1000 && lastWarnMS.compare_exchange_strong(last, now, std::memory_order_relaxed)) {
+                WarningHolder::AddWarningTimeout(60, 11, "Received bridging data while sequence is running.");
+            }
         }
         if (m_prioritize_sequence_over_bridge) {
             return false;
