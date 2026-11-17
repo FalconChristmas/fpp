@@ -384,9 +384,27 @@ bool InkColumnExtent(const uint8_t* mask, int w, int h, int y0, int y1, int& x0,
 void Colorize(const uint8_t* mask, int w, int h, const Layout& layout,
               Mode mode, const Palette& pal, double phase, bool cyclic,
               uint32_t seed, uint8_t* rgbOut) {
+    std::vector<int32_t> spanIndex;
+    ColorizeRegion(mask, w, h, layout, mode, pal, phase, cyclic, seed, rgbOut,
+                   0, 0, w, h, spanIndex);
+}
+
+void ColorizeRegion(const uint8_t* mask, int w, int h, const Layout& layout,
+                    Mode mode, const Palette& pal, double phase, bool cyclic,
+                    uint32_t seed, uint8_t* rgbOut,
+                    int rx0, int ry0, int rx1, int ry1,
+                    std::vector<int32_t>& spanIndex) {
     if (!mask || !rgbOut || w <= 0 || h <= 0) {
         return;
     }
+    rx0 = std::max(0, rx0);
+    ry0 = std::max(0, ry0);
+    rx1 = std::min(w, rx1);
+    ry1 = std::min(h, ry1);
+    if (rx0 >= rx1 || ry0 >= ry1) {
+        return;
+    }
+    const int rw = rx1 - rx0;
     const double ph = fract(phase);
 
     // A span mode whose geometry could not be measured (no ink, or a font that
@@ -401,21 +419,23 @@ void Colorize(const uint8_t* mask, int w, int h, const Layout& layout,
     }
     const bool randomSpans = (mode == Mode::RandomLetter || mode == Mode::RandomWord);
 
-    std::vector<int32_t> spanIndex;
+    // Span index of each pixel in the region (indexed relative to it).
     if (spanMode) {
-        spanIndex.assign((size_t)w * h, -1);
+        spanIndex.assign((size_t)rw * (ry1 - ry0), -1);
         for (const auto& s : layout.spans) {
-            int sy0 = std::max(0, s.y0);
-            int sy1 = std::min(h, s.y1);
-            int sx0 = std::max(0, s.x0);
-            int sx1 = std::min(w, s.x1);
+            int sy0 = std::max(ry0, s.y0);
+            int sy1 = std::min(ry1, s.y1);
+            int sx0 = std::max(rx0, s.x0);
+            int sx1 = std::min(rx1, s.x1);
             for (int y = sy0; y < sy1; ++y) {
-                int32_t* row = spanIndex.data() + (size_t)y * w;
+                int32_t* row = spanIndex.data() + (size_t)(y - ry0) * rw;
                 for (int x = sx0; x < sx1; ++x) {
-                    row[x] = s.index;
+                    row[x - rx0] = s.index;
                 }
             }
         }
+    } else {
+        spanIndex.clear();
     }
 
     const int lx = layout.x;
@@ -434,18 +454,20 @@ void Colorize(const uint8_t* mask, int w, int h, const Layout& layout,
     if (mode == Mode::Single) {
         uint32_t c = pal.colors.empty() ? 0xFFFFFF : pal.colors[0];
         int cr = (c >> 16) & 0xFF, cg = (c >> 8) & 0xFF, cb = c & 0xFF;
-        for (size_t i = 0, n = (size_t)w * h; i < n; ++i) {
-            uint32_t cov = mask[i];
-            uint8_t* o = rgbOut + i * 3;
-            o[0] = (uint8_t)((cr * cov) / 255);
-            o[1] = (uint8_t)((cg * cov) / 255);
-            o[2] = (uint8_t)((cb * cov) / 255);
+        for (int y = ry0; y < ry1; ++y) {
+            for (size_t i = (size_t)y * w + rx0, n = (size_t)y * w + rx1; i < n; ++i) {
+                uint32_t cov = mask[i];
+                uint8_t* o = rgbOut + i * 3;
+                o[0] = (uint8_t)((cr * cov) / 255);
+                o[1] = (uint8_t)((cg * cov) / 255);
+                o[2] = (uint8_t)((cb * cov) / 255);
+            }
         }
         return;
     }
 
-    for (int y = 0; y < h; ++y) {
-        for (int x = 0; x < w; ++x) {
+    for (int y = ry0; y < ry1; ++y) {
+        for (int x = rx0; x < rx1; ++x) {
             size_t i = (size_t)y * w + x;
             uint32_t cov = mask[i];
             uint8_t* o = rgbOut + i * 3;
@@ -488,7 +510,7 @@ void Colorize(const uint8_t* mask, int w, int h, const Layout& layout,
                 break;
             }
             default: {
-                int32_t idx = spanIndex.empty() ? 0 : spanIndex[i];
+                int32_t idx = spanIndex.empty() ? 0 : spanIndex[(size_t)(y - ry0) * rw + (x - rx0)];
                 c = randomSpans ? randomSpanColor(pal, idx, ph, seed)
                                 : spanColor(pal, idx, spanCount, ph);
                 break;
