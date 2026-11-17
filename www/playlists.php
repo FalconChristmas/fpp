@@ -1056,6 +1056,19 @@
 
 
                 </div>
+                <?php
+// Tooltip for the Advanced-level "Keep sub-playlists together" checkbox in
+// the Add and Edit Playlist Details dialogs.
+function PrintKeepSubPlaylistsTip()
+{
+    $tip = htmlentities("<b>Randomize Off:</b> nothing is shuffled, so this does nothing.<br>" .
+        "<b>Randomize on, unchecked:</b> every entry is shuffled on its own, including the entries inside sub-playlists.<br>" .
+        "<b>Randomize on, checked:</b> Randomize still decides when the order is shuffled, but each sub-playlist in the Main Playlist moves as one item, with its entries kept together and in order.");
+    echo "<span data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto' data-bs-title='" . $tip . "'>";
+    echo "<img src='images/redesign/help-icon.svg' class='icon-help' alt='Keep sub-playlists together help icon'>";
+    echo "</span>";
+}
+?>
                 <div class="playlistAdd hidden" id="playlistAdd">
                     <div class="form-group">
                         <label for="txtAddPlaylistName">Playlist Name:</label>
@@ -1073,13 +1086,17 @@
                             <option value='2'>Every iteration</option>
                         </select>
                     </div>
+                    <?php if ($uiLevel >= 1) { ?>
                     <div class="form-group">
                         <div class="form-check d-flex align-items-center gap-2 mb-0 ps-0">
                             <input type="checkbox" id="randomKeepSubPlaylistsAdd" class="form-check-input float-none m-0" />
-                            <label for="randomKeepSubPlaylistsAdd" class="form-check-label">Keep sub-playlists
-                                together</label>
+                            <label for="randomKeepSubPlaylistsAdd" class="form-check-label"><i
+                                    class="fas fa-fw fa-graduation-cap ui-level-1" title="Advanced Level Setting"></i>
+                                Keep sub-playlists together</label>
+                            <?php PrintKeepSubPlaylistsTip(); ?>
                         </div>
                     </div>
+                    <?php } ?>
                     <div class="form-group">
                         <label for="globalPauseAddPlaylist">Global Pause Between Sequences:</label>
                         <input type="number" id="globalPauseAddPlaylist" class="form-control" min="0" max="999999"
@@ -1111,19 +1128,21 @@
                                 <option value='2'>Every iteration</option>
                             </select></div>
                     </div>
+                    <?php if ($uiLevel >= 1) { ?>
                     <div class="row">
                         <div class="col-4"></div>
                         <div class="col-8">
                             <div class="form-check d-flex align-items-center gap-2 mb-0 ps-0">
                                 <input type="checkbox" id="randomKeepSubPlaylists" class="form-check-input float-none m-0"
                                     onchange="markCurrentPlaylistModified();" />
-                                <label for="randomKeepSubPlaylists" class="form-check-label">Keep sub-playlists
-                                    together</label>
+                                <label for="randomKeepSubPlaylists" class="form-check-label"><i
+                                        class="fas fa-fw fa-graduation-cap ui-level-1" title="Advanced Level Setting"></i>
+                                    Keep sub-playlists together</label>
+                                <?php PrintKeepSubPlaylistsTip(); ?>
                             </div>
-                            <small class="form-text text-muted">Shuffle each nested playlist as one item, so its
-                                entries stay together and in order.</small>
                         </div>
                     </div>
+                    <?php } ?>
                     <div class="row">
                         <div class="col-4"><label for="globalPauseBetweenSequences">Global Pause Between
                                 Sequences:</label></div>
