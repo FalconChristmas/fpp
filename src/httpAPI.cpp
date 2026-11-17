@@ -307,13 +307,14 @@ void GetCurrentFPPDStatus(Json::Value& result) {
         result["time_elapsed"] = secondsToTime(secsElapsed);
         result["time_remaining"] = secondsToTime(secsRemaining);
     } else {
-        std::string NextPlaylist = scheduler->GetNextPlaylistName();
-        std::string NextPlaylistStart = scheduler->GetNextPlaylistStartStr();
-        result["next_playlist"]["playlist"] = NextPlaylist;
-        result["next_playlist"]["start_time"] = NextPlaylistStart;
+        // GetInfo() already resolved the next playlist; reuse it rather than
+        // walking the schedule again for each field.
+        Json::Value schedInfo = scheduler->GetInfo();
+        result["next_playlist"]["playlist"] = schedInfo["nextPlaylist"]["playlistName"];
+        result["next_playlist"]["start_time"] = schedInfo["nextPlaylist"]["scheduledStartTimeStr"];
 
         Player::INSTANCE.GetCurrentStatus(result);
-        result["scheduler"] = scheduler->GetInfo();
+        result["scheduler"] = std::move(schedInfo);
 
         // Add multi-stream slot status
         Json::Value slots = StreamSlotManager::Instance().GetAllSlotsStatus();

@@ -1159,11 +1159,22 @@ ScheduledItem* Scheduler::GetNextScheduledPlaylist() {
 }
 
 std::string Scheduler::GetNextPlaylistName() {
+    std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
+    return NextPlaylistNameFor(GetNextScheduledPlaylist());
+}
+
+std::string Scheduler::GetNextPlaylistStartStr() {
+    std::string timeFmt = getSetting("DateFormat") + " @ " + getSetting("TimeFormat");
+    std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
+    return NextPlaylistStartStrFor(GetNextScheduledPlaylist(), timeFmt);
+}
+
+// The two below take the item GetNextScheduledPlaylist() found, so a caller
+// that needs both (GetInfo, polled by every status request) walks the
+// scheduled-item list once.  Call with m_scheduleLock held.
+std::string Scheduler::NextPlaylistNameFor(ScheduledItem* item) {
     if (m_schedulerDisabled)
         return "Scheduler is disabled.";
-
-    std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
-    ScheduledItem* item = GetNextScheduledPlaylist();
 
     if (!item)
         return "No playlist scheduled.";
@@ -1171,22 +1182,13 @@ std::string Scheduler::GetNextPlaylistName() {
     return item->entry->playlist;
 }
 
-std::string Scheduler::GetNextPlaylistStartStr() {
-    if (m_schedulerDisabled)
-        return "";
-
-    std::string timeFmt = getSetting("DateFormat") + " @ " + getSetting("TimeFormat");
+std::string Scheduler::NextPlaylistStartStrFor(ScheduledItem* item, const std::string& timeFmt) {
     std::string result;
-    std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
-    ScheduledItem* item = GetNextScheduledPlaylist();
-
-    if (!item)
+    if (m_schedulerDisabled || !item)
         return result;
 
     char timeStr[32];
-    std::time_t timeT = 0;
     struct tm timeStruct;
-    time_t currTime = time(NULL);
 
     localtime_r(&item->startTime, &timeStruct);
     FormatTime(timeStr, sizeof(timeStr), timeFmt.c_str(), &timeStruct);
@@ -1259,9 +1261,9 @@ Json::Value Scheduler::GetInfo(void) {
     std::unique_lock<std::recursive_mutex> lock(m_scheduleLock);
     Json::Value np;
     ScheduledItem* nextItem = GetNextScheduledPlaylist();
-    np["playlistName"] = GetNextPlaylistName();
+    np["playlistName"] = NextPlaylistNameFor(nextItem);
     np["scheduledStartTime"] = nextItem ? (Json::UInt64)(nextItem->startTime) : 0;
-    np["scheduledStartTimeStr"] = GetNextPlaylistStartStr();
+    np["scheduledStartTimeStr"] = NextPlaylistStartStrFor(nextItem, timeFmt);
 
     result["enabled"] = m_schedulerDisabled ? 0 : 1;
     result["nextPlaylist"] = np;
