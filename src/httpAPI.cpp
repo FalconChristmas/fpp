@@ -134,33 +134,131 @@ static bool canBindIPv6Loopback() {
 static std::atomic<bool> piPowerBad{ false };
 
 /*
- Build a Status JSON String
-*/
-void GetCurrentFPPDStatus(Json::Value& result) {
-    std::string UUID = getSetting("SystemUUID");
+ * The status payload is polled by every open page, fppoled, remotes and MQTT,
+ * and some callers poll several times a second for the playback position.  The
+ * parts that cost the most change slowly: the sensors (bus reads, over half of
+ * a build), the identity settings, and the clock strings.  Those are cached
+ * here; everything that moves within a second (player, playlist and media
+ * position, slots, status, warnings) is built fresh on every call.
+ */
+static std::mutex statusCacheLock;
+// Identity and sensors, rebuilt at most once a second.
+static Json::Value statusSlowCache;
+static long long statusSlowBuiltMS = 0;
+// Clock strings and fppd's uptime, rebuilt when the wall-clock second or the
+// uptime second changes -- never stale at the resolution they report.
+static Json::Value statusClockCache;
+static time_t statusClockWallSec = 0;
+static long long statusClockUptimeSec = -1;
+
+static void BuildSlowStatus(Json::Value& result) {
     static std::string host_name = getSetting("HostName");
-    std::string host_description = getSetting("HostDescription");
     static std::string fpp_version = getFPPVersion();
     static std::string fppd_branch = getFPPBranch();
     static std::string platform = getPlatform();
 
-    int mode = getFPPmode();
-    result["fppd"] = "running";
     result["version"] = fpp_version;
     result["branch"] = fppd_branch;
     result["platform"] = platform;
-    result["uuid"] = UUID;
+    result["uuid"] = getSetting("SystemUUID");
     result["host_name"] = host_name;
-    result["host_description"] = host_description;
-    result["mode"] = mode;
+    result["host_description"] = getSetting("HostDescription");
+    result["mode"] = getFPPmode();
     result["mode_name"] = toStdStringAndFree(modeToString(getFPPmode()));
-    result["status"] = Player::INSTANCE.GetStatus();
-    result["bridging"] = HasBridgeData();
     result["multisync"] = multiSync->isMultiSyncEnabled();
-    result["powerBad"] = piPowerBad.load();
-
     result["channelInputsEnabled"] = InputsEnabled();
     result["channelOutputsEnabled"] = HasUniverseOutputs();
+    Sensors::INSTANCE.reportSensors(result);
+}
+
+static void BuildClockStatus(Json::Value& result, time_t t, int totalseconds) {
+    struct tm tm;
+    localtime_r(&t, &tm);
+    std::stringstream sstr;
+    sstr << std::put_time(&tm, "%a %b %d %H:%M:%S %Z %Y");
+    result["time"] = sstr.str();
+
+    std::string fmt = getSetting("TimeFormat");
+    replaceAll(fmt, "%M", "%M:%S");
+    result["timeStrFull"] = GetTimeStr(fmt.c_str());
+    result["timeStr"] = GetTimeStr(getSetting("TimeFormat"));
+    result["dateStr"] = GetDateStr(getSetting("DateFormat"));
+
+    // FPPD process uptime (time since fppd started)
+    int days = totalseconds / 86400;
+    int hours = (totalseconds % 86400) / 3600;
+    int minutes = (totalseconds % 3600) / 60;
+    int seconds = totalseconds % 60;
+
+    result["uptime"] = secondsToTime(totalseconds);
+    result["uptimeTotalSeconds"] = totalseconds;
+    result["uptimeSeconds"] = seconds;
+    result["uptimeMinutes"] = minutes;
+    result["uptimeHours"] = hours;
+    result["uptimeDays"] = days;
+
+    std::stringstream totalTime;
+    totalTime << days << " days, " << hours << " hours, " << minutes << " minutes, " << seconds << " seconds";
+    result["uptimeStr"] = totalTime.str();
+}
+
+static void MergeStatus(Json::Value& result, const Json::Value& from) {
+    for (auto it = from.begin(); it != from.end(); ++it) {
+        result[it.name()] = *it;
+    }
+}
+
+/*
+ Build a Status JSON String
+*/
+void GetCurrentFPPDStatus(Json::Value& result) {
+    {
+        // Built under the lock so concurrent pollers share one sensor read
+        // rather than each doing their own.
+        std::lock_guard<std::mutex> lk(statusCacheLock);
+        long long nowMS = GetMonotonicTimeMS();
+        if (statusSlowCache.isNull() || nowMS - statusSlowBuiltMS >= 1000) {
+            Json::Value slow;
+            BuildSlowStatus(slow);
+            statusSlowCache = std::move(slow);
+            statusSlowBuiltMS = nowMS;
+        }
+        time_t wallSec = std::time(nullptr);
+        long long uptimeSec = (nowMS - startupTimeMS) / 1000;
+        if (wallSec != statusClockWallSec || uptimeSec != statusClockUptimeSec) {
+            Json::Value clock;
+            BuildClockStatus(clock, wallSec, (int)uptimeSec);
+            statusClockCache = std::move(clock);
+            statusClockWallSec = wallSec;
+            statusClockUptimeSec = uptimeSec;
+        }
+        MergeStatus(result, statusSlowCache);
+        MergeStatus(result, statusClockCache);
+    }
+
+    // System uptime: one syscall, so read on every build rather than cached.
+    int systemUptimeSecs = 0;
+#ifdef PLATFORM_OSX
+    struct timeval boot;
+    struct timeval now;
+    int mib[] = { CTL_KERN, KERN_BOOTTIME };
+    size_t size = sizeof(boot);
+    if (sysctl(mib, 2, &boot, &size, 0, 0) == 0 && gettimeofday(&now, 0) == 0) {
+        systemUptimeSecs = (int)(now.tv_sec - boot.tv_sec);
+    }
+#else
+    struct sysinfo sysInf;
+    if (sysinfo(&sysInf) == 0) {
+        systemUptimeSecs = (int)sysInf.uptime;
+    }
+#endif
+    result["systemUptimeTotalSeconds"] = systemUptimeSecs;
+
+    int mode = getFPPmode();
+    result["fppd"] = "running";
+    result["status"] = Player::INSTANCE.GetStatus();
+    result["bridging"] = HasBridgeData();
+    result["powerBad"] = piPowerBad.load();
 
     if (ChannelTester::INSTANCE.Testing()) {
         result["status_name"] = "testing";
@@ -197,57 +295,6 @@ void GetCurrentFPPDStatus(Json::Value& result) {
 
     result["volume"] = getVolume();
 
-    auto t = std::time(nullptr);
-    struct tm tm;
-    localtime_r(&t, &tm);
-    std::stringstream sstr;
-    sstr << std::put_time(&tm, "%a %b %d %H:%M:%S %Z %Y");
-    std::string str = sstr.str();
-    result["time"] = str;
-
-    std::string fmt = getSetting("TimeFormat");
-    replaceAll(fmt, "%M", "%M:%S");
-    result["timeStrFull"] = GetTimeStr(fmt.c_str());
-    result["timeStr"] = GetTimeStr(getSetting("TimeFormat"));
-    result["dateStr"] = GetDateStr(getSetting("DateFormat"));
-
-    // FPPD process uptime (time since fppd started)
-    int totalseconds = (int)((GetMonotonicTimeMS() - startupTimeMS) / 1000);
-    int days = totalseconds / 86400;
-    int hours = (totalseconds % 86400) / 3600;
-    int minutes = (totalseconds % 3600) / 60;
-    int seconds = totalseconds % 60;
-
-    result["uptime"] = secondsToTime(totalseconds);
-    result["uptimeTotalSeconds"] = totalseconds;
-    result["uptimeSeconds"] = seconds;
-    result["uptimeMinutes"] = minutes;
-    result["uptimeHours"] = hours;
-    result["uptimeDays"] = days;
-
-    std::stringstream totalTime;
-    totalTime << days << " days, " << hours << " hours, " << minutes << " minutes, " << seconds << " seconds";
-    result["uptimeStr"] = totalTime.str();
-
-    // System uptime
-    int systemUptimeSecs = 0;
-#ifdef PLATFORM_OSX
-    struct timeval boot;
-    struct timeval now;
-    int mib[] = { CTL_KERN, KERN_BOOTTIME };
-    size_t size = sizeof(boot);
-    if (sysctl(mib, 2, &boot, &size, 0, 0) == 0 && gettimeofday(&now, 0) == 0) {
-        systemUptimeSecs = (int)(now.tv_sec - boot.tv_sec);
-    }
-#else
-    struct sysinfo sysInf;
-    if (sysinfo(&sysInf) == 0) {
-        systemUptimeSecs = (int)sysInf.uptime;
-    }
-#endif
-    result["systemUptimeTotalSeconds"] = systemUptimeSecs;
-
-    Sensors::INSTANCE.reportSensors(result);
     for (auto& warn : WarningHolder::GetWarnings()) {
         result["warnings"].append(warn.message());
         result["warningInfo"].append(warn.toJsonValue());
