@@ -4181,6 +4181,7 @@ function SavePlaylistAs (name, options, callback) {
 	pl.loopCount = 0; // currently unused by player
 	pl.desc = $('#txtPlaylistDesc').val();
 	pl.random = parseInt($('#randomizePlaylist').prop('value'));
+	pl.randomKeepSubPlaylists = $('#randomKeepSubPlaylists').is(':checked');
 	pl.globalPauseBetweenSequencesMS =
 		parseInt($('#globalPauseBetweenSequences').val()) || 0;
 	if (typeof options === 'object') {
@@ -8909,11 +8910,17 @@ function PopulatePlaylistDetails (data, editMode, name = '', issues = {}) {
 	} else {
 		$('#randomizePlaylist').val(data.random);
 	}
+	$('#randomKeepSubPlaylists').prop(
+		'checked',
+		data.randomKeepSubPlaylists === true
+	);
+	var keepTogetherText =
+		data.randomKeepSubPlaylists === true ? ', sub-playlists kept together' : '';
 	if (data.random == 1) {
-		$('#txtRandomize').html('Once at load time');
+		$('#txtRandomize').html('Once at load time' + keepTogetherText);
 		$('#playlistRandomizeDetails').data('hasValue', true);
 	} else if (data.random == 2) {
-		$('#txtRandomize').html('Once per iteration');
+		$('#txtRandomize').html('Once per iteration' + keepTogetherText);
 		$('#playlistRandomizeDetails').data('hasValue', true);
 	} else {
 		$('#txtRandomize').html('Off');

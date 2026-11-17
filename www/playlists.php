@@ -482,6 +482,7 @@
                                     {
                                         desc: $("#txtAddPlaylistDesc").val(),
                                         random: $("#randomizeAddPlaylist").val(),
+                                        randomKeepSubPlaylists: $("#randomKeepSubPlaylistsAdd").is(':checked'),
                                         globalPauseBetweenSequencesMS: parseInt($("#globalPauseAddPlaylist").val()) || 0,
                                         empty: true
                                     },
@@ -529,6 +530,7 @@
                                     $('#txtPlaylistName').val(data.name || '');
                                     $('#txtPlaylistDesc').val(data.desc || '');
                                     $('#randomizePlaylist').val(data.random || 0);
+                                    $('#randomKeepSubPlaylists').prop('checked', data.randomKeepSubPlaylists === true);
                                     $('#globalPauseBetweenSequences').val(data.globalPauseBetweenSequencesMS || 0);
                                     // Update the indicator
                                     updateGlobalPauseIndicator();
@@ -1070,6 +1072,10 @@
                             <option value='1'>Once per load</option>
                             <option value='2'>Every iteration</option>
                         </select>
+                        <div class="form-check">
+                            <input type="checkbox" id="randomKeepSubPlaylistsAdd" class="form-check-input" />
+                            <label for="randomKeepSubPlaylistsAdd" class="form-check-label">Keep sub-playlists together</label>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="globalPauseAddPlaylist">Global Pause Between Sequences:</label>
@@ -1101,6 +1107,17 @@
                                 <option value='1'>Once per load</option>
                                 <option value='2'>Every iteration</option>
                             </select></div>
+                    </div>
+                    <div class="row">
+                        <div class="col-4"></div>
+                        <div class="col-8 form-check">
+                            <input type="checkbox" id="randomKeepSubPlaylists" class="form-check-input"
+                                onchange="markCurrentPlaylistModified();" />
+                            <label for="randomKeepSubPlaylists" class="form-check-label">Keep sub-playlists
+                                together</label>
+                            <small class="form-text text-muted">Shuffle each nested playlist as one item, so its
+                                entries stay together and in order.</small>
+                        </div>
                     </div>
                     <div class="row">
                         <div class="col-4"><label for="globalPauseBetweenSequences">Global Pause Between
