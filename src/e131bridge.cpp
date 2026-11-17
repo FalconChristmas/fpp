@@ -1000,7 +1000,8 @@ bool Bridge_StoreData(uint8_t* bridgeBuffer, long long packetTime, int msgLen) {
             len <<= 8;
             len += bridgeBuffer[17];
             StatAdd(unknownUniverse.bytesReceived, len);
-            LogDebug(VB_E131BRIDGE, "Received e1.31 data packet for unconfigured universe %d\n", universe);
+            // Per packet; unknownUniverse already counts these.
+            LogExcess(VB_E131BRIDGE, "Received e1.31 data packet for unconfigured universe %d\n", universe);
         }
     } else if (bridgeBuffer[E131_VECTOR_INDEX] == VECTOR_ROOT_E131_EXTENDED &&
                msgLen > E131_EXTENDED_PACKET_TYPE_INDEX) {
@@ -1079,7 +1080,8 @@ bool Bridge_StoreArtNetData(uint8_t* bridgeBuffer, long long packetTime) {
             // len already holds the ArtDMX data length (15-bit field), clamped
             // to what was actually received.
             StatAdd(unknownUniverse.bytesReceived, len);
-            LogDebug(VB_E131BRIDGE, "Received ArtNet data packet for unconfigured universe %d\n", univ);
+            // Per packet; unknownUniverse already counts these.
+            LogExcess(VB_E131BRIDGE, "Received ArtNet data packet for unconfigured universe %d\n", univ);
         }
     }
     return false;

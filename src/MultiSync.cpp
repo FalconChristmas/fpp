@@ -2732,7 +2732,9 @@ void MultiSync::SendSeqSyncPacket(const std::string& filename, int frames, float
     }
     __atomic_store_n(&m_lastFrameSent, frames, __ATOMIC_RELAXED);
 
-    LogDebug(VB_SYNC, "SendSeqSyncPacket( '%s', %d, %.2f)\n",
+    // LogExcess: sent several times a second for the whole sequence, and a
+    // LogDebug is always formatted into the crash ring.
+    LogExcess(VB_SYNC, "SendSeqSyncPacket( '%s', %d, %.2f)\n",
              filename.c_str(), frames, seconds);
     char outBuf[2048];
     bzero(outBuf, sizeof(outBuf));
@@ -4389,7 +4391,9 @@ void MultiSync::ProcessSyncPacket(ControlPkt* pkt, int len, MultiSyncStats* stat
     std::string filename(spkt->filename, strnlen(spkt->filename, nameMax));
     float secondsIn = spkt->secondsElapsed;
 
-    LogDebug(VB_SYNC, "ProcessSyncPacket()   filename: %s    type: %d   filetype: %d   frameNumber: %d   secondsElapsed: %0.2f\n",
+    // LogExcess: every sync packet on a remote (10+/s), and a LogDebug is
+    // always formatted into the crash ring.
+    LogExcess(VB_SYNC, "ProcessSyncPacket()   filename: %s    type: %d   filetype: %d   frameNumber: %d   secondsElapsed: %0.2f\n",
              TruncateForLog(filename).c_str(), spkt->pktType, spkt->fileType, spkt->frameNumber, secondsIn);
 
     if (!SyncFilenameToMediaRelative(filename, spkt->fileType)) {
