@@ -1072,9 +1072,12 @@
                             <option value='1'>Once per load</option>
                             <option value='2'>Every iteration</option>
                         </select>
-                        <div class="form-check">
-                            <input type="checkbox" id="randomKeepSubPlaylistsAdd" class="form-check-input" />
-                            <label for="randomKeepSubPlaylistsAdd" class="form-check-label">Keep sub-playlists together</label>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-check d-flex align-items-center gap-2 mb-0 ps-0">
+                            <input type="checkbox" id="randomKeepSubPlaylistsAdd" class="form-check-input float-none m-0" />
+                            <label for="randomKeepSubPlaylistsAdd" class="form-check-label">Keep sub-playlists
+                                together</label>
                         </div>
                     </div>
                     <div class="form-group">
@@ -1110,11 +1113,13 @@
                     </div>
                     <div class="row">
                         <div class="col-4"></div>
-                        <div class="col-8 form-check">
-                            <input type="checkbox" id="randomKeepSubPlaylists" class="form-check-input"
-                                onchange="markCurrentPlaylistModified();" />
-                            <label for="randomKeepSubPlaylists" class="form-check-label">Keep sub-playlists
-                                together</label>
+                        <div class="col-8">
+                            <div class="form-check d-flex align-items-center gap-2 mb-0 ps-0">
+                                <input type="checkbox" id="randomKeepSubPlaylists" class="form-check-input float-none m-0"
+                                    onchange="markCurrentPlaylistModified();" />
+                                <label for="randomKeepSubPlaylists" class="form-check-label">Keep sub-playlists
+                                    together</label>
+                            </div>
                             <small class="form-text text-muted">Shuffle each nested playlist as one item, so its
                                 entries stay together and in order.</small>
                         </div>
