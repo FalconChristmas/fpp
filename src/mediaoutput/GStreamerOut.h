@@ -287,6 +287,11 @@ private:
 
     // Latest video frame buffer — written by OnNewVideoSample, read by ProcessVideoOverlay
     std::vector<uint8_t> m_videoFrameData;
+    // The channel output thread's side of the handoff: PushVideoOverlayFrame()
+    // swaps it with m_videoFrameData under m_videoFrameMutex instead of copying
+    // the frame, and the sample callback then refills the other one.  Only the
+    // overlay push touches it (serialized by m_overlayOutputsLock).
+    std::vector<uint8_t> m_videoOverlayFrame;
     int m_videoFrameWidth = 0;    // dimensions of m_videoFrameData (packed RGB)
     int m_videoFrameHeight = 0;
     std::mutex m_videoFrameMutex;

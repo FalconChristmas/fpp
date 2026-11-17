@@ -5243,14 +5243,18 @@ bool GStreamerOutput::PushVideoOverlayFrame() {
     if (!self->m_playing || !self->m_hasVideoStream)
         return false;
 
-    // Copy the latest video frame data under lock
-    std::vector<uint8_t> frameData;
+    // Take the latest frame by swapping buffers with the sample callback
+    // rather than copying it: this runs on the channel output thread every
+    // frame, and a frame is the whole model (~855 KB for 534x534).  Both
+    // buffers keep their capacity, so after the first frames nothing here or
+    // in the callback allocates.
+    std::vector<uint8_t>& frameData = self->m_videoOverlayFrame;
     int frameW, frameH;
     {
         std::lock_guard<std::mutex> lock(self->m_videoFrameMutex);
         if (!self->m_videoFrameReady)
             return false;
-        frameData = self->m_videoFrameData;
+        frameData.swap(self->m_videoFrameData);
         frameW = self->m_videoFrameWidth;
         frameH = self->m_videoFrameHeight;
         self->m_videoFrameReady = false;
