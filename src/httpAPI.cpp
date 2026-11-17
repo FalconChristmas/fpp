@@ -2125,6 +2125,16 @@ void PlayerResource::PostSchedule(const Json::Value data, Json::Value& result) {
 void PlayerResource::periodicWork() {
     if (piPowerFile > 0) {
 #ifdef PLATFORM_PI
+        // The main loop calls this on any wake that follows an idle timeout,
+        // which can be many times a second while playing.  Each read is a
+        // firmware mailbox round trip, and the >5-readings hysteresis below
+        // is meant in seconds, so read at most once a second.
+        static long long nextReadMS = 0;
+        long long nowMS = GetMonotonicTimeMS();
+        if (nowMS < nextReadMS) {
+            return;
+        }
+        nextReadMS = nowMS + 1000;
         int i = 0;
         int32_t p[(MAX_STRING >> 2) + 7];
         p[i++] = 0;          // size
