@@ -10113,7 +10113,7 @@
           "system"
         ],
         "summary": "Get system status",
-        "description": "Returns `fppd`, network, current playlist, schedule, utilization, host, version, and MQTT status. Pass an optional array of IP addresses (e.g. `&ip[]=192.168.0.1&ip[]=192.168.0.2`) to query remote instances instead.",
+        "description": "Returns `fppd`, network, current playlist, schedule, utilization, host, version, and MQTT status. Pass an optional array of IP addresses (e.g. `&ip[]=192.168.0.1&ip[]=192.168.0.2`) to query remote instances instead.  Add `&internet=1` to include an `internet` boolean on each `interfaces` entry: true when traffic sent through that interface can currently reach the internet (verified by an interface-bound probe, so a default route is not required).  (The header requests this; other status consumers do not pay for the probe.)",
         "responses": {
           "200": {
             "description": "System status",

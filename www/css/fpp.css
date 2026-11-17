@@ -581,10 +581,13 @@ html .ui-button.ui-state-disabled:active {
 /* ============ */
 
 .header {
+	/* The header keeps a fixed dark background in both themes; the badge ring
+	   below needs the same color, so name it once. */
+	--fpp-header-bg: #171720;
 	border-bottom: 1px solid #2d3043;
 	display: flex;
 	color: #fff;
-	background-color: #171720;
+	background-color: var(--fpp-header-bg);
 }
 
 .headerCenter {
@@ -734,6 +737,41 @@ html .ui-button.ui-state-disabled:active {
 	font-size: 1.05em;
 	display: block;
 	text-align: center;
+}
+
+/* The interface icons that carry a verified internet connection get a small
+   green dot.  The wrapper exists only for those icons: the Wi-Fi icon is an
+   <img>, which cannot carry an ::after of its own, so both icon types get the
+   same wrapper.  Resetting the generic .headerBox span sizing keeps the
+   wrapper from adding a second header divider or extra width. */
+.headerBox span.fppNetIcon {
+	display: inline-block;
+	height: auto;
+	margin: 0;
+	padding: 0;
+	line-height: 1;
+	vertical-align: baseline;
+	position: relative;
+}
+
+.headerBox span.fppNetIcon::after {
+	content: none;
+}
+
+.headerBox span.fppNetIcon.fppNetOnline::after {
+	content: '';
+	position: absolute;
+	top: -2px;
+	right: -4px;
+	width: 6px;
+	height: 6px;
+	border: 0;
+	border-radius: 50%;
+	background-color: var(--bs-success);
+	/* Ring in the header's own fixed background (.header, above) so the dot
+	   reads as a badge on the icon rather than part of its artwork. */
+	box-shadow: 0 0 0 1px var(--fpp-header-bg);
+	transform: none;
 }
 
 .headerCenter > div {
@@ -3631,7 +3669,7 @@ pre.testData,
 		left: 0;
 		right: 0;
 		top: 0;
-		background-color: #171720;
+		background-color: var(--fpp-header-bg);
 	}
 
 	#bodyWrapper {

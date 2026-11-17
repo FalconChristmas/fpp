@@ -15802,7 +15802,9 @@ function LoadSystemStatus () {
 	// value this response will carry.
 	var flagEpoch = gblRestartRebootFlagEpoch;
 	$.ajax({
-		url: wsActive ? 'api/system/status?systemonly=1' : 'api/system/status',
+		url: wsActive
+			? 'api/system/status?systemonly=1&internet=1'
+			: 'api/system/status?internet=1',
 		dataType: 'json',
 		success: function (response, reqStatus, xhr) {
 			if (!response || typeof response !== 'object') return;
@@ -16334,6 +16336,9 @@ function RefreshHeaderBar () {
 			// Everything below goes into markup (and the tooltips render theirs
 			// as HTML), so the interface's fields are escaped as they're added.
 			var ifname = EscapeHtmlAttr(e.ifname);
+			// e.internet is present because LoadSystemStatus() requests
+			// api/system/status?internet=1; it is a probe-verified boolean, not
+			// merely the presence of a route.
 
 			if (!e.flags.some(flag => flag === 'NO-CARRIER')) {
 				// Show up interfaces even if they do not have IP configured - eg Colorlight
@@ -16386,13 +16391,18 @@ function RefreshHeaderBar () {
 									EscapeHtml(ipWithCIDR) +
 									'<br/>Strength: ' +
 									EscapeHtml(e.wifi.level) +
-									EscapeHtml(e.wifi.unit)
+									EscapeHtml(e.wifi.unit) +
+									(e.internet === true ? '<br/>Internet Connected' : '')
 							) +
 							'">';
-						row +=
+						var wifiIcon =
 							'<img title="WiFi Strength" src="images/redesign/wifi-' +
 							EscapeHtmlAttr(e.wifi.desc) +
 							'.svg" height="14px"/>';
+						if (e.internet === true) {
+							wifiIcon = '<span class="fppNetIcon fppNetOnline">' + wifiIcon + '</span>';
+						}
+						row += wifiIcon;
 						row +=
 							'<small>' +
 							ifname +
@@ -16408,14 +16418,23 @@ function RefreshHeaderBar () {
 							icon = 'text-danger';
 						}
 						var ipWithCIDR = formatIPWithCIDR(n.local, n.prefixlen);
+						var wiredIcon =
+							'<i class="fas fa-network-wired ' + icon + '"></i>';
+						if (e.internet === true) {
+							wiredIcon = '<span class="fppNetIcon fppNetOnline">' + wiredIcon + '</span>';
+						}
 						var row =
 							'<span ifname="' +
 							ifname +
 							'" class="ipTooltip" data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="bottom" data-bs-title="' +
-							EscapeHeaderTooltipAttr('IP: ' + EscapeHtml(ipWithCIDR)) +
-							'" ><i class="fas fa-network-wired ' +
-							icon +
-							'"></i><small>' +
+							EscapeHeaderTooltipAttr(
+								'IP: ' +
+									EscapeHtml(ipWithCIDR) +
+									(e.internet === true ? '<br/>Internet Connected' : '')
+							) +
+							'" >' +
+							wiredIcon +
+							'<small>' +
 							ifname +
 							'<div class="divIPAddress">: ' +
 							EscapeHtml(n.local) +

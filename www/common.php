@@ -4374,7 +4374,409 @@ function ConfigPathIsCredential($path)
     return false;
 }
 
-function network_list_interfaces_obj()
+/**
+ * The network interfaces that currently carry an IPv4 default route.
+ *
+ * This is the routing table's own answer to "which interface would be used to
+ * leave the local network".  The header's internet indicator no longer treats
+ * this as a requirement -- an interface can reach the internet through a
+ * policy-routed table that never appears here -- but probing interfaces with a
+ * default route first keeps the primary uplink from queueing behind the
+ * virtual interfaces a busy host can have.
+ *
+ * Returns a set keyed by interface name.  An interface can appear in more than
+ * one default route (metrics, multipath), so callers only need membership.
+ */
+function network_default_route_interfaces()
+{
+    global $settings;
+
+    $ifaces = array();
+
+    if ($settings['Platform'] == 'MacOS') {
+        $lines = array();
+        fpp_exec_argv(array('netstat', '-rn', '-f', 'inet'), $lines);
+        foreach ($lines as $line) {
+            // Destination Gateway Flags Netif [Expire]
+            if (preg_match('/^default\s+\S+\s+\S+\s+(\S+)/', trim($line), $m)) {
+                $ifaces[$m[1]] = true;
+            }
+        }
+        return $ifaces;
+    }
+
+    $lines = array();
+    fpp_exec_argv(array('ip', 'route', 'show', 'default'), $lines);
+    foreach ($lines as $line) {
+        // "default via 192.168.1.1 dev eth0 ...", and multipath output, which
+        // carries one "dev" per nexthop.
+        if (preg_match_all('/\bdev\s+(\S+)/', $line, $m)) {
+            foreach ($m[1] as $dev) {
+                $ifaces[$dev] = true;
+            }
+        }
+    }
+
+    return $ifaces;
+}
+
+/**
+ * The IPv4 address an internet probe should bind to for this interface, or
+ * null when the interface cannot be a candidate.
+ *
+ * An interface is a candidate when it is not one of the permanently excluded
+ * names, is not administratively down and has a routable IPv4 address.  A
+ * link-local (169.254/16) address is excluded because such an interface has
+ * no usable gateway.  Virtual and tunnel interfaces are deliberately not
+ * filtered by name: wg0/tun0/ppp0 can be the only interface that carries
+ * internet traffic, so they are probed like any other.
+ */
+function network_interface_probe_bind_address($ifname, $local, $operstate = 'UP', $flags = array())
+{
+    static $excluded = array('lo', 'lo0', 'usb0', 'usb1', 'SoftAp0');
+
+    if (!is_string($ifname) || $ifname === '' || in_array($ifname, $excluded, true)) {
+        return null;
+    }
+    if (!is_string($local) || $local === '') {
+        return null;
+    }
+    if (strpos($local, '127.') === 0 || strpos($local, '169.254.') === 0) {
+        return null;
+    }
+    // 0.0.0.0 is not a usable source; binding to it would let curl fall back
+    // to the kernel's preferred address, which could test the wrong interface.
+    if ($local === '0.0.0.0') {
+        return null;
+    }
+    if (filter_var($local, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) === false) {
+        return null;
+    }
+    // operstate is absent on macOS; UNKNOWN is what tun/tap/wireguard report,
+    // and those must stay eligible.
+    if ($operstate !== '' && $operstate !== 'UP' && $operstate !== 'UNKNOWN') {
+        return null;
+    }
+    if (is_array($flags) && in_array('NO-CARRIER', $flags, true)) {
+        return null;
+    }
+
+    return $local;
+}
+
+/**
+ * The public addresses an internet probe tries.
+ *
+ * Literal addresses only: the probe must not depend on DNS working.  Every
+ * entry has been checked to serve a certificate valid for the address itself,
+ * which is what lets the TLS fallback verify it.  Two addresses per provider
+ * keep one blocked address from reading as "offline".
+ */
+function network_internet_probe_targets()
+{
+    return array('1.1.1.1', '1.0.0.1', '8.8.8.8', '8.8.4.4', '9.9.9.9');
+}
+
+/**
+ * Cheap "does any route to the internet leave through this interface" check.
+ *
+ * Used to skip the expensive probe for interfaces the host cannot use for
+ * internet traffic at all -- a show LAN with no gateway, for example.  This is
+ * not a gate on internet access: it only answers whether the kernel's own
+ * routing would let a packet leave through $ifname.  The second query with the
+ * interface's source address covers policy tables selected by source, which a
+ * device-only lookup can miss.
+ *
+ * Every probe target is asked about, not just one: policy routing can leave
+ * one destination unrouted while the other probe targets remain reachable, and
+ * treating that as "no route" would hide a working connection.
+ */
+function network_linux_interface_has_internet_route($ifname, $bindAddress)
+{
+    $output = array();
+    foreach (network_internet_probe_targets() as $ip) {
+        if (fpp_exec_argv(array('ip', 'route', 'get', $ip, 'oif', $ifname), $output) === 0) {
+            return true;
+        }
+    }
+    if ($bindAddress !== null) {
+        foreach (network_internet_probe_targets() as $ip) {
+            $output = array();
+            if (fpp_exec_argv(array('ip', 'route', 'get', $ip, 'from', $bindAddress), $output) === 0) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+/**
+ * Probe a map of candidate interfaces (ifname => bind address) and return
+ * ifname => bool.
+ *
+ * Interfaces that carry a default route are probed first, and no more than
+ * $limit are probed at all.  Without that bound a host with many virtual
+ * interfaces -- Docker bridges, VM host adapters -- would stack one probe
+ * timeout per interface onto a response the header polls every few seconds.
+ * Left-over candidates simply keep their default (not connected / no dot).
+ */
+function network_probe_candidates(array $candidates, $limit = 4)
+{
+    $results = array();
+    if (count($candidates) === 0) {
+        return $results;
+    }
+
+    $order = array_keys($candidates);
+    // The default-route list only matters when the cap forces a choice; when
+    // every candidate fits, skip the routing-table command entirely.
+    if (count($order) > $limit) {
+        $priority = network_default_route_interfaces();
+        // usort() is stable as of PHP 8.0, so equal-priority interfaces keep
+        // the order the address listing gave them.
+        usort($order, function ($a, $b) use ($priority) {
+            $pa = isset($priority[$a]) ? 0 : 1;
+            $pb = isset($priority[$b]) ? 0 : 1;
+            return $pa - $pb;
+        });
+    }
+
+    $probed = 0;
+    foreach ($order as $ifname) {
+        if ($probed >= $limit) {
+            break;
+        }
+        $probed++;
+        $results[$ifname] = network_interface_has_internet($ifname, $candidates[$ifname]);
+    }
+
+    return $results;
+}
+
+/**
+ * network_interface_probe_bind_address() for one `ip --json address show` entry.
+ */
+function network_linux_probe_bind_address($rec)
+{
+    if (!is_array($rec) || !isset($rec['ifname']) || !isset($rec['addr_info']) || !is_array($rec['addr_info'])) {
+        return null;
+    }
+
+    $operstate = isset($rec['operstate']) ? $rec['operstate'] : '';
+    $flags = (isset($rec['flags']) && is_array($rec['flags'])) ? $rec['flags'] : array();
+
+    foreach ($rec['addr_info'] as $ai) {
+        if (!isset($ai['family']) || $ai['family'] !== 'inet') {
+            continue;
+        }
+        $bind = network_interface_probe_bind_address(
+            $rec['ifname'],
+            isset($ai['local']) ? $ai['local'] : '',
+            $operstate,
+            $flags
+        );
+        if ($bind !== null) {
+            return $bind;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Verified TLS/HTTPS reachability bound to one of $binds, each of which is an
+ * interface name or an IPv4 address.
+ *
+ * Some networks drop ICMP while allowing TCP, so an ICMP-only probe would
+ * report a working connection as offline.  Certificate validation is what
+ * keeps this honest: a captive portal that intercepts the connection cannot
+ * present a valid certificate for the literal address.  Every target and bind
+ * is tried in parallel so the answer costs one timeout, not one per
+ * combination.  Including the interface's address alongside its name covers
+ * routers whose policy tables select by source address, which a device-bound
+ * lookup may not reach.
+ *
+ * Returns 1 for reachable, 0 for a definitive failure, and -1 when every bind
+ * was refused (older kernels require privilege for SO_BINDTODEVICE).
+ */
+function network_interface_https_probe(array $binds)
+{
+    if (!function_exists('curl_multi_init')) {
+        return -1;
+    }
+
+    $binds = array_values(array_unique(array_filter($binds, function ($b) {
+        return is_string($b) && $b !== '';
+    })));
+    if (count($binds) === 0) {
+        return -1;
+    }
+
+    // PHP does not expose every libcurl error code as a constant.  45 is
+    // CURLE_INTERFACE_FAILED: the requested interface/address could not be
+    // bound.
+    $curleInterfaceFailed = defined('CURLE_INTERFACE_FAILED') ? CURLE_INTERFACE_FAILED : 45;
+
+    $mh = curl_multi_init();
+    if ($mh === false) {
+        return -1;
+    }
+
+    $handles = array();
+    foreach (network_internet_probe_targets() as $ip) {
+        foreach ($binds as $bind) {
+            $ch = curl_init('https://' . $ip . '/');
+            if ($ch === false) {
+                continue;
+            }
+            curl_setopt_array($ch, array(
+                CURLOPT_TIMEOUT => 3,
+                CURLOPT_CONNECTTIMEOUT => 2,
+                CURLOPT_FOLLOWLOCATION => false,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_INTERFACE => $bind,
+                CURLOPT_USERAGENT => 'FPP',
+                // A configured proxy would answer even when this interface
+                // cannot reach anything itself, so keep the probe direct.
+                CURLOPT_NOPROXY => '*',
+                // Discard any body; the TLS handshake and HTTP status are all
+                // this probe needs, and some of these hosts answer with a
+                // redirect that would otherwise pull a page.
+                CURLOPT_WRITEFUNCTION => function ($ch, $data) {
+                    return strlen($data);
+                },
+            ));
+            if (curl_multi_add_handle($mh, $ch) !== 0) {
+                continue;
+            }
+            $handles[] = $ch;
+        }
+    }
+
+    if (count($handles) === 0) {
+        curl_multi_close($mh);
+        return -1;
+    }
+
+    $ok = false;
+    $bindFailed = 0;
+    do {
+        $status = curl_multi_exec($mh, $active);
+        if ($active) {
+            if (curl_multi_select($mh, 0.2) === -1) {
+                usleep(100000);
+            }
+        }
+        while (($info = curl_multi_info_read($mh)) !== false) {
+            if ($info['result'] === CURLE_OK
+                && curl_getinfo($info['handle'], CURLINFO_SSL_VERIFYRESULT) == 0) {
+                $ok = true;
+            } elseif ($info['result'] === $curleInterfaceFailed) {
+                $bindFailed++;
+            }
+        }
+    } while (!$ok && $active && $status === CURLM_OK);
+
+    foreach ($handles as $ch) {
+        curl_multi_remove_handle($mh, $ch);
+    }
+    curl_multi_close($mh);
+
+    if ($ok) {
+        return 1;
+    }
+    if ($bindFailed === count($handles)) {
+        return -1;
+    }
+    return 0;
+}
+
+/**
+ * True when traffic sent through $ifname can currently reach the internet.
+ *
+ * This answers "can this host use this interface for internet access right
+ * now", not "does the interface's uplink have internet in isolation".  The
+ * probe is bound to the interface, so it follows the interface's own routing
+ * (including policy tables) and is not fooled by a multi-homed box preferring
+ * another default route.  Binding matters: an unbound probe follows whichever
+ * route the kernel prefers and would report the wrong interface.
+ *
+ * ICMP is tried first because it is cheap and the common case.  When a network
+ * filters it, a verified HTTPS probe decides instead.  Both stages are cached
+ * per interface for 20 seconds (file_cache() also serialises concurrent
+ * probes) because api/system/status is polled every few seconds; an offline
+ * interface would otherwise pay the timeout on every poll.  Both outcomes are
+ * cached -- caching only successes would keep a dead interface green for the
+ * life of the cache.
+ */
+function network_interface_has_internet($ifname, $bindAddress = null)
+{
+    global $settings;
+
+    // Kernel interface names are at most IFNAMSIZ-1 (15) characters and this
+    // value also names a cache file, so reject anything that is not a plain
+    // interface name rather than trusting the address listing.
+    if (!is_string($ifname) || !preg_match('/^[A-Za-z0-9][A-Za-z0-9_.-]{0,14}$/', $ifname)) {
+        return false;
+    }
+    if ($bindAddress !== null
+        && (!is_string($bindAddress)
+            || filter_var($bindAddress, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) === false)) {
+        $bindAddress = null;
+    }
+
+    static $memo = array();
+    if (array_key_exists($ifname, $memo)) {
+        return $memo[$ifname];
+    }
+
+    // Bind the probe to the interface itself.  Linux and macOS spell that
+    // differently, and macOS times the whole run with -t rather than waiting
+    // -W seconds for a reply.
+    $pingArgs = ($settings['Platform'] == 'MacOS')
+        ? array('ping', '-n', '-q', '-c', '1', '-t', '1', '-b', $ifname, '1.1.1.1')
+        : array('ping', '-n', '-q', '-c', '1', '-W', '1', '-I', $ifname, '1.1.1.1');
+
+    $result = file_cache('net_internet_' . $ifname, function () use ($pingArgs, $ifname, $bindAddress) {
+        // One ICMP target and a one-second timeout: this runs from the status
+        // API, and a multi-homed box with an offline WAN must not stack
+        // timeouts onto a response that remote players poll.
+        $output = array();
+        $rc = fpp_exec_argv($pingArgs, $output);
+        if ($rc === 0) {
+            return '1';
+        }
+
+        // ICMP is filtered on some networks, so fall back to TCP/TLS.  Probe
+        // bound to the device name and to the interface's own address in the
+        // same batch: older kernels can refuse the device bind, and routers
+        // that select a policy table by source address answer the address bind
+        // even when the device-bound lookup has no route.
+        $binds = array($ifname);
+        if ($bindAddress !== null && $bindAddress !== $ifname) {
+            $binds[] = $bindAddress;
+        }
+        $probe = network_interface_https_probe($binds);
+
+        return ($probe === 1) ? '1' : '0';
+    }, 20, 0);
+
+    $memo[$ifname] = ($result === '1');
+    return $memo[$ifname];
+}
+
+/**
+ * Interface details for the web UI and API.
+ *
+ * $withInternet adds an "internet" boolean to each interface: true when
+ * traffic sent through that interface can currently reach the internet.
+ * Interfaces that are up and have a routable IPv4 address are checked; a
+ * main-table default route is not required.  The flag is opt-in so callers
+ * that must not send traffic (the statistics page reads
+ * /api/network/interface) keep the old behavior.
+ */
+function network_list_interfaces_obj($withInternet = false)
 {
     global $settings;
 
@@ -4391,6 +4793,9 @@ function network_list_interfaces_obj()
             $obj = new \stdClass();
             $obj->ifindex = $cnt;
             $obj->ifname = $int;
+            if ($withInternet) {
+                $obj->internet = false;
+            }
             $obj->addr_info = array();
             $obj->flags = array();
             array_push($obj->addr_info, new \stdClass());
@@ -4421,6 +4826,33 @@ function network_list_interfaces_obj()
             }
             unset($config);
         }
+
+        if ($withInternet && is_array($rc)) {
+            $candidates = array();
+            foreach ($rc as $cand) {
+                if (!isset($cand->addr_info[0]->local)) {
+                    continue;
+                }
+                $bind = network_interface_probe_bind_address(
+                    $cand->ifname,
+                    $cand->addr_info[0]->local,
+                    'UP',
+                    $cand->flags
+                );
+                if ($bind !== null) {
+                    $candidates[$cand->ifname] = $bind;
+                }
+            }
+            // Same bound and default-route priority as the Linux path: a Mac
+            // running Docker or VM host adapters must not stack probe timeouts
+            // onto the header's status poll.
+            $results = network_probe_candidates($candidates);
+            foreach ($rc as $cand) {
+                if (isset($results[$cand->ifname])) {
+                    $cand->internet = $results[$cand->ifname];
+                }
+            }
+        }
     } else {
         fpp_exec_argv(array('ip', '--json', 'address', 'show'), $output);
         $rc = json_decode(join(" ", $output), true);
@@ -4448,6 +4880,9 @@ function network_list_interfaces_obj()
                 }
             }
             $ifname = $rec["ifname"];
+            if ($withInternet) {
+                $rec["internet"] = false;
+            }
             $add = isset($rec["address"]) ? $rec["address"] : "";
             if ($ifname == "lo" || $ifname == "usb0" || $ifname == "usb1" || $ifname == "SoftAp0" || $add == "0.0.0.0" || $add == "::") {
                 unset($rc[array_search($rec, $rc)]);
@@ -4457,6 +4892,32 @@ function network_list_interfaces_obj()
                 $result = parse_ini_file($cfgFile);
                 $rec["config"] = network_redact_interface_config($result);
             }
+        }
+        unset($rec);
+
+        if ($withInternet && is_array($rc)) {
+            // Probe every interface that is up with a routable address, not
+            // just the ones in the main routing table: policy routing and VPN
+            // setups can put the usable route somewhere this list never sees.
+            // No route through the interface means the probe would only wait
+            // for a timeout; the answer is already known.
+            $candidates = array();
+            foreach ($rc as $cand) {
+                $bind = network_linux_probe_bind_address($cand);
+                if ($bind !== null
+                    && network_linux_interface_has_internet_route($cand['ifname'], $bind)) {
+                    $candidates[$cand['ifname']] = $bind;
+                }
+            }
+            // Anything left over keeps internet=false, which the header
+            // renders as "not verified" (no dot).
+            $results = network_probe_candidates($candidates);
+            foreach ($rc as &$cand) {
+                if (isset($results[$cand['ifname']])) {
+                    $cand['internet'] = $results[$cand['ifname']];
+                }
+            }
+            unset($cand);
         }
     }
     return array_values($rc);
