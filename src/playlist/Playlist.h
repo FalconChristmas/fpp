@@ -15,6 +15,7 @@
 #include "AtomicSharedPtr.h"
 #include "fpp-json.h"
 #include <list>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -293,6 +294,24 @@ private:
     std::vector<int> m_leadInRows;
     std::vector<int> m_mainRows;
     std::vector<int> m_leadOutRows;
+
+    // "Keep sub-playlists together" randomize option.  A Playlist entry in the
+    // Main Playlist is flattened into its child entries at load time; with this
+    // option on, RandomizeMainPlaylist() shuffles each flattened sub-playlist as
+    // one unit so its entries stay together and in their saved order.
+    // m_entryGroup maps each entry that came from a top-level sub-playlist to
+    // that sub-playlist's group id; entries not in the map are their own unit.
+    // Added at the end of the class so existing member offsets do not move.
+    bool m_randomKeepSubPlaylists = false;
+    int m_loadGroup = -1;
+    int m_nextLoadGroup = 0;
+    std::map<PlaylistEntryBase*, int> m_entryGroup;
+    // Groups recorded while a Load() is parsing; committed to m_entryGroup
+    // with the rest of the playlist, dropped if the load fails.
+    std::map<PlaylistEntryBase*, int> m_pendingEntryGroup;
+
+    // [start, length] of each shuffle unit in m_mainPlaylist, in current order.
+    std::vector<std::pair<int, int>> GetMainPlaylistUnits();
 };
 
 // Source-compatibility façade for the old `extern Playlist* playlist;` global.

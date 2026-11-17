@@ -408,6 +408,12 @@ int Playlist::LoadSection(std::vector<PlaylistEntryBase*>& playlistPart, const J
         // Long-term handle sub-playlists on-demand instead of at load time
         if (entries[c]["type"].asString() == "playlist") {
             m_subPlaylistDepth++;
+            // Each top-level sub-playlist becomes one group, so the "keep
+            // sub-playlists together" randomize option can shuffle it as a unit.
+            // Deeper nesting stays inside its top-level parent's group.
+            int prevLoadGroup = m_loadGroup;
+            if (m_subPlaylistDepth == 1)
+                m_loadGroup = m_nextLoadGroup++;
             if (m_subPlaylistDepth < 5) {
                 std::string filename = FPP_DIR_PLAYLIST("/" + entries[c]["name"].asString() + ".json");
 
@@ -428,10 +434,13 @@ int Playlist::LoadSection(std::vector<PlaylistEntryBase*>& playlistPart, const J
             }
 
             m_subPlaylistDepth--;
+            m_loadGroup = prevLoadGroup;
         } else {
             plEntry = LoadPlaylistEntry(entries[c]);
             if (plEntry) {
                 playlistPart.push_back(plEntry);
+                if (m_loadGroup >= 0)
+                    m_pendingEntryGroup[plEntry] = m_loadGroup;
             }
         }
         // An end position counts rows of the file: a sub-playlist row used not
@@ -466,6 +475,7 @@ int Playlist::Load(Json::Value& config) {
     int loopCount = 0;
     int globalPauseMS = 0;
     int random = 0;
+    bool randomKeepSubPlaylists = false;
     Json::Value playlistInfo;
     std::vector<PlaylistEntryBase*> leadIn;
     std::vector<PlaylistEntryBase*> mainPlaylist;
@@ -484,6 +494,12 @@ int Playlist::Load(Json::Value& config) {
         repeat = config["repeat"].asInt();
         loopCount = config["loopCount"].asInt();
         m_subPlaylistDepth = 0;
+        // LoadSection() records sub-playlist groups in m_pendingEntryGroup;
+        // they replace m_entryGroup only once the load commits below.
+        m_loadGroup = -1;
+        m_nextLoadGroup = 0;
+        m_pendingEntryGroup.clear();
+        randomKeepSubPlaylists = config.isMember("randomKeepSubPlaylists") && config["randomKeepSubPlaylists"].asBool();
 
         // Load global pause between sequences configuration
         if (config.isMember("globalPauseBetweenSequencesMS"))
@@ -580,6 +596,8 @@ int Playlist::Load(Json::Value& config) {
         std::string warn = "Playlist " + (name.empty() ? m_filename : name) + " is invalid: " + ex.what();
         LogErr(VB_PLAYLIST, "%s\n", warn.c_str());
         WarningHolder::AddWarningTimeout(60, 24, warn);
+        m_pendingEntryGroup.clear();
+        m_loadGroup = -1;
         // Entries built before the throw were never published; retire them
         // the same way Cleanup() does (destroyed on the main thread).
         std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
@@ -603,6 +621,9 @@ int Playlist::Load(Json::Value& config) {
     m_globalPauseBetweenSequencesMS = globalPauseMS;
     m_playlistInfo = playlistInfo;
     m_random = random;
+    m_randomKeepSubPlaylists = randomKeepSubPlaylists;
+    m_entryGroup.swap(m_pendingEntryGroup);
+    m_pendingEntryGroup.clear();
     m_leadIn.swap(leadIn);
     m_mainPlaylist.swap(mainPlaylist);
     m_leadOut.swap(leadOut);
@@ -2065,6 +2086,7 @@ int Playlist::Cleanup(void) {
     m_leadInRows.clear();
     m_mainRows.clear();
     m_leadOutRows.clear();
+    m_entryGroup.clear();
 
     while (m_leadIn.size()) {
         PlaylistEntryBase* entry = m_leadIn.back();
@@ -2302,10 +2324,19 @@ int Playlist::PlayImpl(const std::string& filename, const int position, const in
 
     if (p == -2) {
         // random
-        int l = m_mainPlaylist.size();
-        if (l > 1) {
-            p = FPPrand() % l;
-            p = p + m_leadIn.size();
+        if (m_randomKeepSubPlaylists) {
+            // start at the beginning of a random unit, not mid sub-playlist
+            auto units = GetMainPlaylistUnits();
+            if (units.size() > 1) {
+                p = units[FPPrand() % units.size()].first;
+                p = p + m_leadIn.size();
+            }
+        } else {
+            int l = m_mainPlaylist.size();
+            if (l > 1) {
+                p = FPPrand() % l;
+                p = p + m_leadIn.size();
+            }
         }
     }
     if (p >= 0)
@@ -2374,6 +2405,34 @@ void Playlist::RandomizeMainPlaylist() {
         return;
     }
 
+    if (m_randomKeepSubPlaylists) {
+        // Shuffle whole units: each sub-playlist's entries stay together and in
+        // their saved order (e.g. a Script followed by the Media it sets up).
+        auto units = GetMainPlaylistUnits();
+        std::vector<std::vector<PlaylistEntryBase*>> tmpUnits;
+        for (auto& u : units)
+            tmpUnits.emplace_back(m_mainPlaylist.begin() + u.first, m_mainPlaylist.begin() + u.first + u.second);
+        m_mainPlaylist.clear();
+        int origUnits = tmpUnits.size();
+        bool first = true;
+
+        while (tmpUnits.size()) {
+            int l = tmpUnits.size();
+            int p = l - 1;
+            if (l > 1) {
+                p = FPPrand() % l;
+                // Same rule as below: don't repeat the unit that just played
+                // last, unless there are only 2 units.
+                if (first && (p == (origUnits - 1)) && origUnits > 2)
+                    continue;
+            }
+            m_mainPlaylist.insert(m_mainPlaylist.end(), tmpUnits[p].begin(), tmpUnits[p].end());
+            tmpUnits.erase(tmpUnits.begin() + p);
+            first = false;
+        }
+        return;
+    }
+
     std::vector<PlaylistEntryBase*> tmpPlaylist = m_mainPlaylist;
     m_mainPlaylist.clear();
     int origSize = tmpPlaylist.size();
@@ -2415,9 +2474,41 @@ int Playlist::ShuffleMainPlaylistFrom(int position) {
     if (!first) {
         return position;
     }
+    if (m_randomKeepSubPlaylists) {
+        // Move first's whole sub-playlist to the front so it stays together,
+        // and start at first within it.
+        for (auto& u : GetMainPlaylistUnits()) {
+            auto b = m_mainPlaylist.begin() + u.first;
+            auto e = b + u.second;
+            auto f = std::find(b, e, first);
+            if (f == e)
+                continue;
+            int offset = f - b;
+            std::rotate(m_mainPlaylist.begin(), b, e);
+            return m_leadIn.size() + offset;
+        }
+    }
     m_mainPlaylist.erase(std::find(m_mainPlaylist.begin(), m_mainPlaylist.end(), first));
     m_mainPlaylist.insert(m_mainPlaylist.begin(), first);
     return m_leadIn.size();
+}
+
+std::vector<std::pair<int, int>> Playlist::GetMainPlaylistUnits() {
+    // Units are contiguous because they are loaded contiguously and only ever
+    // reordered as whole units, so a run of entries with the same group id is
+    // one sub-playlist.  Entries with no group are a unit of their own.
+    std::vector<std::pair<int, int>> units;
+    int prevGroup = -1;
+    for (int i = 0; i < (int)m_mainPlaylist.size(); i++) {
+        auto it = m_entryGroup.find(m_mainPlaylist[i]);
+        int group = (it == m_entryGroup.end()) ? -1 : it->second;
+        if (group >= 0 && group == prevGroup)
+            units.back().second++;
+        else
+            units.emplace_back(i, 1);
+        prevGroup = group;
+    }
+    return units;
 }
 
 /*
@@ -2429,6 +2520,7 @@ void Playlist::Dump(void) {
     LogDebug(VB_PLAYLIST, "  Description      : %s\n", m_desc.c_str());
     LogDebug(VB_PLAYLIST, "  Repeat           : %d\n", m_repeat.load());
     LogDebug(VB_PLAYLIST, "  Loop Count       : %d\n", m_loopCount);
+    LogDebug(VB_PLAYLIST, "  Random           : %d%s\n", m_random, m_randomKeepSubPlaylists ? " (sub-playlists kept together)" : "");
     LogDebug(VB_PLAYLIST, "  Current Section  : %s\n", m_currentSectionStr.c_str());
     LogDebug(VB_PLAYLIST, "  Section Position : %d\n", m_sectionPosition);
 
@@ -3052,6 +3144,7 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
         result["global_pause"]["duration_ms"] = m_globalPauseBetweenSequencesMS;
         result["global_pause"]["active"] = false; // Always false when idle
         result["random"] = m_random;
+        result["randomKeepSubPlaylists"] = m_randomKeepSubPlaylists;
         return;
     }
 
@@ -3062,6 +3155,7 @@ void Playlist::GetCurrentStatus(Json::Value& result) {
     result["current_playlist"]["index"] = std::to_string(GetPosition());
 
     result["random"] = m_random;
+    result["randomKeepSubPlaylists"] = m_randomKeepSubPlaylists;
 
     // Global pause between sequences status
     result["global_pause"]["configured"] = m_globalPauseBetweenSequencesMS > 0;
@@ -3221,6 +3315,7 @@ void Playlist::GetInfo(Json::Value& result) {
         result["loop"] = m_loop.load();
         result["loopCount"] = m_loopCount;
         result["random"] = m_random;
+        result["randomKeepSubPlaylists"] = m_randomKeepSubPlaylists;
         result["blankAtEnd"] = m_blankAtEnd;
         result["size"] = GetSize();
     }
@@ -3270,6 +3365,7 @@ Json::Value Playlist::GetConfig(void) {
     result["configTime"] = (Json::UInt64)m_configTime;
 
     result["random"] = m_random;
+    result["randomKeepSubPlaylists"] = m_randomKeepSubPlaylists;
     result["globalPauseBetweenSequencesMS"] = m_globalPauseBetweenSequencesMS;
 
     result["playlistInfo"] = m_playlistInfo;

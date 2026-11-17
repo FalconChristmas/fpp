@@ -4181,6 +4181,12 @@ function SavePlaylistAs (name, options, callback) {
 	pl.loopCount = 0; // currently unused by player
 	pl.desc = $('#txtPlaylistDesc').val();
 	pl.random = parseInt($('#randomizePlaylist').prop('value'));
+	// The checkbox is only on the page at Advanced UI level and up.  Below
+	// that, keep what the playlist already had rather than reading the
+	// missing checkbox as unchecked and turning the option off on save.
+	pl.randomKeepSubPlaylists = $('#randomKeepSubPlaylists').length
+		? $('#randomKeepSubPlaylists').is(':checked')
+		: gblRandomKeepSubPlaylists;
 	pl.globalPauseBetweenSequencesMS =
 		parseInt($('#globalPauseBetweenSequences').val()) || 0;
 	if (typeof options === 'object') {
@@ -8799,6 +8805,10 @@ function UpgradePlaylist (data, editMode) {
 // current context.
 var gblPlaylistDetailsEditMode = 0;
 
+// The open playlist's saved "Keep sub-playlists together" value, kept for
+// SavePlaylistAs() when the Advanced-level checkbox is not on the page.
+var gblRandomKeepSubPlaylists = false;
+
 // Show/hide the Randomize & Global Pause rows in the Main Playlist header.
 // In the playlist editor they are always shown when configured. On the status
 // page they only appear when Verbose Playlist Item Details is enabled.
@@ -8909,11 +8919,15 @@ function PopulatePlaylistDetails (data, editMode, name = '', issues = {}) {
 	} else {
 		$('#randomizePlaylist').val(data.random);
 	}
+	gblRandomKeepSubPlaylists = data.randomKeepSubPlaylists === true;
+	$('#randomKeepSubPlaylists').prop('checked', gblRandomKeepSubPlaylists);
+	var keepTogetherText =
+		data.randomKeepSubPlaylists === true ? ', sub-playlists kept together' : '';
 	if (data.random == 1) {
-		$('#txtRandomize').html('Once at load time');
+		$('#txtRandomize').html('Once at load time' + keepTogetherText);
 		$('#playlistRandomizeDetails').data('hasValue', true);
 	} else if (data.random == 2) {
-		$('#txtRandomize').html('Once per iteration');
+		$('#txtRandomize').html('Once per iteration' + keepTogetherText);
 		$('#playlistRandomizeDetails').data('hasValue', true);
 	} else {
 		$('#txtRandomize').html('Off');
