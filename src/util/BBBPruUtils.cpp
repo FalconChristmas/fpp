@@ -284,7 +284,30 @@ static int initPrus() {
     if (ddr_mem_loc == nullptr && !FAKE_PRU) {
         ddr_phy_mem_loc = ddr_addr;
         ddr_filelen = ddr_sizeb;
+#ifdef PLATFORM_BBB
+        // The reserved region is still System RAM to the kernel, so a plain
+        // /dev/mem mapping of it is write-back cacheable, and the PRUs do not
+        // snoop the Cortex-A8 caches.  A line an output ever read stays
+        // cached, and its next writes sit dirty there instead of reaching
+        // DDR (GH #3200: three pixels of every BBB48String port showing a
+        // stale colour at each change).  User space cannot clean a line to
+        // DDR on ARMv7 - msync and __builtin___clear_cache do not - so map
+        // the region write-combined instead: no cache to go stale, and
+        // writes measured as fast as the cached mapping's.  Reads through
+        // it are slow (~20MB/s), so outputs keep their frames in ordinary
+        // memory and only ever write this region.
+        int ddr_fd = open("/dev/mem", O_RDWR | O_CLOEXEC | O_SYNC);
+        if (ddr_fd < 0) {
+            if (!err) {
+                err = errno;
+            }
+        } else {
+            ddr_mem_loc = mapOrNull(ddr_filelen, MAP_SHARED, ddr_fd, ddr_addr, err);
+            close(ddr_fd);
+        }
+#else
         ddr_mem_loc = mapOrNull(ddr_filelen, MAP_SHARED, mem_fd, ddr_addr, err);
+#endif
         if (ddr_mem_loc) {
             madvise(ddr_mem_loc, ddr_filelen, MADV_HUGEPAGE);
         }

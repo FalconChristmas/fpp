@@ -675,6 +675,10 @@ int BBB48StringOutput::Init(Json::Value config) {
 
     m_gpio0Data.curData = m_gpioData.lastData + offset;
     m_gpio0Data.lastData = m_gpio0Data.curData + offset0;
+    m_gpioData.fmtCur.assign(m_gpioData.frameSize, 0);
+    m_gpioData.fmtLast.assign(m_gpioData.frameSize, 0);
+    m_gpio0Data.fmtCur.assign(m_gpio0Data.frameSize, 0);
+    m_gpio0Data.fmtLast.assign(m_gpio0Data.frameSize, 0);
 
     // flag the virtual strings whose channel map is a plain run so prepData
     // can walk the channel data directly instead of through the map
@@ -918,7 +922,7 @@ void BBB48StringOutput::prepData(FrameData& d, unsigned char* channelData) {
     // strings whose channel map is a simple run skip the per-channel map
     // indirection.  Unmapped slots and the tail of strings shorter than the
     // longest now output zeros instead of stale buffer content.
-    uint8_t* out = d.curData;
+    uint8_t* out = d.fmtCur.data();
     constexpr uint32_t TILE = 64;
     uint8_t col[8][TILE];
     for (uint32_t p0 = 0; p0 < newMaxLen; p0 += TILE) {
@@ -1027,7 +1031,7 @@ void BBB48StringOutput::PrepData(unsigned char* channelData) {
         // it when the command has the packet bit set
         for (FrameData* d : { &m_gpioData, &m_gpio0Data }) {
             if (!d->falconPacketLanes.empty()) {
-                memcpy(d->curData + d->outputStringLen * d->gpioStringMap.size(),
+                memcpy(d->fmtCur.data() + d->outputStringLen * d->gpioStringMap.size(),
                        d->falconPacketLanes.data(), d->falconPacketLanes.size());
             }
         }
@@ -1040,9 +1044,13 @@ void BBB48StringOutput::sendData(FrameData& d, uint32_t* dptr) {
     // compare everything the copy below would place in PRU memory - the
     // firmware reads those bytes from there rather than DDR, so a change
     // past the compared range would leave it sending the old data
+    //
+    // Both buffers compared here are the ordinary-memory copies, never the
+    // DDR ones: see FrameData.
     uint32_t pruCopySize = std::min(d.frameSize, (uint32_t)(7624 + 7624 + m_pru->shared_ram_size));
+    uint8_t* fmt = d.fmtCur.data();
     if (d.copyToPru &&
-        (m_curFrame == 1 || memcmp(d.lastData, d.curData, pruCopySize))) {
+        (m_curFrame == 1 || memcmp(d.fmtLast.data(), fmt, pruCopySize))) {
         // don't copy to PRU memory unless really needed to avoid bus contention
 
         // copy first 7.5K into PRU mem directly
@@ -1053,7 +1061,7 @@ void BBB48StringOutput::sendData(FrameData& d, uint32_t* dptr) {
         }
 
         // first 7.5K to main PRU ram
-        m_pru->memcpyToPRU(m_pru->data_ram + 512, d.curData, mx);
+        m_pru->memcpyToPRU(m_pru->data_ram + 512, fmt, mx);
         fullsize -= 7624;
         if (fullsize > 0) {
             int outsize = fullsize;
@@ -1061,7 +1069,7 @@ void BBB48StringOutput::sendData(FrameData& d, uint32_t* dptr) {
                 outsize = 8 * 1024 - 512;
             }
             // second 7.5K to other PRU ram
-            m_pru->memcpyToPRU(m_pru->other_data_ram + 512, d.curData + 7624,
+            m_pru->memcpyToPRU(m_pru->other_data_ram + 512, fmt + 7624,
                                outsize);
             fullsize -= 7624;
         }
@@ -1070,14 +1078,20 @@ void BBB48StringOutput::sendData(FrameData& d, uint32_t* dptr) {
             if (outsize > m_pru->shared_ram_size) {
                 outsize = m_pru->shared_ram_size;
             }
-            m_pru->memcpyToPRU(m_pru->shared_ram, d.curData + 7624 + 7624, outsize);
+            m_pru->memcpyToPRU(m_pru->shared_ram, fmt + 7624 + 7624, outsize);
         }
     }
+
+    // The PRU reads the rest of the frame (all of it when nothing went to
+    // PRU memory) and any Falcon V4 packet after it from DDR.
+    uint32_t used = d.outputStringLen * d.gpioStringMap.size() + d.falconPacketLanes.size();
+    memcpy(d.curData, fmt, std::min(used, d.frameSize));
 
     // Map
     size_t offset = d.curData - m_pru->ddr;
     *dptr = (m_pru->ddr_addr + offset);
     std::swap(d.lastData, d.curData);
+    std::swap(d.fmtLast, d.fmtCur);
 }
 
 int BBB48StringOutput::SendData(unsigned char* channelData) {
@@ -1091,8 +1105,14 @@ int BBB48StringOutput::SendData(unsigned char* channelData) {
         sendData(m_gpio0Data, &m_pru0Data->address_dma);
     }
 
-    // make sure memory is flushed before command is set to 1
+    // The frame data must be visible to the PRU before the command is: order
+    // every earlier store against the command store system wide (the PRU is
+    // outside the inner shareable domain, so dmb ish is not enough).
+#if defined(__arm__) || defined(__aarch64__)
+    __asm__ __volatile__("dmb sy" ::: "memory");
+#else
     __asm__ __volatile__("" ::: "memory");
+#endif
 
     // Send the start command
     uint32_t flag = 0;
