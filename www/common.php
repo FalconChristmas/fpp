@@ -4478,36 +4478,99 @@ function network_internet_probe_targets()
 }
 
 /**
- * Cheap "does any route to the internet leave through this interface" check.
+ * The probe binds to use for $ifname, verified against the kernel's routing:
+ * always the interface name when any route leaves through it, plus the
+ * interface's IPv4 address only when traffic from that address verifiably
+ * leaves through the interface too.
  *
- * Used to skip the expensive probe for interfaces the host cannot use for
- * internet traffic at all -- a show LAN with no gateway, for example.  This is
- * not a gate on internet access: it only answers whether the kernel's own
- * routing would let a packet leave through $ifname.  The second query with the
- * interface's source address covers policy tables selected by source, which a
- * device-only lookup can miss.
+ * This doubles as the "is probing this interface worthwhile" gate: an empty
+ * result means no route leaves $ifname at all (a show LAN with no gateway),
+ * so the expensive probe would only wait for a timeout.  It runs inside
+ * network_interface_has_internet()'s cache closure, so the routing table is
+ * consulted at most once per cache window per interface instead of once per
+ * request.
+ *
+ * The device bind needs no extra proof: `ip route get <target> oif <ifname>`
+ * constrains the lookup to that device, so rc 0 means the route leaves
+ * $ifname.
+ *
+ * The source-address bind does need one.  `ip route get <target> from
+ * <address>` returns rc 0 whenever any route exists for that source -- on a
+ * multi-homed host that is usually the main table's default route via some
+ * OTHER interface.  CURLOPT_INTERFACE with an address sets only the source
+ * address, so binding an unverified address would let, say, a Wi-Fi probe
+ * leave via the Ethernet default route and report internet access the Wi-Fi
+ * interface does not have.  Requiring the resolved route's dev to equal
+ * $ifname keeps the legitimate policy-routing case (a rule that sends this
+ * source out $ifname) and eliminates the false positive.
  *
  * Every probe target is asked about, not just one: policy routing can leave
  * one destination unrouted while the other probe targets remain reachable, and
  * treating that as "no route" would hide a working connection.
  */
-function network_linux_interface_has_internet_route($ifname, $bindAddress)
+function network_linux_interface_probe_binds($ifname, $bindAddress)
 {
-    $output = array();
-    foreach (network_internet_probe_targets() as $ip) {
+    $binds = array();
+    $targets = network_internet_probe_targets();
+
+    foreach ($targets as $ip) {
+        $output = array();
         if (fpp_exec_argv(array('ip', 'route', 'get', $ip, 'oif', $ifname), $output) === 0) {
-            return true;
+            $binds[] = $ifname;
+            break;
         }
     }
-    if ($bindAddress !== null) {
-        foreach (network_internet_probe_targets() as $ip) {
+
+    if ($bindAddress !== null && $bindAddress !== $ifname) {
+        foreach ($targets as $ip) {
             $output = array();
-            if (fpp_exec_argv(array('ip', 'route', 'get', $ip, 'from', $bindAddress), $output) === 0) {
-                return true;
+            if (fpp_exec_argv(array('ip', 'route', 'get', $ip, 'from', $bindAddress), $output) !== 0) {
+                continue;
+            }
+            // rc 0 only proves a route exists for this source, not that it
+            // leaves $ifname; check the resolved device before trusting the
+            // address bind (see the function comment).
+            if (network_route_output_uses_dev($output, $ifname)) {
+                $binds[] = $bindAddress;
+                break;
             }
         }
     }
+
+    return $binds;
+}
+
+/**
+ * True when `ip route get` output names $ifname as the route's output device.
+ */
+function network_route_output_uses_dev(array $output, $ifname)
+{
+    foreach ($output as $line) {
+        if (preg_match('/\bdev\s+(\S+)/', $line, $m)) {
+            return $m[1] === $ifname;
+        }
+    }
     return false;
+}
+
+/**
+ * Whether the header's internet-connectivity indicator may send outbound
+ * probes (ICMP and HTTPS to the public probe targets).
+ *
+ * Enabled by default.  Set `NetworkInternetProbe = "0"` in settings.ini to
+ * disable it on setups where periodic outbound traffic is unwanted (isolated
+ * show LANs, metered links, strict firewalls); every interface then simply
+ * reports no internet.  Read from $settings, which config.php populates with
+ * every key in the settings file, so no UI plumbing is required.
+ */
+function network_internet_probes_enabled()
+{
+    global $settings;
+
+    if (!isset($settings['NetworkInternetProbe'])) {
+        return true;
+    }
+    return filter_var($settings['NetworkInternetProbe'], FILTER_VALIDATE_BOOLEAN);
 }
 
 /**
@@ -4592,9 +4655,11 @@ function network_linux_probe_bind_address($rec)
  * keeps this honest: a captive portal that intercepts the connection cannot
  * present a valid certificate for the literal address.  Every target and bind
  * is tried in parallel so the answer costs one timeout, not one per
- * combination.  Including the interface's address alongside its name covers
- * routers whose policy tables select by source address, which a device-bound
- * lookup may not reach.
+ * combination.  Callers include the interface's address alongside its name
+ * only when the route lookup verified that traffic from that address leaves
+ * the device (see network_linux_interface_probe_binds()): binding to an
+ * unverified address sets only the source address, and the packet can still
+ * follow another interface's route.
  *
  * Returns 1 for reachable, 0 for a definitive failure, and -1 when every bind
  * was refused (older kernels require privilege for SO_BINDTODEVICE).
@@ -4697,22 +4762,29 @@ function network_interface_https_probe(array $binds)
  *
  * This answers "can this host use this interface for internet access right
  * now", not "does the interface's uplink have internet in isolation".  The
- * probe is bound to the interface, so it follows the interface's own routing
- * (including policy tables) and is not fooled by a multi-homed box preferring
- * another default route.  Binding matters: an unbound probe follows whichever
- * route the kernel prefers and would report the wrong interface.
+ * probe is bound to the interface -- and, for the TLS fallback, only to
+ * address binds verified to route out of the interface -- so it follows the
+ * interface's own routing (including policy tables) and is not fooled by a
+ * multi-homed box preferring another default route.  Binding matters: an
+ * unbound probe follows whichever route the kernel prefers and would report
+ * the wrong interface.
  *
  * ICMP is tried first because it is cheap and the common case.  When a network
- * filters it, a verified HTTPS probe decides instead.  Both stages are cached
- * per interface for 20 seconds (file_cache() also serialises concurrent
- * probes) because api/system/status is polled every few seconds; an offline
- * interface would otherwise pay the timeout on every poll.  Both outcomes are
- * cached -- caching only successes would keep a dead interface green for the
- * life of the cache.
+ * filters it, a verified HTTPS probe decides instead.  The routing-table gate
+ * and both probe stages are cached per interface for 20 seconds (file_cache()
+ * also serialises concurrent probes) because api/system/status is polled every
+ * few seconds; an offline interface would otherwise pay the timeout on every
+ * poll.  All outcomes are cached -- caching only successes would keep a dead
+ * interface green for the life of the cache.  Probes can be disabled entirely
+ * with the NetworkInternetProbe setting.
  */
 function network_interface_has_internet($ifname, $bindAddress = null)
 {
     global $settings;
+
+    if (!network_internet_probes_enabled()) {
+        return false;
+    }
 
     // Kernel interface names are at most IFNAMSIZ-1 (15) characters and this
     // value also names a cache file, so reject anything that is not a plain
@@ -4731,14 +4803,31 @@ function network_interface_has_internet($ifname, $bindAddress = null)
         return $memo[$ifname];
     }
 
+    $isMacOS = ($settings['Platform'] == 'MacOS');
+
     // Bind the probe to the interface itself.  Linux and macOS spell that
     // differently, and macOS times the whole run with -t rather than waiting
     // -W seconds for a reply.
-    $pingArgs = ($settings['Platform'] == 'MacOS')
+    $pingArgs = $isMacOS
         ? array('ping', '-n', '-q', '-c', '1', '-t', '1', '-b', $ifname, '1.1.1.1')
         : array('ping', '-n', '-q', '-c', '1', '-W', '1', '-I', $ifname, '1.1.1.1');
 
-    $result = file_cache('net_internet_' . $ifname, function () use ($pingArgs, $ifname, $bindAddress) {
+    $result = file_cache('net_internet_' . $ifname, function () use ($pingArgs, $ifname, $bindAddress, $isMacOS) {
+        // The routing-table gate runs inside the cache closure: it costs a
+        // few `ip route get` forks, and running it per request would dwarf
+        // the probe it guards on a host polled every few seconds.  macOS has
+        // no `ip` command and no gate; it probes directly.
+        if ($isMacOS) {
+            $binds = array($ifname);
+        } else {
+            $binds = network_linux_interface_probe_binds($ifname, $bindAddress);
+            if (count($binds) === 0) {
+                // No route leaves this interface at all: the probe would
+                // only wait for a timeout, and the answer is already known.
+                return '0';
+            }
+        }
+
         // One ICMP target and a one-second timeout: this runs from the status
         // API, and a multi-homed box with an offline WAN must not stack
         // timeouts onto a response that remote players poll.
@@ -4748,15 +4837,12 @@ function network_interface_has_internet($ifname, $bindAddress = null)
             return '1';
         }
 
-        // ICMP is filtered on some networks, so fall back to TCP/TLS.  Probe
-        // bound to the device name and to the interface's own address in the
-        // same batch: older kernels can refuse the device bind, and routers
-        // that select a policy table by source address answer the address bind
-        // even when the device-bound lookup has no route.
-        $binds = array($ifname);
-        if ($bindAddress !== null && $bindAddress !== $ifname) {
-            $binds[] = $bindAddress;
-        }
+        // ICMP is filtered on some networks, so fall back to TCP/TLS.  The
+        // binds are the device, plus the interface's address only when the
+        // route lookup verified that source leaves through the device -- an
+        // unverified address bind could follow another interface's route.
+        // Older kernels can refuse the device bind; that is what the
+        // interface-failed accounting in the probe is for.
         $probe = network_interface_https_probe($binds);
 
         return ($probe === 1) ? '1' : '0';
@@ -4774,14 +4860,18 @@ function network_interface_has_internet($ifname, $bindAddress = null)
  * Interfaces that are up and have a routable IPv4 address are checked; a
  * main-table default route is not required.  The flag is opt-in so callers
  * that must not send traffic (the statistics page reads
- * /api/network/interface) keep the old behavior.
+ * /api/network/interface) keep the old behavior, and the probes honor the
+ * NetworkInternetProbe setting and can be disabled entirely.
  */
 function network_list_interfaces_obj($withInternet = false)
 {
     global $settings;
 
+    // The internet probe is opt-in per request, and can also be disabled
+    // wholesale in settings.ini -- see network_internet_probes_enabled().
+    $withInternet = $withInternet && network_internet_probes_enabled();
+
     $output = array();
-    global $settings;
     $rc = array();
 
     $wifiObj = network_wifi_strength_obj();
@@ -4899,13 +4989,15 @@ function network_list_interfaces_obj($withInternet = false)
             // Probe every interface that is up with a routable address, not
             // just the ones in the main routing table: policy routing and VPN
             // setups can put the usable route somewhere this list never sees.
-            // No route through the interface means the probe would only wait
-            // for a timeout; the answer is already known.
+            // Whether a route actually leaves the interface (and whether the
+            // source-address bind is verified) is decided inside
+            // network_interface_has_internet()'s cache closure, so the
+            // routing table is consulted at most once per cache window per
+            // interface instead of once per request.
             $candidates = array();
             foreach ($rc as $cand) {
                 $bind = network_linux_probe_bind_address($cand);
-                if ($bind !== null
-                    && network_linux_interface_has_internet_route($cand['ifname'], $bind)) {
+                if ($bind !== null) {
                     $candidates[$cand['ifname']] = $bind;
                 }
             }
