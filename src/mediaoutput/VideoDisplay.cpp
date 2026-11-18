@@ -85,6 +85,17 @@ struct FeedRef {
     uint64_t token;
 };
 
+// The display a probe's FeedRef names.  Its own function, never inlined, so
+// that a sanitizer can be told about this one read alone: the FeedRef is
+// handed to gst_pad_add_probe() (AttachFeed()) and first read here on the
+// decoder's streaming thread, ordered by the pad's lock, inside GStreamer
+// where TSan can't see it.  Nothing past it is excused.
+__attribute__((noinline)) VideoDisplay* FeedRefDisplay(gpointer data) {
+    VideoDisplay* display = static_cast<FeedRef*>(data)->display.get();
+    display->SyncWithAttach();
+    return display;
+}
+
 void FreeFeedRef(gpointer data) {
     delete static_cast<FeedRef*>(data);
 }
@@ -453,6 +464,8 @@ uint64_t VideoDisplay::AttachFeed(GstElement* appsink, bool activate) {
     callbacks.new_sample = [](GstAppSink* sink, gpointer data) -> GstFlowReturn {
         return OnFeedSample(GST_ELEMENT(sink), data);
     };
+    // Before the feed's threads can be handed the display (see m_attached).
+    m_attached.fetch_add(1, std::memory_order_release);
     gst_app_sink_set_callbacks(GST_APP_SINK(appsink), &callbacks,
                                new FeedRef{ shared_from_this(), token }, FreeFeedRef);
     // The decoder asks downstream how to allocate its frames.  The appsink
@@ -474,8 +487,7 @@ GstPadProbeReturn VideoDisplay::OnFeedQuery(GstPad*, GstPadProbeInfo* info, gpoi
     if (!query || GST_QUERY_TYPE(query) != GST_QUERY_ALLOCATION) {
         return GST_PAD_PROBE_OK;
     }
-    return static_cast<FeedRef*>(userData)->display->AnswerAllocation(query) ? GST_PAD_PROBE_HANDLED
-                                                                             : GST_PAD_PROBE_OK;
+    return FeedRefDisplay(userData)->AnswerAllocation(query) ? GST_PAD_PROBE_HANDLED : GST_PAD_PROBE_OK;
 }
 
 bool VideoDisplay::AnswerAllocation(GstQuery* query) {

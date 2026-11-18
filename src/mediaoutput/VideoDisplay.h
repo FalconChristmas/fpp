@@ -77,6 +77,9 @@ public:
     // ActivateFeed() (a track prepared while another plays).  Returns the
     // feed's token.
     uint64_t AttachFeed(GstElement* appsink, bool activate = true);
+    // Pairs with AttachFeed()'s publishing of the display to a feed's
+    // streaming threads (see FeedRefDisplay()).
+    void SyncWithAttach() const { m_attached.load(std::memory_order_acquire); }
     void ActivateFeed(uint64_t token);
     // That feed has stopped: its frames are no longer shown (the last one
     // stays on screen).  No-op if another feed has been attached since.
@@ -105,6 +108,10 @@ private:
 
     const Config m_cfg;
     std::mutex m_lock;
+    // Bumped (release) as each feed is attached, and read (acquire) by its
+    // probe before it first touches the display: GStreamer hands the probe
+    // over under its own locks, which the sanitizer can't see.
+    std::atomic<uint64_t> m_attached{ 0 };
     int m_users = 0;
     uint64_t m_idleSinceMs = 0;      // when m_users last fell to 0 (GetMonotonicTimeMS())
     bool m_failed = false;           // the sink errored: rebuild on the next Acquire()
