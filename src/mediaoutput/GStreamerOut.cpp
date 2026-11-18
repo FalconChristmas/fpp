@@ -2738,10 +2738,16 @@ int GStreamerOutput::Start(int msTime) {
         std::shared_ptr<std::atomic<bool>> cancel = m_startThreadCancel;
         GstElement* pipeline = GST_ELEMENT(gst_object_ref(m_pipeline));
         std::string name = m_mediaFilename;
-        std::thread([pipeline, cancel, name]() {
+        uint64_t t0 = GetMonotonicTimeMS();
+        // Here, before Prepare() returns, not on the thread below: a claim
+        // can come at once (an insert in an entry's last moments, a remote's
+        // Open right behind its Prepare), and Go()'s thread could then reach
+        // PLAYING first, for this to put the pipeline back to PAUSED, frozen.
+        // (Prepare() runs on its own thread, and PAUSED returns at once;
+        // only waiting for the preroll takes time.)
+        gst_element_set_state(m_pipeline, GST_STATE_PAUSED);
+        std::thread([pipeline, cancel, name, t0]() {
             SetThreadName("FPP-GstPrepare");
-            uint64_t t0 = GetMonotonicTimeMS();
-            gst_element_set_state(pipeline, GST_STATE_PAUSED);
             GstState state = GST_STATE_NULL;
             gst_element_get_state(pipeline, &state, nullptr, (GstClockTime)PREROLL_TIMEOUT_MS * GST_MSECOND);
             LogDebug(VB_MEDIAOUT, "GStreamer: prepared %s in %d ms (%s)\n", name.c_str(),
