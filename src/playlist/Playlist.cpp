@@ -1828,10 +1828,47 @@ void Playlist::PrepareNextIfDue() {
         return;  // done for this pass
     }
     m_preparedAfter = cur;
+    bool ends = false;
     if (!m_insertedPlaylist.empty()) {
         PrepareInsertedPlaylist();
-    } else if (PlaylistEntryBase* next = PeekNextEntry()) {
+    } else if (PlaylistEntryBase* next = PeekNextEntry(&ends)) {
         next->PrepareAhead();
+    } else if (ends) {
+        PrepareParentsNext();
+    }
+}
+
+void Playlist::PrepareParentsNext() {
+    // The level SetIdle() would hand back to: condemned levels are skipped.
+    std::shared_ptr<Playlist> par = m_parent.load();
+    {
+        std::lock_guard<std::mutex> lk(PL_CLEANUPS_LOCK);
+        while (par && std::find(PL_CLEANUPS.begin(), PL_CLEANUPS.end(), par.get()) != PL_CLEANUPS.end()) {
+            par = par->m_parent.load();
+        }
+    }
+    if (par) {
+        // Child before parent: the order StopGracefully takes the locks in.
+        par->PrepareNextOnResume();
+    }
+}
+
+void Playlist::PrepareNextOnResume() {
+    std::unique_lock<std::recursive_mutex> lck(m_playlistMutex);
+    if (m_currentSectionStr == "New" || !m_currentSection || m_sectionPosition >= m_currentSection->size()) {
+        return;
+    }
+    // Inserted after the current entry, which has finished: once resumed it
+    // moves on, exactly as if the insert had never been.  Inserted
+    // immediately, the current entry is paused and resumes instead.
+    if (!m_currentSection->at(m_sectionPosition)->IsFinished()) {
+        return;
+    }
+    bool ends = false;
+    if (PlaylistEntryBase* next = PeekNextEntry(&ends)) {
+        next->PrepareAhead();
+    } else if (ends) {
+        PrepareParentsNext();
     }
 }
 
@@ -1869,13 +1906,22 @@ void Playlist::PrepareInsertedPlaylist() {
 
 // The same decisions Process() makes once the current entry has finished,
 // as far as they can be made now; nullptr wherever they can't.
-PlaylistEntryBase* Playlist::PeekNextEntry() {
-    if (!m_insertedPlaylist.empty() || m_stopAtPos != -1 || m_globalPauseBetweenSequencesMS > 0 ||
+PlaylistEntryBase* Playlist::PeekNextEntry(bool* ends) {
+    bool endsHere = false;
+    if (!ends) {
+        ends = &endsHere;
+    }
+    *ends = false;
+    if (!m_insertedPlaylist.empty() || m_globalPauseBetweenSequencesMS > 0 ||
         m_status == FPP_STATUS_STOPPING_GRACEFULLY || m_status == FPP_STATUS_STOPPING_NOW) {
         return nullptr;
     }
     PlaylistEntryBase* cur = m_currentSection->at(m_sectionPosition);
     if (cur->GetNextBranchType() != PlaylistEntryBase::PlaylistBranchType::NoBranch) {
+        return nullptr;
+    }
+    if (m_stopAtPos != -1 && m_stopAtPos <= (GetPosition() - 1)) {
+        *ends = true;  // the end position Process() stops at
         return nullptr;
     }
     if (m_sectionPosition + 1 < m_currentSection->size()) {
@@ -1885,15 +1931,24 @@ PlaylistEntryBase* Playlist::PeekNextEntry() {
         if (!m_mainPlaylist.empty()) {
             return m_mainPlaylist[0];  // already shuffled, when it is, by Start()
         }
-        return m_leadOut.empty() ? nullptr : m_leadOut[0];
+        if (m_leadOut.empty()) {
+            *ends = true;
+            return nullptr;
+        }
+        return m_leadOut[0];
     }
     if (m_currentSectionStr != "MainPlaylist") {
+        *ends = m_currentSectionStr == "LeadOut";
         return nullptr;
     }
     bool loopsAgain = m_repeat && (!m_loopCount || (m_loop + 1) < m_loopCount) &&
                       m_status != FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP;
     if (!loopsAgain) {
-        return m_leadOut.empty() ? nullptr : m_leadOut[0];
+        if (m_leadOut.empty()) {
+            *ends = true;
+            return nullptr;
+        }
+        return m_leadOut[0];
     }
     if (m_random == 2) {
         // Reshuffled at the wrap: draw that shuffle now and keep it.
@@ -2036,9 +2091,6 @@ void Playlist::SetIdle(bool exit) {
     // An insert still waiting for the current item to end goes with the
     // playlist it was for.  Not in Cleanup(), which a reload also runs.
     m_insertedPlaylist = "";
-    // So does media prepared for what would have played next: it holds a
-    // decoder, and keeps the display up behind it.
-    DiscardPreparedMediaOutput();
 
     bool publishIdle = true;
     // Walk up past parents that are already condemned to PL_CLEANUPS — making
@@ -2061,6 +2113,13 @@ void Playlist::SetIdle(bool exit) {
     // A stop of every level hands back without resuming: the parent is the
     // next level to stop, not a playlist that carries on.
     bool resumeParent = handingBack && !tl_stoppingAllLevels;
+    // Media prepared for what would have played next holds a decoder and
+    // keeps the display up behind it, so it goes -- unless this is an insert
+    // ending and the media is the resumed playlist's next entry
+    // (PrepareParentsNext()).  That claims it, or discards it on a mismatch.
+    if (!resumeParent) {
+        DiscardPreparedMediaOutput();
+    }
 
     // Both deferred (see PlaylistTransitionGuard): a PLAYLIST_STOPPED preset
     // that starts another playlist used to run here, mid-SetIdle — the rest
