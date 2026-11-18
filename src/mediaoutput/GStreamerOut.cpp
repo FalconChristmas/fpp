@@ -2859,6 +2859,8 @@ int GStreamerOutput::Go(int msTime, const std::string& pipelineSinkName, double 
         // thread shifts exactly those (see m_timelineShiftNs).
         m_timelineShiftNs = std::make_shared<std::atomic<int64_t>>(0);
         std::shared_ptr<std::atomic<int64_t>> timelineShift = m_timelineShiftNs;
+        m_timelineHandover = std::make_shared<TimelineHandover>();
+        std::shared_ptr<TimelineHandover> handover = m_timelineHandover;
         bool mayContinue = m_pwFeed && !m_videoPipeWireRouting && !m_videoAppsink && m_directConnectorIds.empty();
         GstElement* displayFeed = nullptr;
         if (m_kmssink) {
@@ -2878,7 +2880,7 @@ int GStreamerOutput::Go(int msTime, const std::string& pipelineSinkName, double 
         // from this thread, possibly after this output has been stopped.
         const uint64_t producerGeneration = VideoOutputManager::Instance().ProducerGeneration();
         std::thread([pipeline, volume, cancel, seekPending, seekMs, videoPW, targetVolume,
-                     streamSlot, pwStream, timelineShift, pwFeed, displayFeed,
+                     streamSlot, pwStream, timelineShift, handover, pwFeed, displayFeed,
                      producerGeneration, flushesDeferred]() {
             // Releases our owning refs on exit no matter which path we return on.
             //
@@ -2971,7 +2973,8 @@ int GStreamerOutput::Go(int msTime, const std::string& pipelineSinkName, double 
                     prerolled == GST_STATE_PAUSED && !cancel->load()) {
                     GstClockTime base = GST_CLOCK_TIME_NONE;
                     int64_t early = 0;
-                    if (pwStream->ContinueTimeline(&base, &early)) {
+                    std::unique_lock<std::mutex> handoverLock(handover->lock);
+                    if (!handover->ended && pwStream->ContinueTimeline(&base, &early)) {
                         // The first sample is due at `base`, and is handed
                         // over `early` before it: a base that much earlier,
                         // and the feed's ts-offset that much less negative
@@ -3532,7 +3535,14 @@ void GStreamerOutput::EndTimelineShift() {
     // A seek in the moment the start thread runs a carried-on pipeline on
     // the timeline's base time with no start time (before it sets one again
     // once PLAYING) would keep that base time; with a start time the flushing
-    // seek works out a new one.
+    // seek works out a new one.  Under the handover's lock, so that the start
+    // thread can't put the timeline's base time back after it (it starts the
+    // track drained instead).
+    std::unique_lock<std::mutex> handoverLock;
+    if (m_timelineHandover) {
+        handoverLock = std::unique_lock<std::mutex>(m_timelineHandover->lock);
+        m_timelineHandover->ended = true;
+    }
     if (m_pipeline) {
         gst_element_set_start_time(m_pipeline, 0);
     }

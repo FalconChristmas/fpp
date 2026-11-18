@@ -515,6 +515,15 @@ private:
     // the position, so both still meet the sound.  Shared with the start
     // thread, which sets it.
     std::shared_ptr<std::atomic<int64_t>> m_timelineShiftNs;
+    // The start thread's carrying on the timeline and a flushing seek's
+    // EndTimelineShift() take turns under `lock`; a seek that comes first
+    // marks it `ended`, and the start thread then starts the track drained
+    // rather than put the timeline's base time back after the seek.
+    struct TimelineHandover {
+        std::mutex lock;
+        bool ended = false;
+    };
+    std::shared_ptr<TimelineHandover> m_timelineHandover;
     // Back to the usual feed offset, before a flushing seek starts the
     // pipeline's running time again.
     void EndTimelineShift();
