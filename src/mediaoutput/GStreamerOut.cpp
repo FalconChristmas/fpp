@@ -61,6 +61,8 @@
 #include "log.h"
 #include "PipeWireOutputStream.h"
 #include "StreamSlotManager.h"
+
+#include <functional>
 #include "VideoDisplay.h"
 #include "VideoOutputManager.h"
 #include "RTSPOutputManager.h"
@@ -387,13 +389,19 @@ static void RestartForStuckTeardowns(const char* why) {
 // its resources are intentionally leaked.  After a false return the caller
 // must NOT release the pipeline's kernel-side resources (DRM planes, shared
 // DRM fd refs) — the wedged pipeline still owns them.
-static bool SetPipelineToNullSupervised(GstElement* pipeline, int timeoutMs) {
+// `ifLate` runs on the teardown thread if the pipeline does reach NULL after
+// all, once the caller has given up on it (returned false).
+static bool SetPipelineToNullSupervised(GstElement* pipeline, int timeoutMs,
+                                        std::function<void()> ifLate = nullptr) {
     struct TeardownCtx {
         std::mutex m;
         std::condition_variable cv;
         bool done = false;
+        bool abandoned = false;
+        std::function<void()> ifLate;
     };
     auto ctx = std::make_shared<TeardownCtx>();
+    ctx->ifLate = std::move(ifLate);
     gst_object_ref(pipeline);
     s_liveReapers++;
     try {
@@ -411,11 +419,18 @@ static bool SetPipelineToNullSupervised(GstElement* pipeline, int timeoutMs) {
                 LogWarn(VB_MEDIAOUT, "GStreamer: abandoned pipeline teardown eventually completed after %llu ms\n",
                         (unsigned long long)took);
             }
+            std::function<void()> late;
             {
                 std::lock_guard<std::mutex> l(ctx->m);
                 ctx->done = true;
+                if (ctx->abandoned) {
+                    late = std::move(ctx->ifLate);
+                }
             }
             ctx->cv.notify_all();
+            if (late) {
+                late();
+            }
         }).detach();
     } catch (const std::system_error& e) {
         // Out of threads.  The pipeline is still running, so its last unref
@@ -431,6 +446,9 @@ static bool SetPipelineToNullSupervised(GstElement* pipeline, int timeoutMs) {
     if (ctx->cv.wait_for(l, std::chrono::milliseconds(timeoutMs), [&] { return ctx->done; })) {
         return true;
     }
+    // Given up on: if it does get there later, it runs ifLate (decided under
+    // the lock, so a teardown finishing right now is one or the other).
+    ctx->abandoned = true;
     l.unlock();
     int stuck = s_liveReapers.load();
     if (stuck >= STUCK_TEARDOWN_RESTART_LIMIT) {
@@ -3459,7 +3477,19 @@ int GStreamerOutput::Stop(void) {
         // thread for 2h25m and ended in SIGBUS.  On timeout the pipeline is
         // abandoned (reaper thread keeps the ref) so playback can continue.
         const bool hwDecoder = PipelineHasHwVideoDecoder(m_pipeline);
-        if (SetPipelineToNullSupervised(m_pipeline, PIPELINE_TEARDOWN_TIMEOUT_MS)) {
+        // If an abandoned pipeline does stop after all, its decoder has let
+        // go of the display's frames: give back the use of the display that
+        // ReleaseDisplay() keeps for it, and the display can close.
+        std::function<void()> ifLate;
+#ifdef HAS_VIDEO_DISPLAY
+        if (m_display) {
+            ifLate = [display = m_display]() {
+                LogInfo(VB_MEDIAOUT, "GStreamer: giving back the display an abandoned pipeline held\n");
+                display->Release();
+            };
+        }
+#endif
+        if (SetPipelineToNullSupervised(m_pipeline, PIPELINE_TEARDOWN_TIMEOUT_MS, std::move(ifLate))) {
             LogDebug(VB_MEDIAOUT, "GStreamerOutput::Stop() - pipeline NULL complete\n");
         } else {
             m_teardownAbandoned = true;
@@ -3597,8 +3627,9 @@ void GStreamerOutput::ReleaseDisplay() {
             // and its decoder may still hold frames from the display's pool,
             // on the display's DRM lease.  Keep this track's use of the
             // display, so it never closes the lease under them; it shows the
-            // next track as before, and the restart that wedged teardowns
-            // lead to (STUCK_TEARDOWN_RESTART_LIMIT) gives it back.
+            // next track as before.  The teardown gives it back if it does
+            // finish (Stop()), else the restart that wedged teardowns lead to
+            // (STUCK_TEARDOWN_RESTART_LIMIT).
             LogWarn(VB_MEDIAOUT, "GStreamer: keeping the display's lease for an abandoned pipeline\n");
         } else {
             m_display->Release();
