@@ -32,6 +32,7 @@
 
 #include "../fseq/FSEQFile.h"
 
+#include "../MultiSync.h"
 #include "../Player.h"
 #include "Playlist.h"
 #include "Plugins.h"
@@ -1859,7 +1860,11 @@ void Playlist::PrepareInsertedPlaylist() {
         return;
     }
     int slot = std::clamp(e.get("streamSlot", 1).asInt(), 1, StreamSlotManager::MAX_SLOTS);
-    PrepareMediaOutput(e.get("mediaName", "").asString(), ResolveVideoOutput(e.get("videoOut", "").asString()), slot);
+    std::string media = e.get("mediaName", "").asString();
+    PrepareMediaOutput(media, ResolveVideoOutput(e.get("videoOut", "").asString()), slot);
+    if (multiSync->isMultiSyncEnabled()) {
+        multiSync->SendMediaPreparePacket(media);
+    }
 }
 
 // The same decisions Process() makes once the current entry has finished,

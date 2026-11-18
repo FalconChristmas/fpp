@@ -63,6 +63,12 @@ typedef struct {
 #define SYNC_PKT_STOP 1
 #define SYNC_PKT_SYNC 2
 #define SYNC_PKT_OPEN 3
+// Media only: the master's playlist expects to play this next, in a second
+// or so.  A remote readies its media for it (PrepareRemoteMediaOutput()), and
+// the Open that follows finds it ready.  Only a hint: the master may play
+// something else, whose Open then discards it.  Remotes from before this
+// ignore an action they don't know.
+#define SYNC_PKT_PREPARE 4
 
 #define SYNC_FILE_SEQ 0
 #define SYNC_FILE_MEDIA 1
@@ -388,6 +394,9 @@ public:
     void ShutdownSync(void);
 
     void SendMediaOpenPacket(const std::string& filename);
+    // SYNC_PKT_PREPARE.  Not offered to MultiSyncPlugins: a virtual for it
+    // would change their vtable (see the PLUGIN ABI note above).
+    void SendMediaPreparePacket(const std::string& filename);
     void SendMediaSyncStartPacket(const std::string& filename);
     void SendMediaSyncStopPacket(const std::string& filename);
     void SendMediaSyncPacket(const std::string& filename, float seconds);
@@ -406,6 +415,7 @@ public:
     void SyncSyncedSequence(const std::string& filename, int frameNumber, float secondsElapsed);
 
     void OpenSyncedMedia(const std::string& filename);
+    void PrepareSyncedMedia(const std::string& filename);
     void StartSyncedMedia(const std::string& filename, float secondsElapsed = 0.0f);
     void StopSyncedMedia(const std::string& filename);
     void SyncSyncedMedia(const std::string& filename, int frameNumber, float secondsElapsed);

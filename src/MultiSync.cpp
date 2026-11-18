@@ -2796,6 +2796,27 @@ void MultiSync::SendMediaOpenPacket(const std::string& filename) {
 
     SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + filename.length());
 }
+void MultiSync::SendMediaPreparePacket(const std::string& filename) {
+    if (filename.empty() || !FitsInSyncPacket(filename) || m_controlSock < 0) {
+        return;
+    }
+    LogDebug(VB_SYNC, "SendMediaPreparePacket('%s')\n", filename.c_str());
+
+    char outBuf[2048];
+    bzero(outBuf, sizeof(outBuf));
+    ControlPkt* cpkt = (ControlPkt*)outBuf;
+    SyncPkt* spkt = (SyncPkt*)(outBuf + sizeof(ControlPkt));
+    InitControlPacket(cpkt);
+    cpkt->pktType = CTRL_PKT_SYNC;
+    cpkt->extraDataLen = sizeof(SyncPkt) + filename.length();
+    spkt->pktType = SYNC_PKT_PREPARE;
+    spkt->fileType = SYNC_FILE_MEDIA;
+    spkt->frameNumber = 0;
+    spkt->secondsElapsed = 0;
+    strcpy(spkt->filename, filename.c_str());
+    SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + filename.length());
+}
+
 void MultiSync::SendMediaSyncStartPacket(const std::string& filename) {
     if (filename.empty()) {
         return;
@@ -4225,6 +4246,11 @@ void MultiSync::OpenSyncedMedia(const std::string& filename) {
     OpenMediaOutput(filename);
 }
 
+void MultiSync::PrepareSyncedMedia(const std::string& filename) {
+    LogDebug(VB_SYNC, "PrepareSyncedMedia(%s)\n", filename.c_str());
+    PrepareRemoteMediaOutput(filename);
+}
+
 void MultiSync::StartSyncedMedia(const std::string& filename, float secondsElapsed) {
     LogDebug(VB_SYNC, "StartSyncedMedia(%s, %.2f)\n", filename.c_str(), secondsElapsed);
     for (auto a : getPluginsCopy()) {
@@ -4451,6 +4477,9 @@ void MultiSync::ProcessSyncPacket(ControlPkt* pkt, int len, MultiSyncStats* stat
         case SYNC_PKT_OPEN:
             OpenSyncedMedia(filename);
             BumpStat(stats->pktSyncMedOpen);
+            break;
+        case SYNC_PKT_PREPARE:
+            PrepareSyncedMedia(filename);
             break;
         case SYNC_PKT_START:
             secondsElapsed = secondsIn - m_remoteOffset;

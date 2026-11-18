@@ -909,6 +909,12 @@ uint64_t s_preparedGen = 0;
 // How long a claim waits for a prepare still under way: about what building
 // the output cold would take anyway.
 constexpr int PREPARED_CLAIM_WAIT_MS = 2000;
+// How long a prepare waits to be claimed before it is thrown away.  A
+// playlist that stops discards its own, but a MultiSync remote can't tell
+// the master's last Stop from the one between two tracks, and an unclaimed
+// prepare holds a decoder and keeps the display up.  Prepares are made about
+// 1.5 s before they are needed.
+constexpr int PREPARED_EXPIRY_MS = 6000;
 
 // Off the caller's thread: deleting an output takes its pipeline down.
 void DeleteUnplayed(MediaOutputBase* out) {
@@ -946,6 +952,20 @@ void PrepareMediaOutput(const std::string& mediaFilename, const std::string& vid
     }
     DeleteUnplayed(old);
     LogDebug(VB_MEDIAOUT, "Preparing %s for slot %d\n", mediaFilename.c_str(), streamSlot);
+    Timers::INSTANCE.addTimer("PreparedMediaExpiry", GetTimeMS() + PREPARED_EXPIRY_MS, [streamSlot, gen]() {
+        MediaOutputBase* expired = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(s_preparedLock);
+            auto it = s_prepared.find(streamSlot);
+            if (it == s_prepared.end() || it->second.gen != gen || it->second.building) {
+                return;
+            }
+            LogDebug(VB_MEDIAOUT, "Discarding %s prepared for slot %d: not played\n", it->second.file.c_str(), streamSlot);
+            expired = it->second.out;
+            s_prepared.erase(it);
+        }
+        DeleteUnplayed(expired);
+    });
     std::thread([mediaFilename, videoOut, streamSlot, gen]() {
         SetThreadName("FPP-MediaPrep");
         // Not CreateMediaOutput(): that writes the slot's status, which is
@@ -1027,6 +1047,33 @@ void DiscardPreparedMediaOutput(int streamSlot) {
 }
 
 static std::set<std::string> alreadyWarned;
+
+// What a remote plays for the master's `filename`: the video of that name if
+// there is one, else the file itself if it has sound; "" if neither.
+static std::string RemoteMediaFor(const std::string& filename) {
+    std::size_t found = filename.find_last_of(".");
+    if (found == std::string::npos) {
+        return "";
+    }
+    std::string ext = toLowerCopy(filename.substr(found + 1));
+    std::string tmpFile = GetVideoFilenameForMedia(filename, ext);
+    std::string audio = filename;  // HasAudioForMedia() may rewrite it to the file found
+    if (tmpFile == "" && HasAudioForMedia(audio)) {
+        tmpFile = audio;
+    }
+    return tmpFile;
+}
+
+void PrepareRemoteMediaOutput(const std::string& filename) {
+    if (getFPPmode() != REMOTE_MODE) {
+        return;
+    }
+    std::string tmpFile = RemoteMediaFor(filename);
+    if (!tmpFile.empty()) {
+        PrepareMediaOutput(tmpFile, ResolveVideoOutput("--Default--"), 1);
+    }
+}
+
 /*
  *
  */
@@ -1058,11 +1105,7 @@ int OpenMediaOutput(const std::string& filename) {
         std::string ext = toLowerCopy(tmpFile.substr(found + 1));
 
         if (getFPPmode() == REMOTE_MODE) {
-            std::string orgTmp = tmpFile;
-            tmpFile = GetVideoFilenameForMedia(tmpFile, ext);
-            if (tmpFile == "" && HasAudioForMedia(orgTmp)) {
-                tmpFile = orgTmp;
-            }
+            tmpFile = RemoteMediaFor(tmpFile);
 
             if (tmpFile == "") {
                 // For v1.0 MultiSync, we can't sync audio to audio, so check for
@@ -1089,7 +1132,13 @@ int OpenMediaOutput(const std::string& filename) {
 
         std::string vOut = ResolveVideoOutput("--Default--");
         LogDebug(VB_MEDIAOUT, "OpenMediaOutput: Creating media output for '%s' vOut='%s'\n", tmpFile.c_str(), vOut.c_str());
-        MediaOutputBase* out = CreateMediaOutput(tmpFile, vOut);
+        // A remote may have it ready (the master's SYNC_PKT_PREPARE).  Only
+        // a remote: elsewhere this is Play Media and the like, which must not
+        // discard what a playlist prepared.
+        MediaOutputBase* out = getFPPmode() == REMOTE_MODE ? ClaimPreparedMediaOutput(tmpFile, vOut, 1) : nullptr;
+        if (!out) {
+            out = CreateMediaOutput(tmpFile, vOut);
+        }
         LogDebug(VB_MEDIAOUT, "OpenMediaOutput: CreateMediaOutput returned %p\n", out);
         if (!out) {
             LogErr(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile.c_str());

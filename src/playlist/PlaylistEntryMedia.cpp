@@ -244,6 +244,11 @@ void PlaylistEntryMedia::PrepareAhead() {
         file = m_preparedFile;
     }
     PrepareMediaOutput(file, ResolveVideoOutput(m_videoOutput), m_streamSlot);
+    // Remotes too, whatever this plays here: a remote may show a video of the
+    // same name for a song.  The same name its Open will carry (PreparePlay()).
+    if (multiSync->isMultiSyncEnabled()) {
+        multiSync->SendMediaPreparePacket(file);
+    }
 }
 
 /*

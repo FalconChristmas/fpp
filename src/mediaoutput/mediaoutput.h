@@ -57,6 +57,10 @@ void PrepareMediaOutput(const std::string& mediaFilename, const std::string& vid
 MediaOutputBase* ClaimPreparedMediaOutput(const std::string& mediaFilename, const std::string& videoOut, int streamSlot);
 // Throw away what is prepared for the slot, or for every slot (0).
 void DiscardPreparedMediaOutput(int streamSlot = 0);
+// A MultiSync remote: the master expects to play `filename` next
+// (SYNC_PKT_PREPARE).  Prepare what this remote would play for it, as
+// OpenMediaOutput() would choose it.  No-op outside remote mode.
+void PrepareRemoteMediaOutput(const std::string& filename);
 
 // "--Default--" or "" -> the VideoOutput setting, or the display when none is
 // configured (an HDMI connector on Linux, the video window on macOS), else
