@@ -1417,15 +1417,14 @@ void BBShiftStringOutput::PrepData(unsigned char* channelData) {
 void BBShiftStringOutput::sendData(FrameData& d) {
     if (d.outputStringLen) {
 #ifdef PLATFORM_BBB
-        // only the bytes the PRU will consume need to be copied/flushed
+        // only the bytes the PRU will consume need to be copied; the DDR
+        // region is mapped non-cacheable, so there is nothing to flush
+        // (SendData's frameDataBarrier() orders it before the command)
         uint32_t bytes = d.outputStringLen * stringsPerPru();
         if (bytes > d.frameSize) {
             bytes = d.frameSize;
         }
         memcpy(d.curData, d.formattedData, bytes);
-        // make sure memory is flushed
-        msync(d.curData, bytes, MS_SYNC | MS_INVALIDATE);
-        __builtin___clear_cache(d.curData, d.curData + bytes);
 
         d.pruData->address_dma = (d.pru->ddr_addr + (d.curData - d.pru->ddr));
         if (d.v5_config_packets[d.curV5ConfigPacket]) {

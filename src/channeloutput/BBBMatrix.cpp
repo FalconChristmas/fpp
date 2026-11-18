@@ -820,12 +820,10 @@ int BBBMatrix::Init(Json::Value config) {
     for (int x = 0; x < m_numFrames; x++) {
         memset(m_frames[x], 0x1, m_fullFrameLen);
     }
-    msync(m_frames[0], m_pru->ddr_size, MS_SYNC | MS_INVALIDATE);
     SendData(nullptr);
     for (int x = 0; x < m_numFrames; x++) {
         memset(m_frames[x], 0x0, m_fullFrameLen);
     }
-    msync(m_frames[0], m_pru->ddr_size, MS_SYNC | MS_INVALIDATE);
     SendData(nullptr);
     return ChannelOutput::Init(config);
 }
@@ -1136,10 +1134,8 @@ int BBBMatrix::SendData(unsigned char* channelData) {
         m_curFrame--;
     }
 
-    // make sure memory is flushed before command is set to 1
-    msync(ptr, m_fullFrameLen, MS_SYNC | MS_INVALIDATE);
-    __builtin___clear_cache(ptr, ptr + m_fullFrameLen);
-    // the frame data must reach DDR before its address reaches the PRU
+    // the frame data must reach DDR before its address reaches the PRU (the
+    // DDR region is mapped non-cacheable, so ordering is all it needs)
     BBBPru::frameDataBarrier();
     m_pruData->address_dma = addr;
 
