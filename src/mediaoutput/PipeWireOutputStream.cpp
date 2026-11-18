@@ -61,12 +61,16 @@ constexpr int64_t kFeedLeadQuanta = 2;
 constexpr int64_t kGraphAheadQuanta = 1;
 // The least time the last track's sound is left queued, beyond what the
 // graph may already have taken, when its end of stream comes: the time the
-// next track has to carry on before silence goes in between them (the end of
-// stream reaching the playlist, the next entry starting, its pipeline going
-// to PLAYING).  Two cycles alone leave a cycle, which at a high graph rate
-// is short: 11.6 ms at 88.2 kHz, which an AM62x board's handover overran by
-// a few ms at nearly every track change.
-constexpr int64_t kFeedHandoverMs = 30;
+// next track has to carry on before silence goes in between them -- the end
+// of stream reaching the playlist, which only looks on its main loop's ticks
+// (a sequence's frame, up to 50 ms at 20 fps), the next entry starting, and
+// its pipeline going to PLAYING.  Measured from the end of stream to the next
+// track carrying on: 1-5 ms on a Pi, 3-6 ms on an AM62x, 16-32 ms on a
+// BeagleBone Black at 100 fps; and its first buffer comes some ms after that.
+// Short of it, the first buffer comes after the graph may need it, and the
+// stream is flushed (the track's head is lost, and the next track starts on a
+// drained stream).  Where a sample plays doesn't depend on this.
+constexpr int64_t kFeedHandoverMs = 100;
 
 // Longest a stream may take to come up before it is abandoned.  A cold open is
 // ~0.6 s on an AM335x; this only trips when PipeWire itself is unwell.
