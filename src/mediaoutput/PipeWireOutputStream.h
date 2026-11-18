@@ -228,6 +228,9 @@ private:
     int64_t m_syncLastHw = 0;          // hw_ptr as last read
     int64_t m_syncWrap = 0;            // added to hw_ptr for each time it wrapped
     std::string m_syncTrigger;         // the card's trigger_time as last read
+    // The card was seen stopped under a feed (an xrun): flush once it runs
+    // again (see DisciplineClock()).
+    bool m_xrunPending = false;
     uint64_t m_lastFlushMs = 0;        // NowMs() of the last Flush() (under m_lock)
     GstClockTime m_syncLastInt = 0;
     // (seconds of internal time, seconds of card time) since the anchor.

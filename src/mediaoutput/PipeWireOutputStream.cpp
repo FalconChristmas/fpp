@@ -297,8 +297,8 @@ void PipeWireOutputStream::WaitDrained(int maxMs) {
 // handed to it after that, so between tracks it is primed with silence.
 //
 // When the stall is an xrun on the card itself, DisciplineClock() sees the
-// card stop or restart, and the stream is flushed right then, mid-track,
-// unprimed: the sound skips what the stall held up -- the xrun was already
+// card stop or restart, and once it runs again the stream is flushed,
+// mid-track, unprimed: the sound skips what the stall held up -- the xrun was already
 // audible -- and is back with the lights at once rather than at the next
 // track.  A stall that never reaches the card (a late group node) is left to
 // the flush between tracks.
@@ -306,6 +306,8 @@ void PipeWireOutputStream::Flush(bool prime) {
     GstElement* src = nullptr;
     {
         std::unique_lock<std::mutex> lock(m_lock);
+        // A flush covers an xrun still waiting for one.
+        m_xrunPending = false;
         if (!m_src || m_state != State::Ready || m_flushed) {
             return;
         }
@@ -715,6 +717,7 @@ bool PipeWireOutputStream::OpenLocked(std::unique_lock<std::mutex>& lock) {
     m_rate = rate;
     m_warnedCaps = false;
     m_queuedUntilUs = 0;
+    m_xrunPending = false;
     // The silence that connects the stream counts: the first track is
     // flushed too, so it starts from the same state as every later one.
     m_flushed = false;
@@ -1157,9 +1160,21 @@ bool PipeWireOutputStream::DisciplineClock() {
     bool lostTime = false;
     bool ownRestart = NowMs() - m_lastFlushMs < kFlushRestartMs;
     if (!running) {
-        lostTime = m_syncAnchored && m_feed && !ownRestart;
+        // The card stopped under a feed: an xrun.  Flushed only once the card
+        // runs again.  Seen stopped, the graph usually still is (the stall
+        // that caused it hasn't ended), and a flush then dropped only what was
+        // queued so far: what the feed handed over for the rest of the stall
+        // queued up behind it, and the sound stayed that far behind the lights
+        // -- up to the whole stall, by where in it the card was read.
+        if (m_syncAnchored && m_feed && !ownRestart) {
+            m_xrunPending = true;
+        }
         ResetClockSyncLocked();
-        return lostTime;
+        return false;
+    }
+    if (m_xrunPending) {
+        m_xrunPending = false;
+        lostTime = m_feed != nullptr;
     }
     // A restart resets hw_ptr and changes trigger_time.  hw_ptr also goes back
     // when it wraps at the ALSA boundary, with the card running on -- on a
@@ -1191,7 +1206,7 @@ bool PipeWireOutputStream::DisciplineClock() {
     double clockS = m_syncAnchored ? (double)(GstClockTimeDiff)(external - m_syncExt0) / GST_SECOND : 0.0;
     double phase = cardS - clockS;  // > 0: the card is ahead of the clock
     if (!m_syncAnchored || restarted || std::fabs(phase) > kClockMaxPhaseError) {
-        lostTime = m_syncAnchored && m_feed && (restarted ? !ownRestart : phase < -kClockMaxPhaseError);
+        lostTime = lostTime || (m_syncAnchored && m_feed && (restarted ? !ownRestart : phase < -kClockMaxPhaseError));
         if (m_syncAnchored) {
             LogDebug(VB_MEDIAOUT, "PipeWire output stream %d: card clock re-anchored (phase %.1f ms)\n",
                      m_slot, phase * 1000.0);
@@ -1267,6 +1282,7 @@ void PipeWireOutputStream::CloseLocked(const char* why) {
     gst_caps_replace(&m_caps, nullptr);
     m_rate = 0;
     m_queuedUntilUs = 0;
+    m_xrunPending = false;
     m_pipeline = nullptr;
     m_src = nullptr;
     // m_feed stays: it belongs to the track using the slot (AttachFeed() /
