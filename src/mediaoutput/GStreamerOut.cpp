@@ -61,6 +61,7 @@
 #include "log.h"
 #include "PipeWireOutputStream.h"
 #include "StreamSlotManager.h"
+#include "VideoDisplay.h"
 #include "VideoOutputManager.h"
 #include "RTSPOutputManager.h"
 #include "mediadetails.h"
@@ -1974,6 +1975,39 @@ int GStreamerOutput::Start(int msTime) {
         GstElement* videoQueue = gst_element_factory_make("queue", "vq");
 
         if (haveHdmiConnector) {
+#ifdef HAS_VIDEO_DISPLAY
+            // Without PipeWire video routing the display has nothing else
+            // hanging off it, so it runs on its own pipeline, which outlives
+            // this one: between tracks it holds the last frame instead of
+            // dropping to the console (see VideoDisplay.h).  The routed
+            // shape keeps its kmssink here, on the tee.
+            if (m_pwVideoSinkName.empty()) {
+                VideoDisplay::Config cfg;
+                cfg.cardPath = m_hdmiCardPath;
+                cfg.connectorId = m_hdmiConnectorId;
+                cfg.connectorName = m_videoOut;
+                if (cfg.connectorName == "--HDMI--" || cfg.connectorName == "--hdmi--" || cfg.connectorName == "HDMI") {
+                    cfg.connectorName = "HDMI-A-1";
+                }
+                cfg.width = m_hdmiDisplayWidth;
+                cfg.height = m_hdmiDisplayHeight;
+                cfg.crop = VideoOutputManager::Instance().GetHdmiCropForConnector(m_streamSlot, m_hdmiConnectorId);
+                cfg.scaling = VideoOutputManager::Instance().GetHdmiScalingForConnector(m_streamSlot, m_hdmiConnectorId);
+                m_display = VideoDisplay::Acquire(cfg);
+                if (m_display) {
+                    m_kmssink = gst_element_factory_make("appsink", "displayfeed");
+                    if (m_kmssink) {
+                        m_displayFeedToken = m_display->AttachFeed(m_kmssink);
+                    } else {
+                        ReleaseDisplay(true);
+                    }
+                } else {
+                    LogWarn(VB_MEDIAOUT, "GStreamer: could not open the persistent display on %s; using a kmssink of this track's own\n",
+                            cfg.connectorName.c_str());
+                }
+            }
+            if (!m_display) {
+#endif
 #ifdef PLATFORM_OSX
             // The "kmssink" slot holds whatever drives the primary display;
             // here that is glimagesink drawing into the slot's window. The
@@ -2037,6 +2071,9 @@ int GStreamerOutput::Start(int msTime) {
                              "restore-crtc", TRUE,
                              "skip-vsync", TRUE,
                              NULL);
+            }
+#endif
+#ifdef HAS_VIDEO_DISPLAY
             }
 #endif
         }
@@ -2316,11 +2353,14 @@ int GStreamerOutput::Start(int msTime) {
             // silently do nothing just because nothing else is consuming the
             // stream.
             std::vector<GstElement*> kmsChain = { videoQueue, kmsConvert };
-            for (GstElement* e : BuildHdmiScaleChain(
-                     VideoOutputManager::Instance().GetHdmiCropForConnector(m_streamSlot, m_hdmiConnectorId),
-                     VideoOutputManager::Instance().GetHdmiScalingForConnector(m_streamSlot, m_hdmiConnectorId),
-                     m_hdmiDisplayWidth, m_hdmiDisplayHeight, "vkms"))
-                kmsChain.push_back(e);
+            // The persistent display applies them itself, ahead of its sink.
+            if (!m_display) {
+                for (GstElement* e : BuildHdmiScaleChain(
+                         VideoOutputManager::Instance().GetHdmiCropForConnector(m_streamSlot, m_hdmiConnectorId),
+                         VideoOutputManager::Instance().GetHdmiScalingForConnector(m_streamSlot, m_hdmiConnectorId),
+                         m_hdmiDisplayWidth, m_hdmiDisplayHeight, "vkms"))
+                    kmsChain.push_back(e);
+            }
             kmsChain.push_back(m_kmssink);
 
             if (!AddAndLinkChain(m_pipeline, kmsChain)) {
@@ -2957,6 +2997,14 @@ int GStreamerOutput::Stop(void) {
         // with gst_element_set_state(NULL) due to malloc arena locks.
         m_shutdownFlag.store(true);
 
+        // Nothing from the teardown reaches the screen: the display keeps the
+        // last frame shown for the next track to replace.
+#ifdef HAS_VIDEO_DISPLAY
+        if (m_display) {
+            m_display->DetachFeed(m_displayFeedToken);
+        }
+#endif
+
         // Tell the detached Start() PLAYING-transition thread (if still running)
         // to abort its volume ramp / deferred pipewiresink attach.  It captures
         // only this token plus owning GStreamer refs, so it is safe even after
@@ -3071,6 +3119,7 @@ int GStreamerOutput::Stop(void) {
             m_bus = nullptr;
             m_appsink = nullptr;
             m_videoAppsink = nullptr;
+            ReleaseDisplay();
 
             m_playing = false;
             if (m_mediaOutputStatus) {
@@ -3123,10 +3172,11 @@ int GStreamerOutput::Stop(void) {
         // Only needed when kmssink is in the primary pipeline (not when
         // PipeWire routing sends HDMI through a consumer pipeline), and
         // pointless after an abandoned teardown (nothing was released).
-        if (!m_teardownAbandoned && !m_macVideoWindow && (m_kmssink || !m_directConnectorIds.empty())) {
+        if (!m_teardownAbandoned && !m_macVideoWindow && ((m_kmssink && !m_display) || !m_directConnectorIds.empty())) {
             std::this_thread::sleep_for(std::chrono::milliseconds(150));
             LogDebug(VB_MEDIAOUT, "GStreamerOutput::Stop() - DRM release delay complete\n");
         }
+        ReleaseDisplay();
 
         m_playing = false;
         if (m_mediaOutputStatus) {
@@ -3209,6 +3259,17 @@ void GStreamerOutput::AlignPictureToSound(int64_t latNs) {
         gst_object_unref(sink);
     }
     LogDebug(VB_MEDIAOUT, "GStreamer: picture held back %.1f ms to meet the sound\n", latNs / 1e6);
+}
+
+void GStreamerOutput::ReleaseDisplay(bool closeNow) {
+#ifdef HAS_VIDEO_DISPLAY
+    if (m_display) {
+        m_display->DetachFeed(m_displayFeedToken);
+        m_display->Release(closeNow);
+        m_display.reset();
+        m_displayFeedToken = 0;
+    }
+#endif
 }
 
 void GStreamerOutput::ReleasePipeWireStream() {
@@ -4139,7 +4200,7 @@ static const char* MediaFileFault(GstMessage* msg, const GError* err, bool audio
 
 // A sink's message is often just "general resource error"; the reason is the
 // last line of its debug text ("drmModeSetPlane failed: No space left on device (28)").
-static std::string ErrorReason(const GError* err, const gchar* debug) {
+std::string GStreamerOutput::ErrorReason(const GError* err, const gchar* debug) {
     std::string d = debug ? debug : "";
     while (!d.empty() && isspace((unsigned char)d.back())) {
         d.pop_back();
@@ -4508,6 +4569,7 @@ int GStreamerOutput::Close(void) {
     }
     m_drmLeases.clear();
     m_mediaConnectors.clear();
+    ReleaseDisplay();
 
     // Clean up video overlay state
     // The frame state is shared with the sample callback (m_videoFrameMutex)
@@ -5555,7 +5617,7 @@ void GStreamerOutput::OnNoMorePads(GstElement* element, gpointer userData) {
     if (!self->m_videoLinked && self->m_videoChain && self->m_pipeline) {
         LogDebug(VB_MEDIAOUT, "GStreamer: Removing unconnected video chain (audio-only media)\n");
 
-        const char* videoNames[] = {"vq", "vconv", "vscale", "vcapsf", "vtee", "vkmsq", "vpwq", "videosink", "kmsvideosink", "pwvideosink", nullptr};
+        const char* videoNames[] = {"vq", "vconv", "vscale", "vcapsf", "vtee", "vkmsq", "vpwq", "videosink", "kmsvideosink", "displayfeed", "pwvideosink", nullptr};
         for (int i = 0; videoNames[i]; i++) {
             GstElement* el = gst_bin_get_by_name(GST_BIN(self->m_pipeline), videoNames[i]);
             if (el) {
@@ -5598,6 +5660,9 @@ void GStreamerOutput::OnNoMorePads(GstElement* element, gpointer userData) {
         self->m_videoAppsinkSignalId = 0;
         self->m_hasVideoStream = false;
         self->m_kmssink = nullptr;  // owned by pipeline bin, already removed above
+        // No picture of its own, so the last item's must not stay up behind
+        // its sound.
+        self->ReleaseDisplay(true);
     }
 }
 

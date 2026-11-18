@@ -46,6 +46,7 @@
 #include "OpusRTPManager.h"
 #include "PipeWireOutputStream.h"
 #include "StreamSlotManager.h"
+#include "VideoDisplay.h"
 #include "VideoOutputManager.h"
 #include "mediadetails.h"
 #include "settings.h"
@@ -248,6 +249,9 @@ void CleanupMediaOutput(void) {
     CloseMediaOutput();
 #ifdef HAS_GSTREAMER
     PipeWireOutputStream::ShutdownAll();
+#endif
+#ifdef HAS_VIDEO_DISPLAY
+    VideoDisplay::ShutdownAll();
 #endif
 }
 

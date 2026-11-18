@@ -37,6 +37,7 @@
 
 class PixelOverlayModel;
 class PipeWireOutputStream;
+class VideoDisplay;
 
 class GStreamerOutput : public MediaOutputBase {
 public:
@@ -117,6 +118,11 @@ public:
         int primaryPlaneId = -1; // DRM primary plane for this connector's CRTC
     };
     static DrmConnectorInfo ResolveDrmConnector(const std::string& connectorName);
+
+    // What went wrong, from a GStreamer error message: the last line of its
+    // debug text, which names the cause ("drmModeSetPlane failed: No space
+    // left on device (28)"), where the message itself is generic.
+    static std::string ErrorReason(const GError* err, const gchar* debug);
 
 
     // GStreamer-specific
@@ -317,6 +323,16 @@ private:
     std::vector<int> m_mediaConnectors;
     int m_hdmiDisplayWidth = 0;            // display resolution
     int m_hdmiDisplayHeight = 0;
+    // The primary display, when it runs on its own pipeline (VideoDisplay.h)
+    // rather than as a kmssink here.  m_kmssink is then the appsink feeding
+    // it, and this pipeline holds no DRM resources of its own.
+    std::shared_ptr<VideoDisplay> m_display;
+    uint64_t m_displayFeedToken = 0;
+    // Stop feeding the display and give it back; it keeps showing the last
+    // frame until the next video's first, or until it closes.  closeNow:
+    // close it without the usual linger (this item turned out to have no
+    // video, so the last item's picture must not stay up behind it).
+    void ReleaseDisplay(bool closeNow = false);
 
     // PipeWire video routing — when PipeWireVideoSinkName is set, video is
     // tee'd to both kmssink (HDMI) and pipewiresink (PipeWire graph node).

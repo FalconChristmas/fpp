@@ -78,6 +78,7 @@ OBJECTS_fpp_so += \
 	mediaoutput/PipeWireGraphConfig.o \
 	mediaoutput/PipeWireOutputStream.o \
 	mediaoutput/DrmCards.o \
+	mediaoutput/VideoDisplay.o \
 	mediaoutput/GStreamerOut.o \
 	mediaoutput/StreamSlotManager.o \
 	mediaoutput/V4L2Device.o \
