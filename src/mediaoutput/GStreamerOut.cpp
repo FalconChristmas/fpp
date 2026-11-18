@@ -3144,7 +3144,13 @@ int GStreamerOutput::Stop(void) {
         // combine-stream mixers, ALSA ring buffers), overwriting stale data.
         // 250ms covers the longest configured delay (206ms) plus a few
         // PipeWire quanta for propagation.
-        if (m_volume) {
+        //
+        // Not for a track that fed the persistent output stream, as on the
+        // asynchronous path above: its feed is detached already, so the
+        // zeros would go nowhere, and the stream plays silence on its own.
+        // Every video with sound takes this path, and the wait was 250 ms
+        // of a frozen picture at each track change.
+        if (m_volume && !fedPipeWireStream) {
             g_object_set(m_volume, "volume", 0.0, NULL);
             std::this_thread::sleep_for(std::chrono::milliseconds(250));
         }
