@@ -187,6 +187,10 @@ static constexpr int PW_STREAM_READY_TIMEOUT_MS = 3000;
 // Longest a track waits for the previous one's leftovers to play out of the
 // stream (normally ~100 ms: the feed's lead plus the tail-flush silence).
 static constexpr int PW_STREAM_DRAIN_MAX_MS = 500;
+// How long a track that would carry on the output stream's timeline waits
+// for its pipeline to preroll first.  A prepared pipeline already has; one
+// built as its entry started takes tens of ms, bridged meanwhile with silence.
+static constexpr int PW_STREAM_PREROLL_WAIT_MS = 2000;
 static std::atomic<int> s_consecutiveWedgeEvents{ 0 };
 // Ensures the escalation decision (restart vs reboot) is made exactly once
 // per process — additional wedge events racing in while shutdown is already
@@ -1503,16 +1507,18 @@ int GStreamerOutput::Start(int msTime) {
     }
 
     if (m_preparing) {
-        // Only a video to the persistent display is prepared: its build
-        // touches nothing the playing track uses.  The other shapes claim a
-        // model, a PipeWire video node, AES67 branches or the macOS window as
-        // they are built.
+        // Only a video to the persistent display, or sound alone, is
+        // prepared: their builds touch nothing the playing track uses.  The
+        // other shapes claim a model, a PipeWire video node, AES67 branches or
+        // the macOS window as they are built.  (Sound alone still has to go
+        // to the output stream: see below.)
         bool aes67 = false;
 #ifdef HAS_AES67_GSTREAMER
         aes67 = AES67Manager::INSTANCE.IsActive();
 #endif
-        if (wantVideo || !m_wantHDMI || !m_pwVideoSinkName.empty() || m_macVideoWindow || aes67) {
-            LogDebug(VB_MEDIAOUT, "GStreamer: %s is not a video to the display; not preparing it\n", m_mediaFilename.c_str());
+        if (wantVideo || !m_pwVideoSinkName.empty() || m_macVideoWindow || aes67) {
+            LogDebug(VB_MEDIAOUT, "GStreamer: %s is not a video to the display or sound alone; not preparing it\n",
+                     m_mediaFilename.c_str());
             return 0;
         }
     }
@@ -2826,11 +2832,29 @@ int GStreamerOutput::Go(int msTime, const std::string& pipelineSinkName, double 
         GstElement* volume = m_volume ? GST_ELEMENT(gst_object_ref(m_volume)) : nullptr;
         // A per-slot singleton that is never freed, so safe to capture.
         PipeWireOutputStream* pwStream = m_pwStream;
+        // Only a pipeline whose clocked sinks are the stream's feed and the
+        // persistent display may carry on the stream's timeline: the start
+        // thread shifts exactly those (see m_timelineShiftNs).
+        m_timelineShiftNs = std::make_shared<std::atomic<int64_t>>(0);
+        std::shared_ptr<std::atomic<int64_t>> timelineShift = m_timelineShiftNs;
+        bool mayContinue = m_pwFeed && !m_videoPipeWireRouting && !m_videoAppsink && m_directConnectorIds.empty();
+        GstElement* displayFeed = nullptr;
+        if (m_kmssink) {
+#ifdef HAS_VIDEO_DISPLAY
+            if (m_display) {
+                displayFeed = GST_ELEMENT(gst_object_ref(m_kmssink));
+            } else
+#endif
+            {
+                mayContinue = false;
+            }
+        }
+        GstElement* pwFeed = mayContinue ? GST_ELEMENT(gst_object_ref(m_pwFeed)) : nullptr;
         // See VideoOutputManager::ProducerGeneration(): consumers are started
         // from this thread, possibly after this output has been stopped.
         const uint64_t producerGeneration = VideoOutputManager::Instance().ProducerGeneration();
         std::thread([pipeline, volume, cancel, seekPending, seekMs, videoPW, targetVolume,
-                     streamSlot, pwStream,
+                     streamSlot, pwStream, timelineShift, pwFeed, displayFeed,
                      producerGeneration]() {
             // Releases our owning refs on exit no matter which path we return on.
             //
@@ -2845,6 +2869,8 @@ int GStreamerOutput::Go(int msTime, const std::string& pipelineSinkName, double 
             struct RefGuard {
                 GstElement* pipeline;
                 GstElement* volume;
+                GstElement* pwFeed;
+                GstElement* displayFeed;
                 std::shared_ptr<std::atomic<bool>> cancel;
                 ~RefGuard() {
                     if (cancel->load() &&
@@ -2852,9 +2878,11 @@ int GStreamerOutput::Go(int msTime, const std::string& pipelineSinkName, double 
                         LogWarn(VB_MEDIAOUT, "GStreamer: cancelled start could not return its pipeline to NULL, abandoning it\n");
                     }
                     if (volume) gst_object_unref(volume);
+                    if (pwFeed) gst_object_unref(pwFeed);
+                    if (displayFeed) gst_object_unref(displayFeed);
                     gst_object_unref(pipeline);
                 }
-            } refGuard{pipeline, volume, cancel};
+            } refGuard{pipeline, volume, pwFeed, displayFeed, cancel};
 
             // Starting part-way in (a playlist entry resuming after Insert
             // Playlist Immediate) needs the seek to land before playback
@@ -2886,6 +2914,7 @@ int GStreamerOutput::Go(int msTime, const std::string& pipelineSinkName, double 
                 seekPending->store(false);
             }
 
+            bool continued = false;
             if (pwStream) {
                 // Preroll (decoder start-up) while the output stream comes up.
                 // Nothing may go to PLAYING before the stream reaches the
@@ -2901,10 +2930,45 @@ int GStreamerOutput::Go(int msTime, const std::string& pipelineSinkName, double 
                     LogDebug(VB_MEDIAOUT, "GStreamer: waited %d ms for PipeWire output stream %d\n",
                              (int)(GetMonotonicTimeMS() - waitStart), streamSlot);
                 }
-                // A track starting right behind another queues behind what
-                // that one left in the stream; start the clock only once it
-                // has played, or the position leads the sound by that much.
-                pwStream->WaitDrained(PW_STREAM_DRAIN_MAX_MS);
+                // A track starting right behind another carries on the
+                // stream's timeline where it can: its clock's base time is
+                // where the queue ends, so its first sample plays right after
+                // the last one queued, and its position maps onto the sound
+                // exactly as the last track's did.  It must have prerolled
+                // first, to hand over its first buffer on time.
+                //
+                // Otherwise it queues behind what that one left in the stream;
+                // start the clock only once that has played, or the position
+                // leads the sound by that much.
+                GstState prerolled = GST_STATE_NULL;
+                if (pwFeed &&
+                    gst_element_get_state(pipeline, &prerolled, nullptr,
+                                          (GstClockTime)PW_STREAM_PREROLL_WAIT_MS * GST_MSECOND) == GST_STATE_CHANGE_SUCCESS &&
+                    prerolled == GST_STATE_PAUSED && !cancel->load()) {
+                    GstClockTime base = GST_CLOCK_TIME_NONE;
+                    int64_t early = 0;
+                    if (pwStream->ContinueTimeline(&base, &early)) {
+                        // The first sample is due at `base`, and is handed
+                        // over `early` before it: a base that much earlier,
+                        // and the feed's ts-offset that much less negative
+                        // (see m_timelineShiftNs).  The picture is held back
+                        // by the same to match.
+                        int64_t lead = PipeWireOutputStream::FeedLeadNs();
+                        gst_element_set_start_time(pipeline, GST_CLOCK_TIME_NONE);
+                        gst_element_set_base_time(pipeline, base - early);
+                        g_object_set(pwFeed, "ts-offset", (gint64)(early - lead), NULL);
+                        if (displayFeed) {
+                            gint64 held = 0;
+                            g_object_get(displayFeed, "ts-offset", &held, NULL);
+                            g_object_set(displayFeed, "ts-offset", (gint64)(held + early), NULL);
+                        }
+                        timelineShift->store(early);
+                        continued = true;
+                    }
+                }
+                if (!continued) {
+                    pwStream->WaitDrained(PW_STREAM_DRAIN_MAX_MS);
+                }
                 if (cancel->load()) {
                     return;
                 }
@@ -2913,6 +2977,16 @@ int GStreamerOutput::Go(int msTime, const std::string& pipelineSinkName, double 
             LogDebug(VB_MEDIAOUT, "GStreamer: Setting pipeline to PLAYING...\n");
             GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
             LogDebug(VB_MEDIAOUT, "GStreamer: set_state returned %d\n", ret);
+            if (continued) {
+                // Once it is PLAYING, the pipeline keeps its own time again:
+                // a pause or a flushing seek works out a new base time as
+                // usual.  With no start time it would keep this one, and its
+                // position would jump by however long it was paused.
+                if (ret == GST_STATE_CHANGE_ASYNC) {
+                    gst_element_get_state(pipeline, nullptr, nullptr, (GstClockTime)PREROLL_TIMEOUT_MS * GST_MSECOND);
+                }
+                gst_element_set_start_time(pipeline, 0);
+            }
             if (ret == GST_STATE_CHANGE_FAILURE) {
                 // Don't touch the (possibly freed) object — failure is reported
                 // to the rest of FPP via the GStreamer bus ERROR message
@@ -3390,6 +3464,9 @@ bool GStreamerOutput::SetPipelineToNullBounded(GstElement* pipeline, int timeout
 // sound and the lights, which follow the sound, all meet.  Re-applied only as
 // the queue's average moves.
 void GStreamerOutput::AlignPictureToSound(int64_t latNs) {
+    if (m_timelineShiftNs) {
+        latNs += m_timelineShiftNs->load();
+    }
     if (latNs <= 0 || std::llabs(latNs - m_pictureDelayNs) < 2 * GST_MSECOND) {
         return;
     }
@@ -3420,6 +3497,16 @@ void GStreamerOutput::AlignPictureToSound(int64_t latNs) {
         gst_object_unref(sink);
     }
     LogDebug(VB_MEDIAOUT, "GStreamer: picture held back %.1f ms to meet the sound\n", latNs / 1e6);
+}
+
+void GStreamerOutput::EndTimelineShift() {
+    if (!m_timelineShiftNs || m_timelineShiftNs->exchange(0) == 0) {
+        return;
+    }
+    if (m_pwFeed) {
+        g_object_set(m_pwFeed, "ts-offset", (gint64)-PipeWireOutputStream::FeedLeadNs(), NULL);
+    }
+    // The picture follows at the next AlignPictureToSound().
 }
 
 void GStreamerOutput::ReleaseDisplay() {
@@ -3987,6 +4074,7 @@ int GStreamerOutput::Process(void) {
                 m_pendingSeekNs = -1;
                 LogDebug(VB_MEDIAOUT, "GStreamer: prerolled, applying held seek to %0.3fs\n",
                          (double)seekNs / GST_SECOND);
+                EndTimelineShift();
                 if (!gst_element_seek(m_pipeline, 1.0, GST_FORMAT_TIME,
                                       (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_ACCURATE),
                                       GST_SEEK_TYPE_SET, seekNs, GST_SEEK_TYPE_NONE, 0)) {
@@ -4114,6 +4202,11 @@ int GStreamerOutput::Process(void) {
                 int64_t latNs = AudioSinkLatencyNs();
                 if (m_pwFeed) {
                     AlignPictureToSound(latNs);
+                }
+                // A track carrying on the stream's timeline runs a feed lead
+                // ahead of its sound (m_timelineShiftNs).
+                if (m_timelineShiftNs) {
+                    latNs += m_timelineShiftNs->load();
                 }
                 float latSec = (float)latNs / 1000000000.0f;
                 if (latSec > 0.0f) {
@@ -4272,6 +4365,7 @@ void GStreamerOutput::ProcessMessages() {
                 // Loop: seek back to beginning
                 if (m_loopCount > 0)
                     m_loopCount--;
+                EndTimelineShift();
                 gst_element_seek_simple(m_pipeline, GST_FORMAT_TIME,
                                         (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT),
                                         0);
@@ -4954,6 +5048,7 @@ int GStreamerOutput::AdjustSpeed(float masterMediaPosition) {
             // The seek's rate of 1 doesn't reach the clock or the stream.
             ApplyRate(1.0f);
         }
+        EndTimelineShift();
         gst_element_seek(m_pipeline, 1.0, GST_FORMAT_TIME,
                          (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_ACCURATE),
                          GST_SEEK_TYPE_SET, pos_ns, GST_SEEK_TYPE_NONE, 0);
@@ -5150,6 +5245,7 @@ int GStreamerOutput::AdjustFeedSpeed(float masterMediaPosition) {
         m_feedResyncMs = now;
         m_feedResyncLanding = true;
         m_feedErrWindow.Clear();  // the seek starts a new timeline
+        EndTimelineShift();
         gst_element_seek(m_pipeline, 1.0, GST_FORMAT_TIME,
                          (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_ACCURATE),
                          GST_SEEK_TYPE_SET, (gint64)(target * GST_SECOND), GST_SEEK_TYPE_NONE, 0);
@@ -5206,6 +5302,7 @@ bool GStreamerOutput::SeekTo(float seconds) {
         m_pendingSeekNs = pos_ns;
         return true;
     }
+    EndTimelineShift();
     return gst_element_seek(m_pipeline, 1.0, GST_FORMAT_TIME,
                             (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_ACCURATE),
                             GST_SEEK_TYPE_SET, pos_ns, GST_SEEK_TYPE_NONE, 0)
@@ -5252,6 +5349,7 @@ void GStreamerOutput::ApplyRate(float rate) {
         if (gst_element_query_position(m_pipeline, GST_FORMAT_TIME, &pos)) {
             LogDebug(VB_MEDIAOUT, "GStreamer: instant-rate-change failed, falling back to flush seek at %" GST_TIME_FORMAT "\n",
                      GST_TIME_ARGS(pos));
+            EndTimelineShift();
             gst_element_seek(m_pipeline, (gdouble)rate, GST_FORMAT_TIME,
                              (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_ACCURATE),
                              GST_SEEK_TYPE_SET, pos, GST_SEEK_TYPE_NONE, 0);
@@ -5622,6 +5720,7 @@ void GStreamerOutput::ScheduleLoopSeek(const std::shared_ptr<CallbackGuard>& gua
             if (!self || self->m_shutdownFlag.load() || !self->m_pipeline)
                 return;
             pipeline = GST_ELEMENT(gst_object_ref(self->m_pipeline));
+            self->EndTimelineShift();
         }
         if (!gst_element_seek_simple(pipeline, GST_FORMAT_TIME,
                                      (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT),

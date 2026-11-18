@@ -14,6 +14,8 @@
 
 #include "PipeWireOutputStream.h"
 
+#include <gst/base/gstbasesink.h>
+
 #ifdef HAS_GSTREAMER
 
 #include <gst/app/gstappsink.h>
@@ -50,6 +52,13 @@ constexpr int kBytesPerFrame = 4 * kChannels;
 // on top of the card's own queue: pipewiresink queues it for the graph's next
 // cycle, so one graph quantum (FPP's default is 1024 frames).
 constexpr int64_t kGraphQuantum = 1024;
+// How many graph cycles ahead of its time a feed hands each buffer over (see
+// AttachFeed()), and how far ahead of its time the graph may take a sample
+// from the stream: a whole cycle, at worst.  Carrying on a track's timeline
+// (ContinueTimeline()) needs the last track's sound still queued when its
+// end of stream comes, a cycle more than the graph may already have taken.
+constexpr int64_t kFeedLeadQuanta = 2;
+constexpr int64_t kGraphAheadQuanta = 1;
 
 // Longest a stream may take to come up before it is abandoned.  A cold open is
 // ~0.6 s on an AM335x; this only trips when PipeWire itself is unwell.
@@ -86,6 +95,29 @@ constexpr double kClockMaxPhaseError = 0.050;
 // stops the device and starts it again; the samples a few hundred ms later
 // see that.
 constexpr uint64_t kFlushRestartMs = 1000;
+// How long a stopped track's timeline is kept running with silence for the
+// next track to carry on (Release(), ContinueTimeline()).  A playlist's next
+// track starts within tens of ms of the last one stopping; one that comes
+// later than this (after a pause entry, or a sequence that outlasts its
+// media) starts on a flushed stream, as every track used to.
+constexpr int kBridgeMs = 3000;
+// How little of the timeline a bridge lets be left before it adds silence,
+// and how far ahead it then takes it: a little more than the worker's
+// wake-ups (4 ms apart).  The next track normally comes before the last
+// one's sound has run out, and any silence laid before it needs it is a gap
+// between them.  A bridge that runs out anyway (a worker held up) only ends
+// the timeline: the next track starts on a flushed stream.
+constexpr int kBridgeLowMs = 6;
+constexpr int kBridgeHighMs = 10;
+// How long a pipeline carrying on the timeline is given to go to PLAYING
+// and hand over its first buffer, and the least it is left in the queue
+// beyond that (silence is added if less is left).  A prepared pipeline goes
+// to PLAYING in about a millisecond.
+constexpr int kContinueHandoverMs = 3;
+// How far behind its sink's schedule a feed buffer may come before it counts
+// as late (NoteTimelineLocked()): a thread's wake-up, not a stall.
+constexpr int kFeedLateToleranceMs = 5;
+constexpr int kContinueMinQueuedMs = 8;
 
 std::mutex s_slotsLock;
 std::array<PipeWireOutputStream*, StreamSlotManager::MAX_SLOTS + 1> s_slots{};
@@ -220,12 +252,23 @@ void PipeWireOutputStream::Release(GstElement* feed) {
         std::unique_lock<std::mutex> lock(m_lock);
         if (feed && m_feed == feed) {
             m_feed = nullptr;
-            // Push the track's last fragment out behind some silence.  PipeWire
-            // holds a partial cycle until there is more data, so with nothing
-            // behind it the tail of a stopped track sat in the stream and played
-            // at the head of the next one.  (Flushing here instead would drop
-            // the tail; WaitDrained() flushes only once it has played.)
-            PushSilenceLocked(TailFlushMs());
+            m_continuedFirst = false;
+            if (m_timelineValid && !m_timelineLate && m_state == State::Ready) {
+                // Keep the timeline running for the next track to carry on
+                // (ContinueTimeline()): silence laid right behind the last
+                // sample, topped up by the worker (ServiceBridge()).  It also
+                // pushes the track's last fragment out, as below.
+                m_bridging = true;
+                m_bridgeUntilMs = NowMs() + kBridgeMs;
+            } else {
+                // Push the track's last fragment out behind some silence.  PipeWire
+                // holds a partial cycle until there is more data, so with nothing
+                // behind it the tail of a stopped track sat in the stream and played
+                // at the head of the next one.  (Flushing here instead would drop
+                // the tail; WaitDrained() flushes only once it has played.)
+                EndTimelineLocked();
+                PushSilenceLocked(TailFlushMs());
+            }
         }
         if (m_users > 0) {
             m_users--;
@@ -233,6 +276,12 @@ void PipeWireOutputStream::Release(GstElement* feed) {
         m_holdUntilMs = std::max(m_holdUntilMs, NowMs() + LINGER_MS);
     }
     WakeWorker();
+}
+
+// How far ahead of its time the graph may take a sample from the stream: the
+// queue counts as run out that much before the timeline's end.
+static GstClockTime GraphAheadNs() {
+    return (GstClockTime)(kGraphAheadQuanta * kGraphQuantum * 1000000000LL / GStreamerOutput::PipeWireGraphRate());
 }
 
 static int64_t MonoUs() {
@@ -269,9 +318,14 @@ bool PipeWireOutputStream::WaitQueuedUntil(int64_t deadlineUs) {
 }
 
 void PipeWireOutputStream::WaitDrained(int maxMs) {
+    {
+        // A bridge would never let it drain.
+        std::unique_lock<std::mutex> lock(m_lock);
+        EndTimelineLocked();
+    }
     int64_t deadline = MonoUs() + (int64_t)maxMs * 1000;
     WaitQueuedUntil(deadline);
-    Flush(true);
+    Flush(FlushFor::NextTrack);
     // The silence Flush() pushed must play before the track goes to PLAYING,
     // or the track starts that much behind its position.
     WaitQueuedUntil(MonoUs() + (int64_t)(kFlushPrimeMs + 20) * 1000);
@@ -298,14 +352,20 @@ void PipeWireOutputStream::WaitDrained(int maxMs) {
 //
 // When the stall is an xrun on the card itself, DisciplineClock() sees the
 // card stop or restart, and once it runs again the stream is flushed,
-// mid-track, unprimed: the sound skips what the stall held up -- the xrun was already
+// mid-track: the sound skips what the stall held up -- the xrun was already
 // audible -- and is back with the lights at once rather than at the next
-// track.  A stall that never reaches the card (a late group node) is left to
+// track.  Only the feed's lead, less the cycle the graph may take ahead, is
+// laid in silence first (FlushFor::MidFeed).  A stall that never reaches the card (a late group node) is left to
 // the flush between tracks.
-void PipeWireOutputStream::Flush(bool prime) {
+void PipeWireOutputStream::Flush(FlushFor why) {
     GstElement* src = nullptr;
     {
         std::unique_lock<std::mutex> lock(m_lock);
+        // Whatever the timeline was, a flush ends it, and with it anything
+        // that may have been late in it.
+        EndTimelineLocked();
+        m_timelineLate = false;
+        m_continuedFirst = false;
         // A flush covers an xrun still waiting for one.
         m_xrunPending = false;
         if (!m_src || m_state != State::Ready || m_flushed) {
@@ -322,13 +382,23 @@ void PipeWireOutputStream::Flush(bool prime) {
         std::unique_lock<std::mutex> lock(m_lock);
         if (m_src == src) {
             m_queuedUntilUs = 0;
-            if (prime) {
+            // Where the feed's sound lands after a flush mid-feed or for a seek
+            // is only as good as the reactivated stream makes it (it drops a
+            // few tens of ms, by card).  The next track starts on a flushed
+            // stream rather than carry that on.
+            m_timelineLate = why != FlushFor::NextTrack;
+            if (why == FlushFor::NextTrack) {
                 PushSilenceLocked(kFlushPrimeMs);
+            } else if (why == FlushFor::MidFeed) {
+                // The feed hands buffers over its lead ahead of their time, and
+                // the graph may take them a cycle ahead of it (GraphAheadNs()).
+                PushSilenceLocked((int)((FeedLeadNs() - (int64_t)GraphAheadNs()) / 1000000));
             }
         }
     }
     gst_object_unref(src);
-    LogDebug(VB_MEDIAOUT, "PipeWire output stream %d flushed%s\n", m_slot, prime ? " between tracks" : "");
+    LogDebug(VB_MEDIAOUT, "PipeWire output stream %d flushed%s\n", m_slot,
+             why == FlushFor::NextTrack ? " between tracks" : why == FlushFor::MidFeed ? " mid-feed" : " for a seek");
 }
 
 bool PipeWireOutputStream::WaitReady(int timeoutMs) {
@@ -344,18 +414,20 @@ bool PipeWireOutputStream::WaitReady(int timeoutMs) {
 }
 
 int PipeWireOutputStream::TailFlushMs() {
-    // Three graph cycles: more than any partial cycle plus the feed's lead.
-    return (int)(3 * kGraphQuantum * 1000 / GStreamerOutput::PipeWireGraphRate()) + 1;
+    // More than any partial cycle plus the feed's lead.
+    return (int)((kFeedLeadQuanta + 2) * kGraphQuantum * 1000 / GStreamerOutput::PipeWireGraphRate()) + 1;
 }
 
 int64_t PipeWireOutputStream::FeedLeadNs() {
-    return kGraphQuantum * 1000000000LL / GStreamerOutput::PipeWireGraphRate();
+    return kFeedLeadQuanta * kGraphQuantum * 1000000000LL / GStreamerOutput::PipeWireGraphRate();
 }
+
 
 void PipeWireOutputStream::AttachFeed(GstElement* appsink) {
     {
         std::unique_lock<std::mutex> lock(m_lock);
         m_feed = appsink;
+        m_continuedFirst = false;
         // Each feed starts at the card's own pace.  The feed clock is put back
         // on the card clock now, before this feed's pipeline has a base time
         // on it, so a speed the last track was steered at doesn't carry over.
@@ -368,10 +440,14 @@ void PipeWireOutputStream::AttachFeed(GstElement* appsink) {
             RecalibrateFeedClockLocked(gst_clock_get_internal_time(m_clock));
         }
     }
-    // Run the feed one graph cycle ahead of the clock.  Handed over exactly
-    // on time, a buffer can miss the cycle that needed it by a hair; PipeWire
-    // then plays a quantum of silence there and the rest of the track is a
-    // quantum late.  A cycle's worth queued absorbs that.
+    // Run the feed two graph cycles ahead of the clock.  Handed over exactly
+    // on time, a buffer can miss the cycle that needed it -- the graph may
+    // take a sample up to a cycle before its time; PipeWire then plays a
+    // quantum of silence there and the rest of the track is a quantum late.
+    // Two cycles' worth queued absorbs that, and leaves the last track's
+    // sound still queued when a track carrying on its timeline takes over.
+    // (Where a sample plays doesn't depend on this: the queue is contiguous
+    // from the track's first sample.)
     g_object_set(appsink, "emit-signals", TRUE, "ts-offset", -FeedLeadNs(), NULL);
     g_signal_connect(appsink, "new-sample", G_CALLBACK(OnFeedSample), this);
 }
@@ -429,7 +505,25 @@ GstFlowReturn PipeWireOutputStream::OnFeedSample(GstElement* appsink, gpointer u
             // PipeWire's own bookkeeping.
             GstClockTime rt = gst_segment_to_running_time(segment, GST_FORMAT_TIME, GST_BUFFER_PTS(in));
             if (GST_CLOCK_TIME_IS_VALID(rt)) {
+                // A feed normally hands over a lead early (a ts-offset of minus
+                // FeedLeadNs()); one carrying on the timeline runs on a base
+                // time that much earlier with no offset instead (see
+                // GStreamerOutput's m_timelineShiftNs).  Either way the sample
+                // belongs where base + running time + offset + lead says.
+                GstClockTimeDiff tsOffset = gst_base_sink_get_ts_offset(GST_BASE_SINK(appsink));
+                GstClockTimeDiff shift = tsOffset + FeedLeadNs();
                 GstClockTime abs = gst_element_get_base_time(appsink) + rt;
+                // When the sink was due to hand it over: as for any sink, no
+                // earlier than its base time.  The first buffers of a track all
+                // come at once, at that, and that is on schedule.
+                GstClockTimeDiff late = 0;
+                if (GstClock* feedClock = gst_element_get_clock(appsink)) {
+                    GstClockTimeDiff due = (GstClockTimeDiff)rt + tsOffset;
+                    late = GST_CLOCK_DIFF(gst_element_get_base_time(appsink) + (due > 0 ? due : 0),
+                                          gst_clock_get_time(feedClock));
+                    gst_object_unref(feedClock);
+                }
+                abs = shift < 0 && (GstClockTime)-shift > abs ? 0 : abs + shift;
                 if (self->m_feedDiverged) {
                     GstClockTimeDiff ahead = GST_CLOCK_DIFF(gst_clock_get_time(self->m_clock),
                                                             gst_clock_get_time(self->m_feedClock));
@@ -437,8 +531,16 @@ GstFlowReturn PipeWireOutputStream::OnFeedSample(GstElement* appsink, gpointer u
                 }
                 GstClockTime ourBase = gst_element_get_base_time(self->m_pipeline);
                 GST_BUFFER_PTS(out) = abs > ourBase ? abs - ourBase : 0;
+                self->NoteTimelineLocked(abs, gst_buffer_get_size(out) / kBytesPerFrame, late);
             } else {
+                // Outside the segment (a decoder's last, clipped buffer): no
+                // time of its own, but it is queued right behind the one
+                // before it all the same.
                 GST_BUFFER_PTS(out) = GST_CLOCK_TIME_NONE;
+                if (self->m_timelineValid && self->m_rate > 0) {
+                    LogDebug(VB_MEDIAOUT, "PipeWire output stream %d: a feed buffer outside its segment\n", self->m_slot);
+                    self->m_timelineEnd += gst_util_uint64_scale(gst_buffer_get_size(out) / kBytesPerFrame, GST_SECOND, self->m_rate);
+                }
             }
             if (self->m_rsActive) {
                 GST_BUFFER_DURATION(out) = self->m_rate > 0
@@ -481,14 +583,27 @@ void PipeWireOutputStream::WorkerLoop() {
             slots = s_slots;
         }
         bool anyOpening = false;
+        bool anyBridging = false;
         uint64_t now = NowMs();
         for (PipeWireOutputStream* s : slots) {
             if (s) {
                 if (s->DisciplineClock()) {
                     LogInfo(VB_MEDIAOUT, "PipeWire output stream %d: the card lost time (xrun) while playing; "
                                          "flushing so the sound stays with the lights\n", s->m_slot);
-                    s->Flush(false);
+                    s->Flush(FlushFor::MidFeed);
                 }
+                bool flushNow;
+                {
+                    std::unique_lock<std::mutex> slock(s->m_lock);
+                    flushNow = s->m_flushNow;
+                    s->m_flushNow = false;
+                }
+                if (flushNow) {
+                    LogInfo(VB_MEDIAOUT, "PipeWire output stream %d: a track carrying on the timeline started too late "
+                                         "for it; flushing so the sound stays with the lights\n", s->m_slot);
+                    s->Flush(FlushFor::MidFeed);
+                }
+                anyBridging |= s->ServiceBridge();
                 s->Service(now);
                 std::unique_lock<std::mutex> slock(s->m_lock);
                 anyOpening |= (s->m_state == State::Opening);
@@ -500,7 +615,8 @@ void PipeWireOutputStream::WorkerLoop() {
         }
         // Opening streams are polled every 10 ms; otherwise the only thing to
         // watch for is a linger running out.
-        s_workerWake.wait_for(wlock, std::chrono::milliseconds(anyOpening ? 10 : 250),
+        // A bridge between tracks is topped up every few ms.
+        s_workerWake.wait_for(wlock, std::chrono::milliseconds(anyBridging ? 4 : anyOpening ? 10 : 250),
                               [] { return s_workerKick || !s_workerRunning; });
         s_workerKick = false;
         if (!s_workerRunning) {
@@ -717,6 +833,10 @@ bool PipeWireOutputStream::OpenLocked(std::unique_lock<std::mutex>& lock) {
     m_rate = rate;
     m_warnedCaps = false;
     m_queuedUntilUs = 0;
+    EndTimelineLocked();
+    m_timelineLate = false;
+    m_continuedFirst = false;
+    m_flushNow = false;
     m_xrunPending = false;
     // The silence that connects the stream counts: the first track is
     // flushed too, so it starts from the same state as every later one.
@@ -750,6 +870,123 @@ void PipeWireOutputStream::PushSilenceLocked(int ms) {
     GST_BUFFER_DURATION(buf) = gst_util_uint64_scale(frames, GST_SECOND, m_rate);
     NoteQueuedLocked(frames * kBytesPerFrame);
     gst_app_src_push_buffer(GST_APP_SRC(m_src), buf);
+}
+
+void PipeWireOutputStream::NoteTimelineLocked(GstClockTime start, size_t frames, GstClockTimeDiff lateNs) {
+    if (!m_clock || m_rate <= 0) {
+        return;
+    }
+    if (m_continuedFirst) {
+        GstClockTime nowT = gst_clock_get_time(m_clock);
+        LogDebug(VB_MEDIAOUT, "PipeWire output stream %d: first buffer of a carried-on track: starts %+.1f ms from the timeline's end, handed over %+.1f ms from it\n",
+                 m_slot, ((double)(GstClockTimeDiff)(start - m_timelineEnd)) / 1e6,
+                 ((double)(GstClockTimeDiff)(nowT - m_timelineEnd)) / 1e6);
+    }
+    if (m_timelineValid && lateNs > (GstClockTimeDiff)kFeedLateToleranceMs * GST_MSECOND &&
+        gst_clock_get_time(m_clock) + GraphAheadNs() > m_timelineEnd) {
+        // Handed over late, and after the graph may have needed it: the
+        // queue ran dry, the graph played silence, and this and everything
+        // after it play that much behind the position.
+        if (m_continuedFirst) {
+            m_flushNow = true;
+            WakeWorker();
+        } else if (!m_timelineLate) {
+            m_timelineLate = true;
+            LogDebug(VB_MEDIAOUT, "PipeWire output stream %d: a feed ran late; the next track starts on a flushed stream\n",
+                     m_slot);
+        }
+    }
+    m_continuedFirst = false;
+    m_bridging = false;
+    m_timelineValid = true;
+    m_timelineEnd = start + gst_util_uint64_scale(frames, GST_SECOND, m_rate);
+}
+
+void PipeWireOutputStream::EndTimelineLocked() {
+    m_timelineValid = false;
+    m_bridging = false;
+}
+
+void PipeWireOutputStream::ExtendTimelineLocked(GstClockTime until) {
+    if (!m_src || !m_pipeline || m_rate <= 0 || !m_timelineValid || until <= m_timelineEnd) {
+        return;
+    }
+    size_t frames = gst_util_uint64_scale_ceil(until - m_timelineEnd, m_rate, GST_SECOND);
+    GstBuffer* buf = gst_buffer_new_and_alloc(frames * kBytesPerFrame);
+    gst_buffer_memset(buf, 0, 0, frames * kBytesPerFrame);
+    GstClockTime base = gst_element_get_base_time(m_pipeline);
+    GstClockTime dur = gst_util_uint64_scale(frames, GST_SECOND, m_rate);
+    GST_BUFFER_PTS(buf) = m_timelineEnd > base ? m_timelineEnd - base : 0;
+    GST_BUFFER_DURATION(buf) = dur;
+    m_timelineEnd += dur;
+    NoteQueuedLocked(frames * kBytesPerFrame);
+    m_flushed = false;
+    gst_app_src_push_buffer(GST_APP_SRC(m_src), buf);
+}
+
+bool PipeWireOutputStream::ServiceBridge() {
+    std::unique_lock<std::mutex> lock(m_lock);
+    if (!m_bridging) {
+        return false;
+    }
+    if (m_state != State::Ready || !m_timelineValid || !m_clock || NowMs() >= m_bridgeUntilMs) {
+        EndTimelineLocked();
+        return false;
+    }
+    GstClockTime now = gst_clock_get_time(m_clock) + GraphAheadNs();
+    if (now > m_timelineEnd) {
+        LogDebug(VB_MEDIAOUT, "PipeWire output stream %d: the bridge between tracks ran out\n", m_slot);
+        EndTimelineLocked();
+        return false;
+    }
+    if (m_timelineEnd < now + (GstClockTime)kBridgeLowMs * GST_MSECOND) {
+        ExtendTimelineLocked(now + (GstClockTime)kBridgeHighMs * GST_MSECOND);
+    }
+    return true;
+}
+
+bool PipeWireOutputStream::ContinueTimeline(GstClockTime* baseTime, int64_t* earlyNs) {
+    std::unique_lock<std::mutex> lock(m_lock);
+    const char* why = nullptr;
+    GstClockTime lead = (GstClockTime)FeedLeadNs();
+    if (!m_timelineValid) {
+        why = "nothing to carry on";
+    } else if (m_timelineLate) {
+        why = "a feed ran late, or the stream was flushed mid-track";
+    } else if (m_state != State::Ready || m_target != m_wantTarget || !m_src || !m_clock) {
+        why = "the stream is not ready on this sink";
+    } else if (m_cardStatusPath.empty() || !m_syncAnchored) {
+        // Nothing would see a stall in the graph (DisciplineClock()).
+        why = "no card is watched";
+    } else {
+        guint64 backlog = 0;
+        g_object_get(m_src, "current-level-time", &backlog, NULL);
+        if (backlog > 2 * lead) {
+            why = "audio is backed up in front of the stream";
+        }
+    }
+    // Counted from where the graph may already be taking samples.
+    GstClockTime now = m_clock ? gst_clock_get_time(m_clock) + GraphAheadNs() : 0;
+    if (!why && now > m_timelineEnd) {
+        why = "it ran out";
+    }
+    if (why) {
+        LogDebug(VB_MEDIAOUT, "PipeWire output stream %d: not carrying on the timeline (%s)\n", m_slot, why);
+        EndTimelineLocked();
+        return false;
+    }
+    GstClockTime queued = m_timelineEnd - now;
+    ExtendTimelineLocked(now + (GstClockTime)kContinueMinQueuedMs * GST_MSECOND);
+    m_bridging = false;
+    m_continuedFirst = true;
+    *baseTime = m_timelineEnd;
+    // Handed over by `now` (a cycle ahead of the clock) plus the handover
+    // time; never more than the feed's lead ahead of its time.
+    *earlyNs = (int64_t)std::min(lead, m_timelineEnd - now + GraphAheadNs() - (GstClockTime)kContinueHandoverMs * GST_MSECOND);
+    LogDebug(VB_MEDIAOUT, "PipeWire output stream %d: carrying on the timeline (%.1f ms queued, %.1f ms of silence added, "
+                          "first sample handed over %.1f ms early)\n",
+             m_slot, queued / 1e6, (m_timelineEnd - now - queued) / 1e6, *earlyNs / 1e6);
+    return true;
 }
 
 // Whether this slot's stream has an output port linked to anything, per
@@ -895,9 +1132,11 @@ void PipeWireOutputStream::FlushFeed(GstElement* feed) {
         m_rsHistFrames = 0;
         m_rsPos = 0.0;
     }
-    // Unprimed, as for an xrun: the seek is already a jump in the sound, and
-    // priming would only put silence ahead of where the feed lands.
-    Flush(false);
+    // Unprimed: the seek is already a jump in the sound, and the feed's
+    // running time starts again, so its first buffers come on time (a sink
+    // can't render ahead of its base time).  Priming would only put silence
+    // ahead of where the feed lands.
+    Flush(FlushFor::Seek);
 }
 
 // The feed's resampler (SetFeedSpeed()): a 16-tap Kaiser-windowed sinc, its
@@ -1282,6 +1521,10 @@ void PipeWireOutputStream::CloseLocked(const char* why) {
     gst_caps_replace(&m_caps, nullptr);
     m_rate = 0;
     m_queuedUntilUs = 0;
+    EndTimelineLocked();
+    m_timelineLate = false;
+    m_continuedFirst = false;
+    m_flushNow = false;
     m_xrunPending = false;
     m_pipeline = nullptr;
     m_src = nullptr;

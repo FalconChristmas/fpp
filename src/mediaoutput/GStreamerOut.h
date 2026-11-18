@@ -490,6 +490,19 @@ private:
     // have no sound hands the stream back from the main loop.
     void AlignPictureToSound(int64_t latNs);
     int64_t m_pictureDelayNs = 0;
+    // A track that carried on the output stream's timeline
+    // (PipeWireOutputStream::ContinueTimeline()) runs on a base time a feed
+    // lead earlier than its sound, with its feed's ts-offset at 0 rather than
+    // minus that lead: a sink can't render a buffer before its base time, so a
+    // negative ts-offset can't hand the first buffers over early, and the
+    // first of them would come only as the stream ran out.  This is that lead
+    // while it applies, 0 otherwise: added to the picture's delay and taken off
+    // the position, so both still meet the sound.  Shared with the start
+    // thread, which sets it.
+    std::shared_ptr<std::atomic<int64_t>> m_timelineShiftNs;
+    // Back to the usual feed offset, before a flushing seek starts the
+    // pipeline's running time again.
+    void EndTimelineShift();
     std::atomic<bool> m_pwFeedOrphaned{ false };
 
     // A MultiSync remote's media through the persistent output stream: held to

@@ -96,6 +96,29 @@ public:
     // graph -- would otherwise sit ahead of every track to come, and every
     // track starts from the same empty queue (see Flush()).
     void WaitDrained(int maxMs);
+    // Instead of WaitDrained(), for a track that starts right behind another:
+    // carry on the stream's timeline rather than wait for it to drain.
+    //
+    // A stopped track's feed leaves the stream bridged with silence, laid
+    // exactly behind its last sample (see Release()), for a few seconds.  If
+    // the timeline is still running and nothing in it can be late -- the
+    // feeds have kept up since the last flush, nothing is backed up in front
+    // of the stream, and a card is watched for xruns (DisciplineClock()) --
+    // this stops the bridge and returns, in *baseTime, the clock time (on
+    // Clock()) where the queue ends.  A pipeline given that base time (and
+    // no start time) hands its first sample over so that it plays right after
+    // the last one queued, and its position then maps onto the sound exactly
+    // as the track before's did.  If the queue is about to run out, it is
+    // first extended with silence, just long enough for the pipeline to get
+    // going.  Otherwise false, and the caller uses WaitDrained().
+    //
+    // *earlyNs is how far ahead of `baseTime` the pipeline may hand its first
+    // sample over: the feed's lead (FeedLeadNs()), or less when less than
+    // that is left queued.  A sink can't render before its base time, so the
+    // caller runs the pipeline on baseTime - *earlyNs with its feed's
+    // ts-offset at *earlyNs - FeedLeadNs() rather than minus the lead, and
+    // allows for that in its position and picture.
+    bool ContinueTimeline(GstClockTime* baseTime, int64_t* earlyNs);
 
     // Route `appsink`'s samples into this stream, replacing any previous
     // feed.  Samples from a feed that has since been replaced are dropped, so
@@ -150,8 +173,26 @@ private:
     void CloseLocked(const char* why);
     void ForgetFailureLocked();
     void PushSilenceLocked(int ms);
+    // Silence laid on the timeline right behind its end, up to `until`.
+    void ExtendTimelineLocked(GstClockTime until);
+    // Keep a bridged timeline from running out (see Release()); whether it
+    // is still bridging.
+    bool ServiceBridge();
+    void EndTimelineLocked();
+    // A feed buffer starting at `start` (on m_clock) and `frames` long was
+    // handed over, `lateNs` after its sink was due to hand it over.
+    void NoteTimelineLocked(GstClockTime start, size_t frames, GstClockTimeDiff lateNs);
     bool WaitQueuedUntil(int64_t deadlineUs);
-    void Flush(bool prime);
+    // What follows a flush.  Between tracks: a few tens of ms of silence,
+    // which the reactivated stream drops in place of the next track's head.
+    // Mid-feed (an xrun): the feed carries on, its next buffers a lead early,
+    // into an empty queue where they would play at once -- silence laid first
+    // puts them back where they belong.  After a seek: nothing, as the feed's
+    // running time starts again and its first buffers come on time.
+    enum class FlushFor { NextTrack,
+                          MidFeed,
+                          Seek };
+    void Flush(FlushFor why);
     bool CardRunning();
     static int TailFlushMs();
     bool StreamLinked();
@@ -194,6 +235,27 @@ private:
     void NoteQueuedLocked(size_t bytes);
     // Nothing has been handed to the stream since it was last flushed.
     bool m_flushed = false;
+    // The stream's timeline (ContinueTimeline()).  Valid from the first feed
+    // buffer after a flush or an open for as long as what is handed over
+    // stays contiguous: m_timelineEnd is the time on m_clock at which the last
+    // sample handed over is due, in the terms a feed's position maps by.
+    bool m_timelineValid = false;
+    GstClockTime m_timelineEnd = 0;
+    // Since the last flush a feed ran dry -- a buffer came after the one
+    // before it had played -- so the sound may be behind its position by an
+    // amount nothing here can see.  Carried on, the next track would inherit
+    // it; the next track is flushed instead, as every track used to be.
+    bool m_timelineLate = false;
+    // No feed is attached and the timeline is kept running with silence
+    // until m_bridgeUntilMs (Release()).
+    bool m_bridging = false;
+    uint64_t m_bridgeUntilMs = 0;
+    // The feed attached by ContinueTimeline() has handed nothing over yet.
+    // If its first buffer comes too late for the queue, the stream is flushed
+    // at once (the worker, m_flushNow): the track's head skips, but it plays
+    // with its position rather than behind it.
+    bool m_continuedFirst = false;
+    bool m_flushNow = false;
     int m_rate = 0;                    // ...and their rate
     bool m_warnedCaps = false;         // logged a feed in the wrong format
     GstElement* m_feed = nullptr;      // appsink currently allowed to feed (no ref held)

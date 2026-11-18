@@ -935,8 +935,14 @@ void PrepareMediaOutput(const std::string& mediaFilename, const std::string& vid
         ext = toLowerCopy(mediaFilename.substr(dot + 1));
     }
     std::string vo = videoOut;
-    if (!IsExtensionVideo(ext) || !IsHDMIOut(vo)) {
-        return;  // only a video to a display is prepared
+    // A video to a display, or (on PipeWire) anything whose sound plays
+    // through the slot's output stream, where the next track then carries on
+    // the stream's timeline (PipeWireOutputStream::ContinueTimeline()).  What
+    // can't be prepared after all, GStreamerOutput::Prepare() turns down.
+    bool displayVideo = IsExtensionVideo(ext) && IsHDMIOut(vo);
+    bool streamed = isPipeWireBackend() && (IsExtensionAudio(ext) || IsExtensionVideo(ext));
+    if (!displayVideo && !streamed) {
+        return;
     }
     MediaOutputBase* old = nullptr;
     uint64_t gen;
@@ -947,6 +953,10 @@ void PrepareMediaOutput(const std::string& mediaFilename, const std::string& vid
             return;
         }
         old = p.out;
+        if (!p.file.empty() && (p.out || p.building)) {
+            LogDebug(VB_MEDIAOUT, "Discarding %s prepared for slot %d: %s prepared instead\n",
+                     p.file.c_str(), streamSlot, mediaFilename.c_str());
+        }
         p = PreparedMedia{ mediaFilename, videoOut, nullptr, true, ++s_preparedGen };
         gen = p.gen;
     }
@@ -966,12 +976,14 @@ void PrepareMediaOutput(const std::string& mediaFilename, const std::string& vid
         }
         DeleteUnplayed(expired);
     });
-    std::thread([mediaFilename, videoOut, streamSlot, gen]() {
+    // What CreateMediaOutput() would build it with: sound alone for an audio file.
+    std::string outVideoOut = displayVideo ? videoOut : (IsExtensionAudio(ext) ? std::string("--Disabled--") : videoOut);
+    std::thread([mediaFilename, outVideoOut, streamSlot, gen]() {
         SetThreadName("FPP-MediaPrep");
         // Not CreateMediaOutput(): that writes the slot's status, which is
         // the playing track's until this one starts.
         GStreamerOutput* out = new GStreamerOutput(mediaFilename, StreamSlotManager::Instance().GetStatus(streamSlot),
-                                                   videoOut, streamSlot);
+                                                   outVideoOut, streamSlot);
         bool ok = out->Prepare();
         {
             std::lock_guard<std::mutex> lock(s_preparedLock);
@@ -1020,8 +1032,15 @@ MediaOutputBase* ClaimPreparedMediaOutput(const std::string& mediaFilename, cons
     }
     DeleteUnplayed(unwanted);
     if (out) {
-        // What CreateMediaOutput() would have set.
-        StreamSlotManager::Instance().GetStatus(streamSlot)->output = videoOut;
+        // What CreateMediaOutput() would have set: the display, for a video to it.
+        std::string ext;
+        std::size_t dot = mediaFilename.find_last_of(".");
+        if (dot != std::string::npos) {
+            ext = toLowerCopy(mediaFilename.substr(dot + 1));
+        }
+        std::string vo = videoOut;
+        StreamSlotManager::Instance().GetStatus(streamSlot)->output =
+            (IsExtensionVideo(ext) && IsHDMIOut(vo)) ? videoOut : std::string();
         LogDebug(VB_MEDIAOUT, "Using %s prepared for slot %d\n", mediaFilename.c_str(), streamSlot);
     }
     return out;
