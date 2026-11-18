@@ -8,6 +8,8 @@
 #
 #   - magic header (bytes 0-1) not AA55, i.e. nothing was written at all
 #   - valid header but the serial number (bytes 52-55) still all FF
+#   - valid header but the template write stopped part way, leaving the board ID
+#     (bytes 46-49) and everything after the cut-off still FF
 #
 # Neither is cosmetic.  u-boot's SPL only applies the 1GB DDRSS timings when the
 # EEPROM identifies the board as the industrial variant, so a PocketBeagle2
@@ -171,7 +173,7 @@ fi
 # An EEPROM that answers the probe read but fails a real one lands here otherwise as
 # an empty header, which reads as "blank" -- and sends a board whose i2c is failing
 # down the repair path to abort later with a misleading complaint about the write.
-GOT=$(dd if="${EEPROM}" bs=1 count=64 2>/dev/null | wc -c)
+GOT=$(dd if="${EEPROM}" bs=1 count=64 2>/dev/null | wc -c | tr -d ' ')
 [ "${GOT}" = "64" ] || fatal "${EEPROM} exists but a 64-byte read returned ${GOT} bytes.
 
   The at24 driver bound, so 0x50 answered at probe time, but it is not serving
@@ -190,8 +192,20 @@ UNIT=$(read_field 50 6)
 # Offset 46 holds the board ID: "PB2I" on the industrial board, "PB20" on the base
 # one.  It survives the "valid header, blank serial" failure mode, so read it
 # whenever the header is there at all.
+#
+# But a valid header does not mean the board ID was written: boards also turn up
+# with the template write cut off part way, e.g. magic and the first few bytes of
+# the board name, then 0xFF from offset 0x10 on.  An ID with any byte still 0xFF
+# was never programmed, so it is no evidence either way -- treat it as blank and
+# let the eMMC decide, and the merge then fills it in.  Rejecting it as
+# "unrecognised" refused a board the fix repairs without trouble.
 BOARDID=""
-[ "${MAGIC}" = "aa55" ] && BOARDID=$(read_field 46 4)
+if [ "${MAGIC}" = "aa55" ]; then
+    case "$(read_field 46 4 | xxd -p)" in
+        *ff*) info "EEPROM: header valid but the board ID is not programmed" ;;
+        *)    BOARDID=$(read_field 46 4) ;;
+    esac
+fi
 
 # Which board is this really?
 #
@@ -227,10 +241,10 @@ if [ -n "${BOARDID}" ]; then
     esac
 elif emmc_present; then
     INDUSTRIAL=true
-    info "EEPROM: header blank; eMMC is present, so this is the industrial board."
+    info "EEPROM: board ID blank; eMMC is present, so this is the industrial board."
 else
     INDUSTRIAL=false
-    info "EEPROM: header blank and no eMMC found, so this is the base board."
+    info "EEPROM: board ID blank and no eMMC found, so this is the base board."
 fi
 
 # An EEPROM that claims to be the base board on hardware that has eMMC is the one
