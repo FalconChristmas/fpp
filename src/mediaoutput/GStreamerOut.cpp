@@ -4414,7 +4414,7 @@ int GStreamerOutput::Process(void) {
                     LogInfo(VB_MEDIAOUT, "GStreamer: media reached end (%.1fs/%.1fs), forcing stop\n",
                             elapsed, (float)effectiveDur / GST_SECOND);
                     m_playing = false;
-                    if (m_mediaOutputStatus) {
+                    if (m_mediaOutputStatus && OwnsSlotStatus()) {
                         m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
                     }
                     Stopping();
@@ -4437,7 +4437,7 @@ int GStreamerOutput::Process(void) {
                                                         "Playback of " + m_mediaFilename + " stalled and was stopped");
                     }
                     m_playing = false;
-                    if (m_mediaOutputStatus) {
+                    if (m_mediaOutputStatus && OwnsSlotStatus()) {
                         m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
                     }
                     Stopping();
@@ -4473,7 +4473,7 @@ int GStreamerOutput::Process(void) {
                     WarningHolder::AddWarningTimeout(60, 30, kMediaDidNotStartWarning);
                 }
                 m_playing = false;
-                if (m_mediaOutputStatus) {
+                if (m_mediaOutputStatus && OwnsSlotStatus()) {
                     m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
                 }
                 Stopping();
@@ -4507,7 +4507,7 @@ void GStreamerOutput::ProcessMessages() {
                 LogDebug(VB_MEDIAOUT, "GStreamer: Looping (remaining: %d)\n", m_loopCount);
             } else {
                 m_playing = false;
-                if (m_mediaOutputStatus) {
+                if (m_mediaOutputStatus && OwnsSlotStatus()) {
                     m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
                 }
                 Stopping();
@@ -4705,7 +4705,7 @@ GstBusSyncReply GStreamerOutput::BusSyncHandler(GstBus* bus, GstMessage* msg, gp
             self->DetachAES67Branches();
 #endif
             self->m_playing = false;
-            if (self->m_mediaOutputStatus) {
+            if (self->m_mediaOutputStatus && self->OwnsSlotStatus()) {
                 self->m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
             }
             self->Stopping();
@@ -4793,7 +4793,7 @@ GstBusSyncReply GStreamerOutput::BusSyncHandler(GstBus* bus, GstMessage* msg, gp
                 self->DetachAES67Branches();
 #endif
                 self->m_playing = false;
-                if (self->m_mediaOutputStatus) {
+                if (self->m_mediaOutputStatus && self->OwnsSlotStatus()) {
                     self->m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
                 }
                 self->Stopping();
@@ -4837,7 +4837,7 @@ GstBusSyncReply GStreamerOutput::BusSyncHandler(GstBus* bus, GstMessage* msg, gp
             self->DetachAES67Branches();
 #endif
             self->m_playing = false;
-            if (self->m_mediaOutputStatus) {
+            if (self->m_mediaOutputStatus && self->OwnsSlotStatus()) {
                 self->m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
             }
             self->Stopping();

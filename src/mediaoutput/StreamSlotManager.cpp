@@ -157,8 +157,9 @@ void StreamSlotManager::ClaimSlot(int slot, GStreamerOutput* output) {
 
 bool StreamSlotManager::ClaimedByOrFree(int slot, GStreamerOutput* output) {
     if (slot < 1 || slot > MAX_SLOTS) return true;
-    std::lock_guard<std::recursive_mutex> lock(m_mutex);
-    GStreamerOutput* claimedBy = m_slots[slot - 1].claimedBy;
+    // No lock: called from bus sync handlers, on streaming threads that the
+    // slot's Close() (which takes m_mutex) waits for.
+    GStreamerOutput* claimedBy = m_slots[slot - 1].claimedBy.load();
     return !claimedBy || claimedBy == output;
 }
 
