@@ -185,6 +185,10 @@ private:
     // When the end of the media's sound is heard (set at its end of stream).
     std::atomic<uint64_t> m_soundEndMs{0};
     std::atomic<bool> m_feedsStream{false};  // Go() attached m_pwFeed to m_pwStream
+    // OnNoMorePads() found no picture: the display is given back on the
+    // main loop (Process(), StartPrepared()), which owns m_display, not on
+    // the streaming thread that found out.
+    std::atomic<bool> m_releaseDisplayPending{false};
     // Prepared with its sound sent to the output stream before its channel
     // count was known; OnPadAdded() checks it (see Start()).
     std::atomic<bool> m_prepareCheckChannels{false};

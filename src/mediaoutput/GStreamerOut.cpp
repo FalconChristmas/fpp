@@ -2802,6 +2802,9 @@ int GStreamerOutput::StartPrepared() {
         m_mediaOutputStatus->secondsTotal = m_preparedTotalSecs % 60;
     }
 #ifdef HAS_VIDEO_DISPLAY
+    if (m_releaseDisplayPending.exchange(false)) {
+        ReleaseDisplay();  // it turned out to have no picture
+    }
     if (m_display) {
         m_display->ActivateFeed(m_displayFeedToken);
     }
@@ -2885,14 +2888,22 @@ int GStreamerOutput::Go(int msTime, const std::string& pipelineSinkName, double 
         std::shared_ptr<TimelineHandover> handover = m_timelineHandover;
         bool mayContinue = m_pwFeed && !m_videoPipeWireRouting && !m_videoAppsink && m_directConnectorIds.empty();
         GstElement* displayFeed = nullptr;
-        if (m_kmssink) {
+        {
+            // OnNoMorePads() can remove the kmssink on a streaming thread.
+            std::shared_ptr<CallbackGuard> guard = m_cbGuard.load();
+            std::unique_lock<std::recursive_mutex> guardLock;
+            if (guard) {
+                guardLock = std::unique_lock<std::recursive_mutex>(guard->mtx);
+            }
+            if (m_kmssink) {
 #ifdef HAS_VIDEO_DISPLAY
-            if (m_display) {
-                displayFeed = GST_ELEMENT(gst_object_ref(m_kmssink));
-            } else
+                if (m_display) {
+                    displayFeed = GST_ELEMENT(gst_object_ref(m_kmssink));
+                } else
 #endif
-            {
-                mayContinue = false;
+                {
+                    mayContinue = false;
+                }
             }
         }
         GstElement* pwFeed = mayContinue ? GST_ELEMENT(gst_object_ref(m_pwFeed)) : nullptr;
@@ -4041,6 +4052,11 @@ int GStreamerOutput::Process(void) {
     if (!opLock.owns_lock()) {
         return 1;
     }
+#ifdef HAS_VIDEO_DISPLAY
+    if (m_releaseDisplayPending.exchange(false)) {
+        ReleaseDisplay();  // the file turned out to have no picture (OnNoMorePads())
+    }
+#endif
     if (m_stopRequested.exchange(false) && m_pipeline && !m_teardownComplete) {
         LogInfo(VB_MEDIAOUT, "GStreamer: stopping %s on request\n", m_mediaFilename.c_str());
         opLock.unlock();
@@ -6082,8 +6098,9 @@ void GStreamerOutput::OnNoMorePads(GstElement* element, gpointer userData) {
         self->m_hasVideoStream = false;
         self->m_kmssink = nullptr;  // owned by pipeline bin, already removed above
         // No picture of its own, so the last item's must not stay up behind
-        // its sound.
-        self->ReleaseDisplay();
+        // its sound.  Given back by the main loop, which owns m_display (a
+        // claim of this output there can be reading it right now).
+        self->m_releaseDisplayPending = true;
     }
 }
 
