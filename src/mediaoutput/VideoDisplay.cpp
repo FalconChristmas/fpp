@@ -524,7 +524,13 @@ GstFlowReturn VideoDisplay::OnFeedSample(GstElement* appsink, gpointer userData)
     FeedRef* ref = static_cast<FeedRef*>(userData);
     GstSample* sample = gst_app_sink_pull_sample(GST_APP_SINK(appsink));
     if (sample) {
-        ref->display->Push(ref->token, sample);
+        // A reference of its own for the push: the display outlives it
+        // whatever happens to the feed's (FreeFeedRef()) meanwhile, and its
+        // release orders the push before the display's end where the
+        // sanitizer can see it -- otherwise only the pipeline's teardown,
+        // joining this thread inside GStreamer, does.
+        std::shared_ptr<VideoDisplay> display = ref->display;
+        display->Push(ref->token, sample);
         gst_sample_unref(sample);
     }
     // Never an error: a display that can't show the frame must not end the
@@ -540,6 +546,7 @@ void VideoDisplay::Push(uint64_t token, GstSample* sample) {
     }
     GstElement* src = nullptr;
     GstCaps* newCaps = nullptr;
+    std::lock_guard<std::mutex> pushLock(m_pushLock);
     {
         std::lock_guard<std::mutex> lock(m_lock);
         if (token != m_feedToken || !m_src || m_failed) {
@@ -604,7 +611,12 @@ GstBusSyncReply VideoDisplay::OnBusMessage(GstBus*, GstMessage* msg, gpointer us
         std::lock_guard<std::mutex> lock(self->m_lock);
         self->m_failed = true;
     }
-    s_wake.notify_all();
+    {
+        // Under the map lock, which the worker checks under: never between
+        // its look and its wait (or it waits out its whole interval).
+        std::lock_guard<std::mutex> lock(s_mapLock);
+        s_wake.notify_all();
+    }
     return GST_BUS_DROP;
 }
 

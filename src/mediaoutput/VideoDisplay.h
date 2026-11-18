@@ -112,6 +112,10 @@ private:
     // probe before it first touches the display: GStreamer hands the probe
     // over under its own locks, which the sanitizer can't see.
     std::atomic<uint64_t> m_attached{ 0 };
+    // Held across a frame's feed check, caps change and push (Push()), so
+    // that one feed's frame can't land, under its caps or the other's, after
+    // the next feed's first.  Taken before m_lock; the push never blocks.
+    std::mutex m_pushLock;
     int m_users = 0;
     uint64_t m_idleSinceMs = 0;      // when m_users last fell to 0 (GetMonotonicTimeMS())
     bool m_failed = false;           // the sink errored: rebuild on the next Acquire()
