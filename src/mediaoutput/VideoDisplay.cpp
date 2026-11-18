@@ -212,6 +212,11 @@ std::shared_ptr<VideoDisplay> VideoDisplay::AcquireRunning(const Config& cfg) {
     return cur;
 }
 
+void VideoDisplay::AddUser() {
+    std::lock_guard<std::mutex> lock(m_lock);
+    m_users++;
+}
+
 void VideoDisplay::Release() {
     bool last;
     bool releaseLease = false;

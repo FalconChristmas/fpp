@@ -1308,8 +1308,30 @@ int GStreamerOutput::Start(int msTime) {
     // run's pipeline, bus, guard and slot registration are all still here and
     // would be overwritten below, leaking the pipeline with its PipeWire node
     // and DRM resources and leaving its callbacks pointed at this object.
+#ifdef HAS_VIDEO_DISPLAY
+    // A pipeline closed here is rebuilt below on the same display: a
+    // prepared one that can't be used (started part-way in, or it failed),
+    // or a remote starting the same file again.  It may be the display's
+    // only user -- the track before has let go -- so it would close, and
+    // the console come up, before the rebuild took it again.  Held until
+    // Start() returns, by when the rebuild holds it itself.
+    struct DisplayHold {
+        std::shared_ptr<VideoDisplay> display;
+        ~DisplayHold() {
+            if (display) {
+                display->Release();
+            }
+        }
+    } displayHold;
+#endif
     if (m_pipeline) {
         LogDebug(VB_MEDIAOUT, "GStreamer: Start() on an output that already ran, closing the old pipeline first\n");
+#ifdef HAS_VIDEO_DISPLAY
+        if (m_display) {
+            displayHold.display = m_display;
+            displayHold.display->AddUser();
+        }
+#endif
         Close();
     }
     // Per-run state the watchdogs and the preroll guards key off.

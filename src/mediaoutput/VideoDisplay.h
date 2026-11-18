@@ -66,6 +66,8 @@ public:
     static std::shared_ptr<VideoDisplay> AcquireRunning(const Config& cfg);
     // A user is done.  The display closes when the last one is.
     void Release();
+    // One more use of a display already held (Release() it after).
+    void AddUser();
 
     // Make `appsink` a feed of this display: the caps it must deliver, its
     // timing, and the callback that hands its frames over.  With activate,
