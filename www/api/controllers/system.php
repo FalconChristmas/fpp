@@ -1490,8 +1490,9 @@ function SystemGetAudio()
  * remote instances instead.  Add `&internet=1` to include an `internet` boolean on
  * each `interfaces` entry: true when traffic sent through that interface can
  * currently reach the internet (verified by an interface-bound probe, so a
- * default route is not required).  (The header requests this; other status
- * consumers do not pay for the probe.)
+ * default route is not required).  The browser header requests this on its own
+ * `?systemonly=1&internet=1` poll so a slow probe cannot delay the status
+ * response; other status consumers do not pay for the probe.
  *
  * @route GET /api/system/status
  * @response 200 System status

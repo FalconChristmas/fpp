@@ -26,6 +26,15 @@ var lastStatus = '';
 var lastStatusJSON = null;
 var statusChangeFuncs = [];
 
+// Internet reachability per interface, kept out of lastStatusJSON: the header
+// renders the dots from this map, so a full status snapshot replacing
+// lastStatusJSON.interfaces cannot make a dot flicker.  Filled by
+// LoadInternetStatus(), which asks for the probe on its own request so an
+// offline WAN never delays the status the rest of the page waits for.
+var gblInterfaceInternet = {};
+var internetPollTimeout = null;
+var gblInternetPollSeconds = 20; // matches the server's probe cache window
+
 // fppd status WebSocket (/fppdws).  When connected, fppd pushes its /fppd/status
 // payload here instead of every page polling api/system/status for it.  The PHP
 // poll then runs slowly (gblSystemAugRefreshSeconds) and only for the host-side
@@ -356,6 +365,7 @@ function common_PageLoad_DOM_Setup () {
 	$.jGrowl.defaults.closerTemplate = '<div>Close Notifications</div>';
 	SetupToolTips();
 	LoadSystemStatus();
+	LoadInternetStatus();
 	startFppdWS();
 
 	CheckBrowser();
@@ -10746,6 +10756,10 @@ function handleVisibilityChange () {
 			clearTimeout(statusTimeout);
 			statusTimeout = null;
 		}
+		if (internetPollTimeout != null) {
+			clearTimeout(internetPollTimeout);
+			internetPollTimeout = null;
+		}
 		return;
 	}
 	// Visible again.  Apply the most recent snapshot the WebSocket delivered
@@ -10760,6 +10774,7 @@ function handleVisibilityChange () {
 		applyWsStatus(pending);
 	}
 	LoadSystemStatus();
+	LoadInternetStatus();
 	// GetFPPStatus();
 }
 
@@ -15803,8 +15818,8 @@ function LoadSystemStatus () {
 	var flagEpoch = gblRestartRebootFlagEpoch;
 	$.ajax({
 		url: wsActive
-			? 'api/system/status?systemonly=1&internet=1'
-			: 'api/system/status?internet=1',
+			? 'api/system/status?systemonly=1'
+			: 'api/system/status',
 		dataType: 'json',
 		success: function (response, reqStatus, xhr) {
 			if (!response || typeof response !== 'object') return;
@@ -15841,6 +15856,47 @@ function LoadSystemStatus () {
 				? gblSystemAugRefreshSeconds
 				: gblStatusRefreshSeconds;
 			statusTimeout = setTimeout(LoadSystemStatus, secs * 1000);
+		}
+	});
+}
+
+/*
+ * Fetches the per-interface internet reachability on its own schedule.
+ *
+ * The probe can take seconds on a WAN-less network (1s ICMP, then a TLS
+ * fallback), so it is deliberately NOT part of LoadSystemStatus(): that
+ * response also carries the fppd and playlist status the page renders, and
+ * blocking it on an outbound probe made an offline show LAN delay every header
+ * update.  Results land in gblInterfaceInternet, which RefreshHeaderBar()
+ * reads, so a later status snapshot cannot clear a dot.
+ *
+ * ?systemonly=1 keeps the response to the host-side augmentation (no fppd
+ * curl).  The server caches each interface's answer for 20s, which is the poll
+ * cadence here.
+ */
+function LoadInternetStatus () {
+	$.ajax({
+		url: 'api/system/status?systemonly=1&internet=1',
+		dataType: 'json',
+		success: function (response) {
+			if (!response || !Array.isArray(response.interfaces)) return;
+			var changed = false;
+			response.interfaces.forEach(function (e) {
+				if (!e || typeof e.ifname !== 'string') return;
+				var up = e.internet === true;
+				if (gblInterfaceInternet[e.ifname] !== up) {
+					gblInterfaceInternet[e.ifname] = up;
+					changed = true;
+				}
+			});
+			if (changed) RefreshHeaderBar();
+		},
+		complete: function () {
+			clearTimeout(internetPollTimeout);
+			internetPollTimeout = setTimeout(
+				LoadInternetStatus,
+				gblInternetPollSeconds * 1000
+			);
 		}
 	});
 }
@@ -16336,9 +16392,10 @@ function RefreshHeaderBar () {
 			// Everything below goes into markup (and the tooltips render theirs
 			// as HTML), so the interface's fields are escaped as they're added.
 			var ifname = EscapeHtmlAttr(e.ifname);
-			// e.internet is present because LoadSystemStatus() requests
-			// api/system/status?internet=1; it is a probe-verified boolean, not
-			// merely the presence of a route.
+			// The dot comes from the dedicated internet poll, not from this
+			// payload: LoadInternetStatus() fills gblInterfaceInternet, and
+			// keeping it separate means a status snapshot can never clear a
+			// dot that the probe confirmed.
 
 			if (!e.flags.some(flag => flag === 'NO-CARRIER')) {
 				// Show up interfaces even if they do not have IP configured - eg Colorlight
@@ -16392,14 +16449,14 @@ function RefreshHeaderBar () {
 									'<br/>Strength: ' +
 									EscapeHtml(e.wifi.level) +
 									EscapeHtml(e.wifi.unit) +
-									(e.internet === true ? '<br/>Internet Connected' : '')
+									(gblInterfaceInternet[e.ifname] === true ? '<br/>Internet Connected' : '')
 							) +
 							'">';
 						var wifiIcon =
 							'<img title="WiFi Strength" src="images/redesign/wifi-' +
 							EscapeHtmlAttr(e.wifi.desc) +
 							'.svg" height="14px"/>';
-						if (e.internet === true) {
+						if (gblInterfaceInternet[e.ifname] === true) {
 							wifiIcon = '<span class="fppNetIcon fppNetOnline">' + wifiIcon + '</span>';
 						}
 						row += wifiIcon;
@@ -16420,7 +16477,7 @@ function RefreshHeaderBar () {
 						var ipWithCIDR = formatIPWithCIDR(n.local, n.prefixlen);
 						var wiredIcon =
 							'<i class="fas fa-network-wired ' + icon + '"></i>';
-						if (e.internet === true) {
+						if (gblInterfaceInternet[e.ifname] === true) {
 							wiredIcon = '<span class="fppNetIcon fppNetOnline">' + wiredIcon + '</span>';
 						}
 						var row =
@@ -16430,7 +16487,7 @@ function RefreshHeaderBar () {
 							EscapeHeaderTooltipAttr(
 								'IP: ' +
 									EscapeHtml(ipWithCIDR) +
-									(e.internet === true ? '<br/>Internet Connected' : '')
+									(gblInterfaceInternet[e.ifname] === true ? '<br/>Internet Connected' : '')
 							) +
 							'" >' +
 							wiredIcon +

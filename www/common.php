@@ -4421,21 +4421,46 @@ function network_default_route_interfaces()
 }
 
 /**
+ * Whether an interface appears in the header at all.
+ *
+ * RefreshHeaderBar() in fpp.js drops the names below, so probing them would
+ * spend a probe timeout on a dot no page can render -- and on a Docker or VM
+ * host those interfaces can otherwise use up the candidate cap.  Keep this in
+ * sync with that filter.  Tunnels (wg0/tun0/ppp0) are deliberately NOT in the
+ * list: they can be the only path to the internet and the header shows them.
+ */
+function network_interface_probe_relevant($ifname)
+{
+    if (!is_string($ifname) || $ifname === '') {
+        return false;
+    }
+    foreach (array('eth0:0', 'usb', 'veth', 'br', 'docker', 'can.') as $prefix) {
+        if (strpos($ifname, $prefix) === 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
  * The IPv4 address an internet probe should bind to for this interface, or
  * null when the interface cannot be a candidate.
  *
  * An interface is a candidate when it is not one of the permanently excluded
- * names, is not administratively down and has a routable IPv4 address.  A
- * link-local (169.254/16) address is excluded because such an interface has
- * no usable gateway.  Virtual and tunnel interfaces are deliberately not
- * filtered by name: wg0/tun0/ppp0 can be the only interface that carries
- * internet traffic, so they are probed like any other.
+ * names, is rendered by the header, is not administratively down and has a
+ * routable IPv4 address.  A link-local (169.254/16) address is excluded
+ * because such an interface has no usable gateway.  Tunnel interfaces are
+ * deliberately not filtered by name: wg0/tun0/ppp0 can be the only interface
+ * that carries internet traffic, so they are probed like any other.
  */
 function network_interface_probe_bind_address($ifname, $local, $operstate = 'UP', $flags = array())
 {
     static $excluded = array('lo', 'lo0', 'usb0', 'usb1', 'SoftAp0');
 
     if (!is_string($ifname) || $ifname === '' || in_array($ifname, $excluded, true)) {
+        return null;
+    }
+    if (!network_interface_probe_relevant($ifname)) {
         return null;
     }
     if (!is_string($local) || $local === '') {
@@ -4557,7 +4582,7 @@ function network_route_output_uses_dev(array $output, $ifname)
  * Whether the header's internet-connectivity indicator may send outbound
  * probes (ICMP and HTTPS to the public probe targets).
  *
- * Enabled by default.  Set `NetworkInternetProbe = "0"` in settings.ini to
+ * Enabled by default.  Set `NetworkInternetProbe = "0"` in media/settings to
  * disable it on setups where periodic outbound traffic is unwanted (isolated
  * show LANs, metered links, strict firewalls); every interface then simply
  * reports no internet.  Read from $settings, which config.php populates with
@@ -4695,8 +4720,12 @@ function network_interface_https_probe(array $binds)
                 continue;
             }
             curl_setopt_array($ch, array(
-                CURLOPT_TIMEOUT => 3,
-                CURLOPT_CONNECTTIMEOUT => 2,
+                // ms-granular so a blackholed WAN costs 2s, not 3s: this
+                // runs on the same host as the status polling, and up to a
+                // probe timeout per rendered interface is the whole reason
+                // the header now asks for the probe on its own request.
+                CURLOPT_TIMEOUT_MS => 2000,
+                CURLOPT_CONNECTTIMEOUT_MS => 1000,
                 CURLOPT_FOLLOWLOCATION => false,
                 CURLOPT_SSL_VERIFYPEER => true,
                 CURLOPT_SSL_VERIFYHOST => 2,
@@ -4771,12 +4800,19 @@ function network_interface_https_probe(array $binds)
  *
  * ICMP is tried first because it is cheap and the common case.  When a network
  * filters it, a verified HTTPS probe decides instead.  The routing-table gate
- * and both probe stages are cached per interface for 20 seconds (file_cache()
- * also serialises concurrent probes) because api/system/status is polled every
- * few seconds; an offline interface would otherwise pay the timeout on every
- * poll.  All outcomes are cached -- caching only successes would keep a dead
+ * and both probe stages are cached per interface for 20 seconds, so an offline
+ * interface pays the timeout at most once per cache window instead of on every
+ * request.  All outcomes are cached -- caching only successes would keep a dead
  * interface green for the life of the cache.  Probes can be disabled entirely
  * with the NetworkInternetProbe setting.
+ *
+ * The browser header asks for this on its own ?systemonly=1&internet=1 poll
+ * rather than on the status poll it renders from, so an offline WAN cannot
+ * delay the fppd/playlist status.  Two known limits: verified TLS needs a
+ * correct clock (a board with no RTC and no NTP reads every certificate as "not
+ * yet valid", leaving only the ICMP stage), and an interface whose every bind
+ * is refused as unprivileged is reported not connected -- "inconclusive means
+ * no dot", never a false dot.
  */
 function network_interface_has_internet($ifname, $bindAddress = null)
 {
@@ -4868,7 +4904,11 @@ function network_list_interfaces_obj($withInternet = false)
     global $settings;
 
     // The internet probe is opt-in per request, and can also be disabled
-    // wholesale in settings.ini -- see network_internet_probes_enabled().
+    // wholesale in media/settings -- see network_internet_probes_enabled().
+    // The two conditions stay separate: a caller that asked for the field
+    // still gets it when probing is disabled, always false, so the response
+    // shape does not depend on an admin setting.
+    $internetRequested = $withInternet;
     $withInternet = $withInternet && network_internet_probes_enabled();
 
     $output = array();
@@ -4883,7 +4923,7 @@ function network_list_interfaces_obj($withInternet = false)
             $obj = new \stdClass();
             $obj->ifindex = $cnt;
             $obj->ifname = $int;
-            if ($withInternet) {
+            if ($internetRequested) {
                 $obj->internet = false;
             }
             $obj->addr_info = array();
@@ -4970,7 +5010,7 @@ function network_list_interfaces_obj($withInternet = false)
                 }
             }
             $ifname = $rec["ifname"];
-            if ($withInternet) {
+            if ($internetRequested) {
                 $rec["internet"] = false;
             }
             $add = isset($rec["address"]) ? $rec["address"] : "";
