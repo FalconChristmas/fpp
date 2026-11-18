@@ -58,7 +58,14 @@ function SetRTC($rtc)
 
 function RestartNTPD()
 {
-    exec("sudo systemctl restart chrony");
+    // --no-block: queue the restart and return. Waiting for it deadlocks the
+    // first boot after an OS upgrade: the "settings" boot action runs inside
+    // `fppinit start`, and chrony is ordered after fpp_postnetwork (fpp-defer.conf
+    // from FPP_Install.sh), which is ordered after fppinit. The wait then lasts
+    // until fppinit is killed at its start timeout, and setupNetwork() never runs.
+    // Queued, the restart runs once fpp_postnetwork is done and reads the
+    // chrony.conf written above.
+    exec("sudo systemctl --no-block restart chrony");
 }
 
 function SetNTPServer($value)
