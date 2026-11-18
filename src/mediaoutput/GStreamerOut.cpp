@@ -3543,7 +3543,17 @@ void GStreamerOutput::ReleaseDisplay() {
 #ifdef HAS_VIDEO_DISPLAY
     if (m_display) {
         m_display->DetachFeed(m_displayFeedToken);
-        m_display->Release();
+        if (m_teardownAbandoned) {
+            // The pipeline was abandoned still running (a wedged decoder),
+            // and its decoder may still hold frames from the display's pool,
+            // on the display's DRM lease.  Keep this track's use of the
+            // display, so it never closes the lease under them; it shows the
+            // next track as before, and the restart that wedged teardowns
+            // lead to (STUCK_TEARDOWN_RESTART_LIMIT) gives it back.
+            LogWarn(VB_MEDIAOUT, "GStreamer: keeping the display's lease for an abandoned pipeline\n");
+        } else {
+            m_display->Release();
+        }
         m_display.reset();
         m_displayFeedToken = 0;
     }
