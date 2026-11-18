@@ -245,9 +245,11 @@ void InitMediaOutput(void) {
 /*
  *
  */
+void ShutdownPreparedMediaOutput();
+
 void CleanupMediaOutput(void) {
     CloseMediaOutput();
-    DiscardPreparedMediaOutput();
+    ShutdownPreparedMediaOutput();
 #ifdef HAS_GSTREAMER
     PipeWireOutputStream::ShutdownAll();
 #endif
@@ -906,6 +908,16 @@ std::mutex s_preparedLock;
 std::condition_variable s_preparedDone;
 std::map<int, PreparedMedia> s_prepared;
 uint64_t s_preparedGen = 0;
+// Threads building a prepare or deleting one never played, under
+// s_preparedLock (s_preparedDone when it drops): fppd's shutdown waits for
+// them, as a prepared video holds the display's lease until it is deleted.
+int s_preparedThreads = 0;
+
+void PreparedThreadDone() {
+    std::lock_guard<std::mutex> lock(s_preparedLock);
+    s_preparedThreads--;
+    s_preparedDone.notify_all();
+}
 // How long a claim waits for a prepare still under way: about what building
 // the output cold would take anyway.
 constexpr int PREPARED_CLAIM_WAIT_MS = 2000;
@@ -921,9 +933,14 @@ constexpr int PREPARED_EXPIRY_RECHECK_MS = 1000;
 // Off the caller's thread: deleting an output takes its pipeline down.
 void DeleteUnplayed(MediaOutputBase* out) {
     if (out) {
+        {
+            std::lock_guard<std::mutex> lock(s_preparedLock);
+            s_preparedThreads++;
+        }
         std::thread([out]() {
             SetThreadName("FPP-MediaUnprep");
             delete out;
+            PreparedThreadDone();
         }).detach();
     }
 }
@@ -1002,6 +1019,10 @@ void PrepareMediaOutput(const std::string& mediaFilename, const std::string& vid
     SchedulePreparedExpiry(streamSlot, gen, PREPARED_EXPIRY_MS);
     // What CreateMediaOutput() would build it with: sound alone for an audio file.
     std::string outVideoOut = displayVideo ? videoOut : (IsExtensionAudio(ext) ? std::string("--Disabled--") : videoOut);
+    {
+        std::lock_guard<std::mutex> lock(s_preparedLock);
+        s_preparedThreads++;
+    }
     std::thread([mediaFilename, outVideoOut, streamSlot, gen]() {
         SetThreadName("FPP-MediaPrep");
         // Not CreateMediaOutput(): that writes the slot's status, which is
@@ -1023,6 +1044,7 @@ void PrepareMediaOutput(const std::string& mediaFilename, const std::string& vid
         }
         // Not prepared, or no longer wanted.
         delete out;
+        PreparedThreadDone();
     }).detach();
 #endif
 }
@@ -1068,6 +1090,27 @@ MediaOutputBase* ClaimPreparedMediaOutput(const std::string& mediaFilename, cons
         LogDebug(VB_MEDIAOUT, "Using %s prepared for slot %d\n", mediaFilename.c_str(), streamSlot);
     }
     return out;
+}
+
+// fppd's shutdown: every prepare deleted here, and any still building or
+// being deleted on its own thread waited for (bounded), so that nothing holds
+// a display's lease once VideoDisplay::ShutdownAll() returns.
+void ShutdownPreparedMediaOutput() {
+    std::vector<MediaOutputBase*> unwanted;
+    {
+        std::lock_guard<std::mutex> lock(s_preparedLock);
+        for (auto& [slot, p] : s_prepared) {
+            unwanted.push_back(p.out);
+        }
+        s_prepared.clear();
+    }
+    for (MediaOutputBase* out : unwanted) {
+        delete out;
+    }
+    std::unique_lock<std::mutex> lock(s_preparedLock);
+    if (!s_preparedDone.wait_for(lock, std::chrono::seconds(15), [] { return s_preparedThreads == 0; })) {
+        LogWarn(VB_MEDIAOUT, "%d prepared media still building or closing at shutdown\n", s_preparedThreads);
+    }
 }
 
 void DiscardPreparedMediaOutput(int streamSlot) {
