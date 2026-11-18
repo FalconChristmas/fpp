@@ -116,6 +116,9 @@ constexpr int kBridgeMs = 3000;
 // between them.  A bridge that runs out anyway (a worker held up) only ends
 // the timeline: the next track starts on a flushed stream.
 constexpr int kBridgeLowMs = 6;
+// Most silence put in front of a carried-on track whose sound starts after
+// the start of its timeline (see NoteTimelineLocked()).
+constexpr int kMaxLeadInGapMs = 500;
 constexpr int kBridgeHighMs = 10;
 // How long a pipeline carrying on the timeline is given to go to PLAYING
 // and hand over its first buffer, and the least it is left in the queue
@@ -896,8 +899,26 @@ void PipeWireOutputStream::NoteTimelineLocked(GstClockTime start, size_t frames,
                  m_slot, ((double)(GstClockTimeDiff)(start - m_timelineEnd)) / 1e6,
                  ((double)(GstClockTimeDiff)(nowT - m_timelineEnd)) / 1e6);
     }
-    if (m_timelineValid && lateNs > (GstClockTimeDiff)kFeedLateToleranceMs * GST_MSECOND &&
-        gst_clock_get_time(m_clock) + GraphAheadNs() > m_timelineEnd) {
+    bool ranDry = gst_clock_get_time(m_clock) + GraphAheadNs() > m_timelineEnd;
+    if (m_continuedFirst && m_timelineValid && start > m_timelineEnd + GST_SECOND / (GstClockTime)m_rate) {
+        // Its sound doesn't start at the start of its timeline (an MP4's
+        // audio often starts a frame or so after its video): the stream plays
+        // what it is given back to back, so what lies between goes in as
+        // silence, or the track would play that much ahead of its position.
+        // The silence is pushed now, ahead of this buffer.  (Whether or not
+        // the graph may already be taking from the end of the queue: if it
+        // ran dry, the check below sees this buffer late.)
+        if (start - m_timelineEnd <= (GstClockTime)kMaxLeadInGapMs * GST_MSECOND) {
+            LogDebug(VB_MEDIAOUT, "PipeWire output stream %d: the carried-on track's sound starts %.1f ms in; "
+                                  "silence until then\n", m_slot, (double)(start - m_timelineEnd) / 1e6);
+            ExtendTimelineLocked(start);
+        } else {
+            // Far too much to make up in silence: take it as a fault.
+            m_flushNow = true;
+            WakeWorker();
+        }
+    }
+    if (m_timelineValid && lateNs > (GstClockTimeDiff)kFeedLateToleranceMs * GST_MSECOND && ranDry) {
         // Handed over late, and after the graph may have needed it: the
         // queue ran dry, the graph played silence, and this and everything
         // after it play that much behind the position.
