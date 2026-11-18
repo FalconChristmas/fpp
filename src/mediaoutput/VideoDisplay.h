@@ -18,6 +18,7 @@
 
 #include <gst/gst.h>
 
+#include <condition_variable>
 #include <cstdint>
 #include <memory>
 #include <mutex>
@@ -105,6 +106,15 @@ private:
     int m_users = 0;
     bool m_failed = false;           // the sink errored: rebuild on the next Acquire()
     bool m_closed = false;           // Teardown() has run
+    // Build() is still running: a second Acquire() of the display waits for
+    // it (m_builtCv) rather than attach a feed with no caps to keep to.
+    bool m_building = true;
+    std::condition_variable m_builtCv;
+    // Torn down (it failed) while tracks still held it: the lease, which a
+    // decoder's buffers from the display's pool may still be on, is closed
+    // when the last of them lets go (Release()).
+    bool m_releaseLeaseWhenUnused = false;
+    void ReleaseLeaseAndConnector();
     uint64_t m_feedToken = 0;        // the feed allowed to show frames, 0 = none
     uint64_t m_lastToken = 0;
 

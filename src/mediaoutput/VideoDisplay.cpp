@@ -108,6 +108,7 @@ std::shared_ptr<VideoDisplay> VideoDisplay::Acquire(const Config& cfg) {
     GStreamerOutput::EnsureGStreamerInit();
     std::shared_ptr<VideoDisplay> stale;
     std::shared_ptr<VideoDisplay> display;
+    std::shared_ptr<VideoDisplay> shared;
     {
         std::unique_lock<std::mutex> lock(s_mapLock);
         if (s_shutdown) {
@@ -130,19 +131,38 @@ std::shared_ptr<VideoDisplay> VideoDisplay::Acquire(const Config& cfg) {
                             cfg.connectorName.c_str());
                 }
                 cur->m_users++;
-                return cur;
+                shared = cur;
+            } else {
+                // Idle with other settings, or failed: build a new one in its place.
+                stale = cur;
+                s_displays.erase(it);
+                s_closing++;
+                // The new display's lease waits for this one's release (the
+                // teardown below) rather than finding the connector held.
+                DrmCards::RetireLease(stale->m_lease);
             }
-            // Idle with other settings, or failed: build a new one in its place.
-            stale = cur;
-            s_displays.erase(it);
-            s_closing++;
-            // The new display's lease waits for this one's release (the
-            // teardown below) rather than finding the connector held.
-            DrmCards::RetireLease(stale->m_lease);
         }
-        display = std::shared_ptr<VideoDisplay>(new VideoDisplay(cfg));
-        display->m_users = 1;
-        s_displays[KeyFor(cfg)] = display;
+        if (!shared) {
+            display = std::shared_ptr<VideoDisplay>(new VideoDisplay(cfg));
+            display->m_users = 1;
+            s_displays[KeyFor(cfg)] = display;
+        }
+    }
+    if (shared) {
+        // Another slot is still building it: wait, or its feed would get no
+        // caps to keep to (m_feedCaps).
+        bool usable;
+        {
+            std::unique_lock<std::mutex> dl(shared->m_lock);
+            shared->m_builtCv.wait_for(dl, std::chrono::milliseconds(TEARDOWN_TIMEOUT_MS),
+                                       [&shared]() { return !shared->m_building; });
+            usable = !shared->m_building && !shared->m_closed && shared->m_feedCaps;
+        }
+        if (!usable) {
+            shared->Release();
+            return nullptr;
+        }
+        return shared;
     }
     if (stale) {
         // On its own thread: the new lease below waits for it.
@@ -152,7 +172,8 @@ std::shared_ptr<VideoDisplay> VideoDisplay::Acquire(const Config& cfg) {
             DoneClosing();
         }).detach();
     }
-    if (!display->Build()) {
+    bool built = display->Build();
+    if (!built) {
         {
             std::lock_guard<std::mutex> lock(s_mapLock);
             auto it = s_displays.find(KeyFor(cfg));
@@ -160,10 +181,20 @@ std::shared_ptr<VideoDisplay> VideoDisplay::Acquire(const Config& cfg) {
                 s_displays.erase(it);
             }
         }
+        {
+            // Not this caller's any more; anyone waiting to share it (above)
+            // finds it closed and lets go too.
+            std::lock_guard<std::mutex> dl(display->m_lock);
+            display->m_users--;
+        }
         display->Teardown("build failed");
-        return nullptr;
     }
-    return display;
+    {
+        std::lock_guard<std::mutex> dl(display->m_lock);
+        display->m_building = false;
+    }
+    display->m_builtCv.notify_all();
+    return built ? display : nullptr;
 }
 
 std::shared_ptr<VideoDisplay> VideoDisplay::AcquireRunning(const Config& cfg) {
@@ -174,7 +205,7 @@ std::shared_ptr<VideoDisplay> VideoDisplay::AcquireRunning(const Config& cfg) {
     }
     std::shared_ptr<VideoDisplay> cur = it->second;
     std::lock_guard<std::mutex> dl(cur->m_lock);
-    if (cur->m_failed || cur->m_closed || !cur->m_pipeline || !cur->m_cfg.SameOutput(cfg)) {
+    if (cur->m_failed || cur->m_closed || cur->m_building || !cur->m_pipeline || !cur->m_cfg.SameOutput(cfg)) {
         return nullptr;
     }
     cur->m_users++;
@@ -183,9 +214,17 @@ std::shared_ptr<VideoDisplay> VideoDisplay::AcquireRunning(const Config& cfg) {
 
 void VideoDisplay::Release() {
     bool last;
+    bool releaseLease = false;
     {
         std::lock_guard<std::mutex> lock(m_lock);
         last = m_users > 0 && --m_users == 0;
+        if (last && m_releaseLeaseWhenUnused) {
+            m_releaseLeaseWhenUnused = false;
+            releaseLease = true;
+        }
+    }
+    if (releaseLease) {
+        ReleaseLeaseAndConnector();
     }
     if (last) {
         // Under the map lock, which the worker checks under: never between
@@ -346,8 +385,26 @@ void VideoDisplay::Teardown(const char* why) {
     // After the kmssink is gone (closing a lease under a live one is
     // undefined), unless it never stopped: it still uses the lease then.
     if (released) {
-        DrmCards::ReleaseLease(m_lease);
+        bool inUse;
+        {
+            std::lock_guard<std::mutex> lock(m_lock);
+            inUse = m_users > 0;
+            m_releaseLeaseWhenUnused = inUse;
+        }
+        if (inUse) {
+            LogDebug(VB_MEDIAOUT, "VideoDisplay %s: keeping its lease until the tracks on it let go\n",
+                     m_cfg.connectorName.c_str());
+        } else {
+            ReleaseLeaseAndConnector();
+        }
+    } else if (m_claimedConnector) {
+        m_claimedConnector = false;
+        VideoOutputManager::Instance().ReleaseConnectorFromMedia(m_cfg.connectorId);
     }
+}
+
+void VideoDisplay::ReleaseLeaseAndConnector() {
+    DrmCards::ReleaseLease(m_lease);
     if (m_claimedConnector) {
         m_claimedConnector = false;
         VideoOutputManager::Instance().ReleaseConnectorFromMedia(m_cfg.connectorId);
