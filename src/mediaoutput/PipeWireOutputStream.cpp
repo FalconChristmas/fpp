@@ -59,6 +59,14 @@ constexpr int64_t kGraphQuantum = 1024;
 // end of stream comes, a cycle more than the graph may already have taken.
 constexpr int64_t kFeedLeadQuanta = 2;
 constexpr int64_t kGraphAheadQuanta = 1;
+// The least time the last track's sound is left queued, beyond what the
+// graph may already have taken, when its end of stream comes: the time the
+// next track has to carry on before silence goes in between them (the end of
+// stream reaching the playlist, the next entry starting, its pipeline going
+// to PLAYING).  Two cycles alone leave a cycle, which at a high graph rate
+// is short: 11.6 ms at 88.2 kHz, which an AM62x board's handover overran by
+// a few ms at nearly every track change.
+constexpr int64_t kFeedHandoverMs = 30;
 
 // Longest a stream may take to come up before it is abandoned.  A cold open is
 // ~0.6 s on an AM335x; this only trips when PipeWire itself is unwell.
@@ -247,6 +255,8 @@ void PipeWireOutputStream::ForgetFailureLocked() {
     }
 }
 
+static int64_t MonoUs();
+
 void PipeWireOutputStream::Release(GstElement* feed) {
     {
         std::unique_lock<std::mutex> lock(m_lock);
@@ -260,6 +270,8 @@ void PipeWireOutputStream::Release(GstElement* feed) {
                 // pushes the track's last fragment out, as below.
                 m_bridging = true;
                 m_bridgeUntilMs = NowMs() + kBridgeMs;
+                m_releasedUs = MonoUs();
+                m_bridgedNs = 0;
             } else {
                 // Push the track's last fragment out behind some silence.  PipeWire
                 // holds a partial cycle until there is more data, so with nothing
@@ -415,11 +427,12 @@ bool PipeWireOutputStream::WaitReady(int timeoutMs) {
 
 int PipeWireOutputStream::TailFlushMs() {
     // More than any partial cycle plus the feed's lead.
-    return (int)((kFeedLeadQuanta + 2) * kGraphQuantum * 1000 / GStreamerOutput::PipeWireGraphRate()) + 1;
+    return (int)((FeedLeadNs() + 2 * kGraphQuantum * 1000000000LL / GStreamerOutput::PipeWireGraphRate()) / 1000000) + 1;
 }
 
 int64_t PipeWireOutputStream::FeedLeadNs() {
-    return kFeedLeadQuanta * kGraphQuantum * 1000000000LL / GStreamerOutput::PipeWireGraphRate();
+    int64_t quantum = kGraphQuantum * (int64_t)1000000000 / GStreamerOutput::PipeWireGraphRate();
+    return std::max(kFeedLeadQuanta * quantum, kGraphAheadQuanta * quantum + kFeedHandoverMs * (int64_t)1000000);
 }
 
 
@@ -440,12 +453,13 @@ void PipeWireOutputStream::AttachFeed(GstElement* appsink) {
             RecalibrateFeedClockLocked(gst_clock_get_internal_time(m_clock));
         }
     }
-    // Run the feed two graph cycles ahead of the clock.  Handed over exactly
+    // Run the feed two graph cycles (FeedLeadNs()) ahead of the clock.  Handed over exactly
     // on time, a buffer can miss the cycle that needed it -- the graph may
     // take a sample up to a cycle before its time; PipeWire then plays a
     // quantum of silence there and the rest of the track is a quantum late.
     // Two cycles' worth queued absorbs that, and leaves the last track's
-    // sound still queued when a track carrying on its timeline takes over.
+    // sound still queued when a track carrying on its timeline takes over
+    // (at least kFeedHandoverMs beyond the cycle, whatever the graph's rate).
     // (Where a sample plays doesn't depend on this: the queue is contiguous
     // from the track's first sample.)
     g_object_set(appsink, "emit-signals", TRUE, "ts-offset", -FeedLeadNs(), NULL);
@@ -940,7 +954,9 @@ bool PipeWireOutputStream::ServiceBridge() {
         return false;
     }
     if (m_timelineEnd < now + (GstClockTime)kBridgeLowMs * GST_MSECOND) {
+        GstClockTime before = m_timelineEnd;
         ExtendTimelineLocked(now + (GstClockTime)kBridgeHighMs * GST_MSECOND);
+        m_bridgedNs += m_timelineEnd - before;
     }
     return true;
 }
@@ -983,9 +999,10 @@ bool PipeWireOutputStream::ContinueTimeline(GstClockTime* baseTime, int64_t* ear
     // Handed over by `now` (a cycle ahead of the clock) plus the handover
     // time; never more than the feed's lead ahead of its time.
     *earlyNs = (int64_t)std::min(lead, m_timelineEnd - now + GraphAheadNs() - (GstClockTime)kContinueHandoverMs * GST_MSECOND);
-    LogDebug(VB_MEDIAOUT, "PipeWire output stream %d: carrying on the timeline (%.1f ms queued, %.1f ms of silence added, "
-                          "first sample handed over %.1f ms early)\n",
-             m_slot, queued / 1e6, (m_timelineEnd - now - queued) / 1e6, *earlyNs / 1e6);
+    LogDebug(VB_MEDIAOUT, "PipeWire output stream %d: carrying on the timeline %.1f ms after the last track ended (%.1f ms queued, "
+                          "%.1f ms of silence added, %.1f ms by the bridge before; first sample handed over %.1f ms early)\n",
+             m_slot, (MonoUs() - m_releasedUs) / 1e3, queued / 1e6, (m_timelineEnd - now - queued) / 1e6,
+             m_bridgedNs / 1e6, *earlyNs / 1e6);
     return true;
 }
 

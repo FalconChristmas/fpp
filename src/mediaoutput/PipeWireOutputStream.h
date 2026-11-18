@@ -250,6 +250,10 @@ private:
     // until m_bridgeUntilMs (Release()).
     bool m_bridging = false;
     uint64_t m_bridgeUntilMs = 0;
+    // When the last track was released, and how much silence the bridge has
+    // laid since (logged when the next track carries on).
+    int64_t m_releasedUs = 0;
+    GstClockTime m_bridgedNs = 0;
     // The feed attached by ContinueTimeline() has handed nothing over yet.
     // If its first buffer comes too late for the queue, the stream is flushed
     // at once (the worker, m_flushNow): the track's head skips, but it plays
