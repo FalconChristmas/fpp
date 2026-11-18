@@ -22,6 +22,7 @@
 #include "PlaylistEntryBoth.h"
 #include "mediadetails.h"
 #include "../MultiSync.h"
+#include "../Sequence.h"
 
 // Longest the sequence waits for the media to become audible.  Covers a cold
 // audio output (~0.6 s on an AM335x, a PipeWire output stream gives up at 3 s)
@@ -130,6 +131,13 @@ int PlaylistEntryBoth::StartPlaying(void) {
     bool openLater = m_mediaEntry && m_mediaEntry->GetMediaOffsetMS() <= 0;
     if (!openLater && !m_sequenceEntry->PreparePlay()) {
         LogDebug(VB_PLAYLIST, "Problems starting sequence: %s\n", m_sequenceEntry->GetSequenceName().c_str());
+    }
+    if (openLater && !sequence->IsSequenceRunning() && multiSync->isMultiSyncEnabled()) {
+        // With nothing running, the remotes have no tail to finish either:
+        // tell them now, so they read the file ahead of its start rather
+        // than at it.  Our own open sends it again at the start, which a
+        // remote with the file open and not yet started takes as a no-op.
+        multiSync->SendSeqOpenPacket(m_sequenceEntry->GetSequenceName());
     }
 
     if (multiSync->isMultiSyncEnabled() && m_mediaEntry && m_mediaEntry->m_openTime) {
