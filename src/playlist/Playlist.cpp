@@ -1827,9 +1827,39 @@ void Playlist::PrepareNextIfDue() {
         return;  // done for this pass
     }
     m_preparedAfter = cur;
-    if (PlaylistEntryBase* next = PeekNextEntry()) {
+    if (!m_insertedPlaylist.empty()) {
+        PrepareInsertedPlaylist();
+    } else if (PlaylistEntryBase* next = PeekNextEntry()) {
         next->PrepareAhead();
     }
+}
+
+// An insert (Insert Playlist After Current: Remote Falcon's requests) plays
+// next.  Its entries aren't loaded until it starts, so its first media is
+// read from its file -- where that is certain: from the top, unshuffled, a
+// plain media entry first.
+void Playlist::PrepareInsertedPlaylist() {
+    if (m_insertedPlaylistPosition > 0 || m_status == FPP_STATUS_STOPPING_GRACEFULLY ||
+        m_status == FPP_STATUS_STOPPING_NOW) {
+        return;
+    }
+    Json::Value root = LoadJSON(FPP_DIR_PLAYLIST("/" + m_insertedPlaylist + ".json"));
+    if (!root.isObject() || root.get("random", 0).asInt() > 0) {
+        return;
+    }
+    const Json::Value& leadIn = root["leadIn"];
+    const Json::Value& entries = leadIn.isArray() && leadIn.size() ? leadIn : root["mainPlaylist"];
+    if (!entries.isArray() || !entries.size() || !entries[0].isObject()) {
+        return;
+    }
+    const Json::Value& e = entries[0];
+    std::string type = e.get("type", "").asString();
+    if ((type != "media" && type != "both") || !e.get("enabled", 1).asBool() ||
+        e.get("fileMode", "single").asString() != "single" || !e.get("mediaPrefix", "").asString().empty()) {
+        return;
+    }
+    int slot = std::clamp(e.get("streamSlot", 1).asInt(), 1, StreamSlotManager::MAX_SLOTS);
+    PrepareMediaOutput(e.get("mediaName", "").asString(), ResolveVideoOutput(e.get("videoOut", "").asString()), slot);
 }
 
 // The same decisions Process() makes once the current entry has finished,
@@ -2188,6 +2218,9 @@ void Playlist::InsertPlaylistAsNext(const std::string& filename, const int posit
         m_insertedPlaylist = filename;
         m_insertedPlaylistPosition = position;
         m_insertedPlaylistEndPosition = endPosition;
+        // What was prepared is no longer what plays next: prepare again (at
+        // once, if the current entry is already in its last moments).
+        m_preparedAfter = nullptr;
     }
 }
 void Playlist::InsertPlaylistImmediate(const std::string& filename, const int position, int endPosition) {

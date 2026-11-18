@@ -159,6 +159,7 @@ private:
     // The entry that plays when the current one ends, or nullptr where that
     // isn't certain yet (an insert, a branch, a pause between items, a stop).
     PlaylistEntryBase* PeekNextEntry();
+    void PrepareInsertedPlaylist();
     PlaylistEntryBase* m_preparedAfter = nullptr;  // entry whose successor was prepared this pass
     // The order the main playlist takes at its next pass, when it is
     // reshuffled each pass and that pass's first entry was prepared: the
