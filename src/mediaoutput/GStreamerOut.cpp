@@ -62,6 +62,7 @@
 #include "PipeWireOutputStream.h"
 #include "StreamSlotManager.h"
 
+#include <array>
 #include <functional>
 #include "VideoDisplay.h"
 #include "VideoOutputManager.h"
@@ -389,6 +390,13 @@ static void RestartForStuckTeardowns(const char* why) {
 // its resources are intentionally leaked.  After a false return the caller
 // must NOT release the pipeline's kernel-side resources (DRM planes, shared
 // DRM fd refs) — the wedged pipeline still owns them.
+// The picture's delay behind its sound on each slot, less a track's carry-on
+// shift (m_timelineShiftNs): what the stream, graph and card add, the same from
+// one track to the next.  A new track's picture starts with it (Go()), rather
+// than with none until its first position, which put the picture ahead of the
+// sound for the first frames and then held it that long.
+static std::array<std::atomic<int64_t>, StreamSlotManager::MAX_SLOTS + 1> s_pictureDelayBaseNs{};
+
 // `ifLate` runs on the teardown thread if the pipeline does reach NULL after
 // all, once the caller has given up on it (returned false).
 static bool SetPipelineToNullSupervised(GstElement* pipeline, int timeoutMs,
@@ -2917,6 +2925,14 @@ int GStreamerOutput::Go(int msTime, const std::string& pipelineSinkName, double 
 #ifdef HAS_VIDEO_DISPLAY
                 if (m_display) {
                     displayFeed = GST_ELEMENT(gst_object_ref(m_kmssink));
+                    // Behind its sound from the first frame, by what the last
+                    // track's was (the start thread adds a carry-on's shift).
+                    int64_t base = (m_streamSlot >= 1 && m_streamSlot <= StreamSlotManager::MAX_SLOTS)
+                                       ? s_pictureDelayBaseNs[m_streamSlot].load() : 0;
+                    if (base > 0 && m_pwFeed) {
+                        g_object_set(m_kmssink, "ts-offset", (gint64)base, NULL);
+                        m_pictureDelayNs = base;
+                    }
                 } else
 #endif
                 {
@@ -4342,6 +4358,10 @@ int GStreamerOutput::Process(void) {
                             measured = latNs > -(PipeWireOutputStream::FeedLeadNs() + (int64_t)(50 * GST_MSECOND));
                             if (measured) {
                                 AlignPictureToSound(latNs);
+                                if (m_streamSlot >= 1 && m_streamSlot <= StreamSlotManager::MAX_SLOTS) {
+                                    s_pictureDelayBaseNs[m_streamSlot] =
+                                        latNs - (m_timelineShiftNs ? m_timelineShiftNs->load() : 0);
+                                }
                             } else {
                                 latNs = 0;
                             }
