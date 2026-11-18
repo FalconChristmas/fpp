@@ -526,9 +526,25 @@ void RunChannelOutputThread(void) {
         }
         long dt = (nextFrameTime - GetMonotonicTimeMicros()) * 1000;
         if (RunThread.load(relaxed) && dt > 0) {
+            // With no sequence running the wait is the bridging interval
+            // (50 ms by default).  A sequence starting meanwhile ends it: its
+            // first frame goes out now, not at the end of that interval.  A
+            // playlist's next sequence starts just after the last one ends (as
+            // its song's sound comes in right behind the last one's), and
+            // left to the interval its lights started up to 50 ms behind
+            // their sound.  While a sequence runs this never fires.
+            const bool runningAtSleep = sequence->IsSequenceRunning();
             if (outputThreadCond.wait_for(lock, std::chrono::nanoseconds(dt),
-                                          [&forceSeen]() { return outputForceRequests.load() != forceSeen; })) {
-                LogDebug(VB_CHANNELOUT, "Forced output\n");
+                                          [&forceSeen, runningAtSleep]() {
+                                              return outputForceRequests.load() != forceSeen ||
+                                                     (!runningAtSleep && sequence->IsSequenceRunning());
+                                          })) {
+                if (!runningAtSleep && sequence->IsSequenceRunning()) {
+                    // The sequence's cadence starts with this pass.
+                    nextFrameTime = 0;
+                } else {
+                    LogDebug(VB_CHANNELOUT, "Forced output\n");
+                }
             }
         }
         if (outputThreadLockWaiters.load(relaxed)) {
@@ -628,6 +644,11 @@ void StartChannelOutputThread(void) {
         ++outputStartRequests;
     }
     outputThreadSatusCond.notify_all();
+    // And out of the frame wait, if a sequence has just started (see there).
+    // Not under outputThreadLock: callers may hold the sequence lock, which
+    // the thread takes while holding that one.  A notify that slips in just
+    // before the thread waits only leaves the wait to run its course.
+    outputThreadCond.notify_all();
     if (ChannelOutputThreadIsRunning()) {
         // Give a little time in case we were shutting down
         std::unique_lock<std::mutex> lock(outputThreadStatusLock);

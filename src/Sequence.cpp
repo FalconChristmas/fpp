@@ -1243,6 +1243,25 @@ void Sequence::CloseIfOpen(const std::string& filename) {
     }
 }
 
+uint64_t Sequence::OpenGeneration() {
+    std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
+    return m_openGeneration;
+}
+
+void Sequence::CloseSequenceFileIfStill(uint64_t generation) {
+    {
+        std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
+        if (generation != m_openGeneration || !m_seqFile.load()) {
+            return;
+        }
+    }
+    // Outside the lock, as every other caller: CloseSequenceFile() sends the
+    // MultiSync stop before it takes it.  The only opener that could slip in
+    // between is another thread's Start Sequence, and callers of this run on
+    // the main loop with the playlist.
+    CloseSequenceFile();
+}
+
 void Sequence::CloseSequenceFile(void) {
     // These two reads happen before m_sequenceLock is taken below, so they need
     // the snapshot; callers arrive here from the playlist, MultiSync and the

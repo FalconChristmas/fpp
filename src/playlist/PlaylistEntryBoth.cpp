@@ -27,6 +27,11 @@
 // audio output (~0.6 s on an AM335x, a PipeWire output stream gives up at 3 s)
 // with margin; past it the sequence starts and the sync servo takes over.
 static constexpr long long AUDIO_START_HOLD_MS = 4000;
+// Most a song's lights go on past the end of its media for the sound still on
+// its way to the speaker (the output stream's queue and the card's).  Any
+// more than this and the media didn't reach its end: it failed or was
+// stopped, and its lights stop with it.
+static constexpr uint64_t MAX_SOUND_TAIL_MS = 500;
 
 PlaylistEntryBoth::PlaylistEntryBoth(Playlist* playlist, PlaylistEntryBase* parent) :
     PlaylistEntryBase(playlist, parent),
@@ -117,7 +122,13 @@ int PlaylistEntryBoth::StartPlaying(void) {
     // The media drives the timing when there is media; without it this pass,
     // the sequence has to keep its own time.
     m_sequenceEntry->setAdjustTiming(m_mediaEntry == nullptr);
-    if (!m_sequenceEntry->PreparePlay()) {
+    // A sequence held until its media is audible (below) is opened only then,
+    // by its StartPlaying().  Opening it shows its first frame at once, and
+    // takes over from the sequence before it -- which is still playing the
+    // end of its own song's sound (see Process()) while this song's sound,
+    // carried on right behind it in the output stream, comes up.
+    bool openLater = m_mediaEntry && m_mediaEntry->GetMediaOffsetMS() <= 0;
+    if (!openLater && !m_sequenceEntry->PreparePlay()) {
         LogDebug(VB_PLAYLIST, "Problems starting sequence: %s\n", m_sequenceEntry->GetSequenceName().c_str());
     }
 
@@ -201,7 +212,19 @@ int PlaylistEntryBoth::Process(void) {
     if (m_mediaEntry && m_mediaEntry->IsFinished()) {
         FinishPlay();
         if (!m_sequenceEntry->IsFinished()) {
-            m_sequenceEntry->Stop();
+            // The media ends as its last sound is handed to the output, and
+            // that sound is then still to play: the stream's queue and the
+            // card's, as far as the lights following it are behind the end.
+            // They play to the end of it; the next song's sequence takes over
+            // when its own sound starts.
+            uint64_t length = m_mediaEntry->GetLengthInMS();
+            uint64_t at = m_sequenceEntry->GetElapsedMS();
+            uint64_t tail = length > at ? length - at : 0;
+            if (m_sequenceEntry->IsStarted() && tail > 0 && tail <= MAX_SOUND_TAIL_MS) {
+                m_sequenceEntry->StopAfter((int)tail);
+            } else {
+                m_sequenceEntry->Stop();
+            }
         }
     }
 

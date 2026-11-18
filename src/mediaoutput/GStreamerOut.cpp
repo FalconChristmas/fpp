@@ -4222,6 +4222,8 @@ int GStreamerOutput::Process(void) {
                     }
                 }
             }
+            // Audible before this report, not just as of it: see below.
+            bool wasAudible = m_audible;
             if (elapsed > 0.0f) {
                 m_audible = true;
             }
@@ -4237,7 +4239,14 @@ int GStreamerOutput::Process(void) {
             // beside it (Play Media on another slot, a companion) followed the
             // same servo, so the sequence slewed toward whichever clock
             // reported last.
-            if (m_drivesShowClock) {
+            // Not until the sound has been audible for a report.  Until then
+            // the sequence running is not this media's: it is held until the
+            // media is audible (PlaylistEntryBoth), and the one before it is
+            // still playing the end of its own song's sound, which carries on
+            // in the output stream ahead of this one's.  Steered toward this
+            // media's start, that one held its last frames and left the
+            // light timing off for the next sequence's start.
+            if (m_drivesShowClock && wasAudible) {
                 // The position is in card time when it comes from the output
                 // stream; frames go out at the same pace.
                 if (m_pwStream) {

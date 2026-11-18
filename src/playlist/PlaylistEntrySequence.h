@@ -27,6 +27,12 @@ public:
     virtual int StartPlaying(void) override;
     virtual int Process(void) override;
     virtual int Stop(void) override;
+    // Stop as far as the playlist is concerned, but leave the sequence
+    // playing for `ms` more, then close it -- unless something else has
+    // opened a sequence by then, which takes over from it.  For the lights
+    // of a song whose sound is still on its way to the speaker when its
+    // media ends.
+    int StopAfter(int ms);
 
     virtual void Pause() override;
     virtual bool IsPaused() override;
