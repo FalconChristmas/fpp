@@ -4852,12 +4852,6 @@ function network_interface_has_internet($ifname, $bindAddress = null, $force = f
 
     static $memo = array();
     if ($force) {
-        // A forced refresh is an explicit "the network may have just changed",
-        // so drop every cached answer for this interface (including entries
-        // from before a cache-key change) and the per-request memo.
-        foreach (glob('/tmp/cache_net_internet_' . $ifname . '*') ?: array() as $stale) {
-            @unlink($stale);
-        }
         $memo = array();
     }
     if (array_key_exists($ifname, $memo)) {
@@ -4877,6 +4871,35 @@ function network_interface_has_internet($ifname, $bindAddress = null, $force = f
         }
     }
     $cacheName = 'net_internet_' . $ifname . '_' . substr(md5($netToken), 0, 8);
+    $cacheFile = '/tmp/cache_' . $cacheName . '.cache';
+
+    // A cache key that changed (new address or new network settings) leaves
+    // the previous key's file behind.  Sweep stale keys for this interface
+    // when that happens, and when a refresh was requested, so /tmp does not
+    // accumulate one small entry per DHCP renewal or config save.  The lock
+    // file ends in .cache_recalc, so the .cache suffix skips it.
+    if ($force || !is_file($cacheFile)) {
+        $keyPattern = '/^cache_net_internet_' . preg_quote($ifname, '/') . '(_[0-9a-f]{8})?\.cache$/';
+        foreach (glob('/tmp/cache_net_internet_' . $ifname . '*.cache') ?: array() as $stale) {
+            if ($stale !== $cacheFile && preg_match($keyPattern, basename($stale))) {
+                @unlink($stale);
+            }
+        }
+    }
+    if ($force) {
+        // Honour a forced refresh only when the cached answer is old enough to
+        // be worth replacing.  refresh=1 is reachable without authentication,
+        // and a client that sent it in a loop would otherwise force up to four
+        // interface probes (~3s each on a dead WAN) on every request.  The
+        // threshold also coalesces the header's double refresh and several
+        // open tabs into a single probe.
+        $mtime = @filemtime($cacheFile);
+        if ($mtime !== false && (time() - $mtime) < 2) {
+            $force = false;
+        } else {
+            @unlink($cacheFile);
+        }
+    }
 
     $isMacOS = ($settings['Platform'] == 'MacOS');
 

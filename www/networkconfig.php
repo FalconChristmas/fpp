@@ -713,8 +713,12 @@
         var internetRefreshTimer = null;
         $(document).ajaxSuccess(function (evt, xhr, settings) {
             var method = (settings.type || 'GET').toUpperCase();
-            var url = settings.url || '';
-            if (method === 'GET' || url.indexOf('api/network/') !== 0) return;
+            // Normalise an absolute or leading-slash URL down to the path so
+            // the match does not depend on how the page was reached.
+            var path = (settings.url || '')
+                .replace(/^[a-z]+:\/\/[^\/]+/i, '')
+                .replace(/^\/+/, '');
+            if (method === 'GET' || path.indexOf('api/network/') !== 0) return;
             clearTimeout(internetRefreshTimer);
             internetRefreshTimer = setTimeout(function () {
                 if (typeof RefreshInternetStatus !== 'function') return;
