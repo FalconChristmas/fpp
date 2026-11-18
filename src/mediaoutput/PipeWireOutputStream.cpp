@@ -172,6 +172,22 @@ PipeWireOutputStream* PipeWireOutputStream::ForSlot(int slot) {
     return s_slots[slot];
 }
 
+bool PipeWireOutputStream::SlotMayCarryOn(int slot) {
+    if (slot < 1 || slot > StreamSlotManager::MAX_SLOTS) {
+        return false;
+    }
+    PipeWireOutputStream* s;
+    {
+        std::unique_lock<std::mutex> lock(s_slotsLock);
+        s = s_slots[slot];
+    }
+    if (!s) {
+        return false;
+    }
+    std::unique_lock<std::mutex> lock(s->m_lock);
+    return s->m_timelineValid && !s->m_timelineLate && s->m_state == State::Ready;
+}
+
 int64_t PipeWireOutputStream::QueuedAheadNsForSlot(int slot) {
     if (slot < 1 || slot > StreamSlotManager::MAX_SLOTS) {
         return -1;

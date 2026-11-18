@@ -155,6 +155,13 @@ void StreamSlotManager::ClaimSlot(int slot, GStreamerOutput* output) {
     m_slots[slot - 1].claimedBy = output;
 }
 
+bool StreamSlotManager::ClaimedByOrFree(int slot, GStreamerOutput* output) {
+    if (slot < 1 || slot > MAX_SLOTS) return true;
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+    GStreamerOutput* claimedBy = m_slots[slot - 1].claimedBy;
+    return !claimedBy || claimedBy == output;
+}
+
 void StreamSlotManager::ClearSlot(int slot, GStreamerOutput* owner) {
     if (slot < 1 || slot > MAX_SLOTS) return;
     std::lock_guard<std::recursive_mutex> lock(m_mutex);

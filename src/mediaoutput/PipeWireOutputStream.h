@@ -120,6 +120,13 @@ public:
     // allows for that in its position and picture.
     bool ContinueTimeline(GstClockTime* baseTime, int64_t* earlyNs);
 
+    // Whether slot's stream (if it exists; none is created) has a timeline
+    // the next track could carry on: a track starting now most likely will.
+    // Its sound then runs on behind the last track's without a break, so
+    // nothing that only makes sense between drained tracks (flushing an
+    // audio group's delay lines) should run.
+    static bool SlotMayCarryOn(int slot);
+
     // How long until the last sample handed over is due on the clock, or -1
     // if nothing is queued on a timeline.  Add the card's own queue for when
     // it is heard.

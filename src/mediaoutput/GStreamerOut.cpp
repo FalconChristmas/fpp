@@ -1329,14 +1329,19 @@ int GStreamerOutput::Start(int msTime) {
     if (!m_preparing) {
         // Before anything below writes the slot's status.
         StreamSlotManager::Instance().ClaimSlot(m_streamSlot, this);
+        m_claimedSlot = true;
         m_soundEndMs = 0;
 
         // Flush PipeWire filter-chain delay ring-buffers EARLY in Start().
         // This runs as a fire-and-forget thread (pw-cli calls take ~200ms+).
         // By calling it here instead of right before set_state(PLAYING),
         // the flush has the entire pipeline-build time (~50-100ms) to complete
-        // before audio actually starts flowing.
-        FlushPipeWireDelayBuffers();
+        // before audio actually starts flowing.  Not for a track that will
+        // carry on the output stream's timeline (see StartFlushes()).
+        m_flushesDeferred = PipeWireOutputStream::SlotMayCarryOn(m_streamSlot);
+        if (!m_flushesDeferred) {
+            FlushPipeWireDelayBuffers();
+        }
     }
 
     // Fresh pipeline — allow Stop()'s teardown to run for this track
@@ -2713,7 +2718,11 @@ int GStreamerOutput::Start(int msTime) {
     // silence buffers during idle, so this Start()-time flush is the
     // one that actually protects the AES67 receivers.
 #ifdef HAS_AES67_GSTREAMER
-    if (AES67Manager::INSTANCE.IsActive()) {
+    // Not while preparing (the playing track's sends), nor for a track that
+    // carries on the stream's timeline: its sound runs on behind the last
+    // one's with no transition to hide (StartPrepared() and the start thread
+    // see to those).
+    if (!m_preparing && !m_flushesDeferred && AES67Manager::INSTANCE.IsActive()) {
         AES67Manager::INSTANCE.FlushSendPipelines();
     }
 #endif
@@ -2753,8 +2762,12 @@ int GStreamerOutput::StartPrepared() {
     StreamSlotManager::Instance().DetachOutput(m_streamSlot, this);
     m_stopRequested = false;
     StreamSlotManager::Instance().ClaimSlot(m_streamSlot, this);
+    m_claimedSlot = true;
     m_soundEndMs = 0;
-    FlushPipeWireDelayBuffers();
+    m_flushesDeferred = PipeWireOutputStream::SlotMayCarryOn(m_streamSlot);
+    if (!m_flushesDeferred) {
+        StartFlushes();
+    }
     if (m_preparedTotalSecs >= 0) {
         std::lock_guard<std::mutex> lock(MediaOutputStatus::FieldsLock());
         m_mediaOutputStatus->minutesTotal = m_preparedTotalSecs / 60;
@@ -2853,12 +2866,14 @@ int GStreamerOutput::Go(int msTime, const std::string& pipelineSinkName, double 
             }
         }
         GstElement* pwFeed = mayContinue ? GST_ELEMENT(gst_object_ref(m_pwFeed)) : nullptr;
+        bool flushesDeferred = m_flushesDeferred;
+        m_flushesDeferred = false;
         // See VideoOutputManager::ProducerGeneration(): consumers are started
         // from this thread, possibly after this output has been stopped.
         const uint64_t producerGeneration = VideoOutputManager::Instance().ProducerGeneration();
         std::thread([pipeline, volume, cancel, seekPending, seekMs, videoPW, targetVolume,
                      streamSlot, pwStream, timelineShift, pwFeed, displayFeed,
-                     producerGeneration]() {
+                     producerGeneration, flushesDeferred]() {
             // Releases our owning refs on exit no matter which path we return on.
             //
             // A pipeline must never lose its last ref above NULL: disposing it
@@ -2970,6 +2985,11 @@ int GStreamerOutput::Go(int msTime, const std::string& pipelineSinkName, double 
                     }
                 }
                 if (!continued) {
+                    if (flushesDeferred) {
+                        // Expected to carry on, and didn't: between drained
+                        // tracks after all.
+                        StartFlushes();
+                    }
                     pwStream->WaitDrained(PW_STREAM_DRAIN_MAX_MS);
                 }
                 if (cancel->load()) {
@@ -3305,12 +3325,15 @@ int GStreamerOutput::Stop(void) {
         if (asyncTeardownEligible) {
             // These are what Close() would run inside its m_pipeline guard;
             // that guard will be skipped because we null the members here.
-            FlushPipeWireDelayBuffers();
+            // (And on the same terms: see Close().)
+            if (m_claimedSlot && !(fedPipeWireStream && PipeWireOutputStream::SlotMayCarryOn(m_streamSlot))) {
+                FlushPipeWireDelayBuffers();
 #ifdef HAS_AES67_GSTREAMER
-            if (AES67Manager::INSTANCE.IsActive()) {
-                AES67Manager::INSTANCE.FlushSendPipelines();
-            }
+                if (AES67Manager::INSTANCE.IsActive()) {
+                    AES67Manager::INSTANCE.FlushSendPipelines();
+                }
 #endif
+            }
             Stopping();
 
             // The detached thread takes over this object's refs; it must not
@@ -3354,7 +3377,7 @@ int GStreamerOutput::Stop(void) {
             ReleaseDisplay();
 
             m_playing = false;
-            if (m_mediaOutputStatus) {
+            if (m_mediaOutputStatus && OwnsSlotStatus()) {
                 m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
             }
             // Last touch of `this`: Stopped() may hand the object to a
@@ -3417,7 +3440,7 @@ int GStreamerOutput::Stop(void) {
         ReleaseDisplay();
 
         m_playing = false;
-        if (m_mediaOutputStatus) {
+        if (m_mediaOutputStatus && OwnsSlotStatus()) {
             m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
         }
         // Last touch of `this` - see the async path above.
@@ -4409,7 +4432,7 @@ void GStreamerOutput::ProcessMessages() {
             g_error_free(err);
             g_free(debug);
             m_playing = false;
-            if (m_mediaOutputStatus) {
+            if (m_mediaOutputStatus && OwnsSlotStatus()) {
                 m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
             }
             Stopping();
@@ -4792,7 +4815,11 @@ int GStreamerOutput::Close(void) {
     DetachCallbacks();
     m_prepared = false;
 
-    if (m_pipeline) {
+    // Neither for a prepared output thrown away unplayed (the delay lines
+    // and sends carry the track that is playing), nor for one whose sound
+    // the next track carries on from: its tail is still on its way out.
+    bool flushTail = m_claimedSlot && !(m_pwStream && PipeWireOutputStream::SlotMayCarryOn(m_streamSlot));
+    if (m_pipeline && flushTail) {
         // Flush PipeWire filter-chain delay buffers: a delayed group
         // member's chain still holds the end of this track (see
         // FlushPipeWireDelayBuffers()).  Detached, so Close() doesn't wait.
@@ -4807,6 +4834,8 @@ int GStreamerOutput::Close(void) {
             AES67Manager::INSTANCE.FlushSendPipelines();
         }
 #endif
+    }
+    if (m_pipeline) {
 
         // Stop() handles shutdown flag, appsink/bus cleanup, AES67 detach,
         // and the pipeline state change.
@@ -6205,6 +6234,19 @@ void GStreamerOutput::SetPipeWireStreamRate(const std::string& streamId, float r
             latest.erase(it);  // one id per track: don't keep them all
         }
     }).detach();
+}
+
+bool GStreamerOutput::OwnsSlotStatus() {
+    return m_claimedSlot && StreamSlotManager::Instance().ClaimedByOrFree(m_streamSlot, this);
+}
+
+void GStreamerOutput::StartFlushes() {
+    FlushPipeWireDelayBuffers();
+#ifdef HAS_AES67_GSTREAMER
+    if (AES67Manager::INSTANCE.IsActive()) {
+        AES67Manager::INSTANCE.FlushSendPipelines();
+    }
+#endif
 }
 
 void GStreamerOutput::FlushPipeWireDelayBuffers() {

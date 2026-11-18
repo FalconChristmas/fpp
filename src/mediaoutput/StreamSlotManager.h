@@ -55,6 +55,9 @@ public:
     /// that lands in between leaves the slot alone instead of wiping what the
     /// new one has already written.
     void ClaimSlot(int slot, GStreamerOutput* output);
+    /// Whether `output` may write the slot's status: no other output has
+    /// claimed the slot since.
+    bool ClaimedByOrFree(int slot, GStreamerOutput* output);
 
     /// Clear a slot when playback finishes.  If `owner` is non-null, the slot
     /// is only cleared when it is still registered to that instance -- a

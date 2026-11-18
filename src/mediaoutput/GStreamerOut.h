@@ -172,6 +172,16 @@ private:
     // business until it plays (BusSyncHandler()).
     std::atomic<bool> m_prepared{false};
     std::atomic<bool> m_pipelineFailed{false};  // the bus reported a fatal error
+    // Started playing on its slot (ClaimSlot()).  A prepared output thrown
+    // away unplayed never did: the slot's status, and the audio group delay
+    // lines and AES67 sends, belong to the track that is playing.
+    std::atomic<bool> m_claimedSlot{false};
+    bool OwnsSlotStatus();
+    // The delay-line and AES67 flushes a start makes between drained tracks,
+    // held back because this one will most likely carry on the output
+    // stream's timeline; made by the start thread if it doesn't after all.
+    bool m_flushesDeferred = false;
+    static void StartFlushes();
     // The card's own queue, as last read for the position (AudioSinkLatencyNs()),
     // and when the end of the media's sound is heard (set at its end of stream).
     std::atomic<int64_t> m_lastSinkLatencyNs{0};
