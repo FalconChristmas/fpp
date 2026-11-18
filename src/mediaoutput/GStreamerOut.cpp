@@ -3500,6 +3500,13 @@ void GStreamerOutput::AlignPictureToSound(int64_t latNs) {
 }
 
 void GStreamerOutput::EndTimelineShift() {
+    // A seek in the moment the start thread runs a carried-on pipeline on
+    // the timeline's base time with no start time (before it sets one again
+    // once PLAYING) would keep that base time; with a start time the flushing
+    // seek works out a new one.
+    if (m_pipeline) {
+        gst_element_set_start_time(m_pipeline, 0);
+    }
     if (!m_timelineShiftNs || m_timelineShiftNs->exchange(0) == 0) {
         return;
     }
