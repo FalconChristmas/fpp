@@ -10774,7 +10774,9 @@ function handleVisibilityChange () {
 		applyWsStatus(pending);
 	}
 	LoadSystemStatus();
-	LoadInternetStatus();
+	// The network may have changed while the tab was hidden, and the cached
+	// probe answer describes whatever was true before it was hidden.
+	RefreshInternetStatus();
 	// GetFPPStatus();
 }
 
@@ -15871,12 +15873,18 @@ function LoadSystemStatus () {
  * reads, so a later status snapshot cannot clear a dot.
  *
  * ?systemonly=1 keeps the response to the host-side augmentation (no fppd
- * curl).  The server caches each interface's answer for 20s, which is the poll
- * cadence here.
+ * curl) and &simple=1 skips the utilization/git/disk work, which this caller
+ * never reads.  The server caches each interface's answer for 20s, which is the
+ * poll cadence here.
+ *
+ * force=true appends &refresh=1 to bypass that cache.  RefreshInternetStatus()
+ * uses it after a network configuration change or restart.
  */
-function LoadInternetStatus () {
+function LoadInternetStatus (force) {
+	var url = 'api/system/status?systemonly=1&internet=1&simple=1';
+	if (force) url += '&refresh=1';
 	$.ajax({
-		url: 'api/system/status?systemonly=1&internet=1',
+		url: url,
 		dataType: 'json',
 		success: function (response) {
 			if (!response || !Array.isArray(response.interfaces)) return;
@@ -15889,16 +15897,34 @@ function LoadInternetStatus () {
 					changed = true;
 				}
 			});
-			if (changed) RefreshHeaderBar();
+			if (changed && lastStatusJSON) RefreshHeaderBar();
 		},
 		complete: function () {
 			clearTimeout(internetPollTimeout);
+			// A request that was already in flight re-arms this timer after the
+			// tab was hidden, so check visibility here too, not only in
+			// handleVisibilityChange().
+			if (isHidden()) return;
 			internetPollTimeout = setTimeout(
 				LoadInternetStatus,
 				gblInternetPollSeconds * 1000
 			);
 		}
 	});
+}
+
+/*
+ * Force an immediate internet-probe refresh, bypassing the server cache.
+ *
+ * Called after a network configuration change or a network restart (see
+ * networkconfig.php) and when the tab becomes visible again: in those cases the
+ * cached answer describes the previous routing and the normal 20-second poll
+ * would show a stale dot.
+ */
+function RefreshInternetStatus () {
+	clearTimeout(internetPollTimeout);
+	internetPollTimeout = null;
+	LoadInternetStatus(true);
 }
 
 // Recompute the displayed warning arrays from the two independent sources.

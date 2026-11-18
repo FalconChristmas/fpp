@@ -1490,8 +1490,9 @@ function SystemGetAudio()
  * remote instances instead.  Add `&internet=1` to include an `internet` boolean on
  * each `interfaces` entry: true when traffic sent through that interface can
  * currently reach the internet (verified by an interface-bound probe, so a
- * default route is not required).  The browser header requests this on its own
- * `?systemonly=1&internet=1` poll so a slow probe cannot delay the status
+ * default route is not required).  Add `&refresh=1` to bypass the probe cache,
+ * e.g. after network settings change.  The browser header requests this on its
+ * own `?systemonly=1&internet=1` poll so a slow probe cannot delay the status
  * response; other status consumers do not pay for the probe.
  *
  * @route GET /api/system/status
@@ -1851,7 +1852,14 @@ function finalizeStatusJson($obj)
         $withInternet = isset($_GET['internet'])
             && is_string($_GET['internet'])
             && filter_var($_GET['internet'], FILTER_VALIDATE_BOOLEAN);
-        $obj['interfaces'] = network_list_interfaces_obj($withInternet);
+        // refresh=1 bypasses the probe cache.  The header sends it after a
+        // network configuration change or restart so the badge reflects the
+        // new routing immediately instead of the previous cache window's
+        // answer.
+        $forceInternet = isset($_GET['refresh'])
+            && is_string($_GET['refresh'])
+            && filter_var($_GET['refresh'], FILTER_VALIDATE_BOOLEAN);
+        $obj['interfaces'] = network_list_interfaces_obj($withInternet, $withInternet && $forceInternet);
     }
 
     if (isset($settings['rebootFlag'])) {

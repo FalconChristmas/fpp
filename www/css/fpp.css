@@ -587,7 +587,7 @@ html .ui-button.ui-state-disabled:active {
 	border-bottom: 1px solid #2d3043;
 	display: flex;
 	color: #fff;
-	background-color: var(--fpp-header-bg);
+	background-color: var(--fpp-header-bg, #171720);
 }
 
 .headerCenter {
@@ -770,7 +770,7 @@ html .ui-button.ui-state-disabled:active {
 	background-color: var(--bs-success);
 	/* Ring in the header's own fixed background (.header, above) so the dot
 	   reads as a badge on the icon rather than part of its artwork. */
-	box-shadow: 0 0 0 1px var(--fpp-header-bg);
+	box-shadow: 0 0 0 1px var(--fpp-header-bg, #171720);
 	transform: none;
 }
 
@@ -3669,7 +3669,7 @@ pre.testData,
 		left: 0;
 		right: 0;
 		top: 0;
-		background-color: var(--fpp-header-bg);
+		background-color: var(--fpp-header-bg, #171720);
 	}
 
 	#bodyWrapper {

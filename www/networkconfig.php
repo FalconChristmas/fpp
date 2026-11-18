@@ -703,6 +703,26 @@
             ShowNetworkApplyPrompt();
         }
 
+        // Any successful network-configuration change (apply/restart, save,
+        // add, delete, Wi-Fi connect) can change which interface carries
+        // internet.  Force the header badge to re-probe immediately instead of
+        // waiting for its 20-second poll, and once more a few seconds later
+        // because a wireless interface has to associate and get its address
+        // before the probe means anything.  Runs on the network settings page
+        // only, and ignores GETs (status/scan cannot change connectivity).
+        var internetRefreshTimer = null;
+        $(document).ajaxSuccess(function (evt, xhr, settings) {
+            var method = (settings.type || 'GET').toUpperCase();
+            var url = settings.url || '';
+            if (method === 'GET' || url.indexOf('api/network/') !== 0) return;
+            clearTimeout(internetRefreshTimer);
+            internetRefreshTimer = setTimeout(function () {
+                if (typeof RefreshInternetStatus !== 'function') return;
+                RefreshInternetStatus();
+                setTimeout(RefreshInternetStatus, 5000);
+            }, 500);
+        });
+
         function ApplyNetworkConfig() {
             DoModalDialog({
                 id: "applyNetworkConfirm",

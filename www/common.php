@@ -4515,9 +4515,11 @@ function network_internet_probe_targets()
  * consulted at most once per cache window per interface instead of once per
  * request.
  *
- * The device bind needs no extra proof: `ip route get <target> oif <ifname>`
- * constrains the lookup to that device, so rc 0 means the route leaves
- * $ifname.
+ * The device bind needs no extra proof for correctness: the probe itself is
+ * bound to $ifname, so a dead path fails there.  `ip route get <target> oif
+ * <ifname>` is therefore a cost gate, not a connectivity proof -- on Linux an
+ * on-link assumption can make the lookup succeed even when no gateway is
+ * reachable, so a success here only means "spend the probe", never "online".
  *
  * The source-address bind does need one.  `ip route get <target> from
  * <address>` returns rc 0 whenever any route exists for that source -- on a
@@ -4595,7 +4597,17 @@ function network_internet_probes_enabled()
     if (!isset($settings['NetworkInternetProbe'])) {
         return true;
     }
-    return filter_var($settings['NetworkInternetProbe'], FILTER_VALIDATE_BOOLEAN);
+    // An empty value is "not configured", not "off".  filter_var('') is false,
+    // so without this a stray `NetworkInternetProbe=""` line in media/settings
+    // would silently disable the feature instead of falling back to the
+    // default (on).
+    $value = is_string($settings['NetworkInternetProbe'])
+        ? trim($settings['NetworkInternetProbe'])
+        : $settings['NetworkInternetProbe'];
+    if ($value === '' || $value === null) {
+        return true;
+    }
+    return filter_var($value, FILTER_VALIDATE_BOOLEAN);
 }
 
 /**
@@ -4608,7 +4620,7 @@ function network_internet_probes_enabled()
  * timeout per interface onto a response the header polls every few seconds.
  * Left-over candidates simply keep their default (not connected / no dot).
  */
-function network_probe_candidates(array $candidates, $limit = 4)
+function network_probe_candidates(array $candidates, $limit = 4, $force = false)
 {
     $results = array();
     if (count($candidates) === 0) {
@@ -4635,7 +4647,7 @@ function network_probe_candidates(array $candidates, $limit = 4)
             break;
         }
         $probed++;
-        $results[$ifname] = network_interface_has_internet($ifname, $candidates[$ifname]);
+        $results[$ifname] = network_interface_has_internet($ifname, $candidates[$ifname], $force);
     }
 
     return $results;
@@ -4813,8 +4825,12 @@ function network_interface_https_probe(array $binds)
  * yet valid", leaving only the ICMP stage), and an interface whose every bind
  * is refused as unprivileged is reported not connected -- "inconclusive means
  * no dot", never a false dot.
+ *
+ * $force bypasses the cache.  The header uses it after a network configuration
+ * change or a network restart, where the cached answer describes the old
+ * routing and would keep a dot lit for up to a full cache window.
  */
-function network_interface_has_internet($ifname, $bindAddress = null)
+function network_interface_has_internet($ifname, $bindAddress = null, $force = false)
 {
     global $settings;
 
@@ -4835,9 +4851,32 @@ function network_interface_has_internet($ifname, $bindAddress = null)
     }
 
     static $memo = array();
+    if ($force) {
+        // A forced refresh is an explicit "the network may have just changed",
+        // so drop every cached answer for this interface (including entries
+        // from before a cache-key change) and the per-request memo.
+        foreach (glob('/tmp/cache_net_internet_' . $ifname . '*') ?: array() as $stale) {
+            @unlink($stale);
+        }
+        $memo = array();
+    }
     if (array_key_exists($ifname, $memo)) {
         return $memo[$ifname];
     }
+
+    // The cache key includes the live address and the mtimes of the settings
+    // that decide this interface's routing.  A saved gateway change or a new
+    // DHCP address therefore gets a cold probe instead of the answer that was
+    // cached for the previous network, which is what made the dot linger after
+    // a gateway was pointed at an unreachable address.
+    $netToken = 'addr=' . (string) $bindAddress . ';';
+    $cfgDir = isset($settings['configDirectory']) ? $settings['configDirectory'] : '';
+    foreach (array('/gateway', '/interface.' . $ifname) as $cfgName) {
+        if ($cfgDir !== '' && is_file($cfgDir . $cfgName)) {
+            $netToken .= $cfgName . '=' . filemtime($cfgDir . $cfgName) . ';';
+        }
+    }
+    $cacheName = 'net_internet_' . $ifname . '_' . substr(md5($netToken), 0, 8);
 
     $isMacOS = ($settings['Platform'] == 'MacOS');
 
@@ -4848,7 +4887,7 @@ function network_interface_has_internet($ifname, $bindAddress = null)
         ? array('ping', '-n', '-q', '-c', '1', '-t', '1', '-b', $ifname, '1.1.1.1')
         : array('ping', '-n', '-q', '-c', '1', '-W', '1', '-I', $ifname, '1.1.1.1');
 
-    $result = file_cache('net_internet_' . $ifname, function () use ($pingArgs, $ifname, $bindAddress, $isMacOS) {
+    $result = file_cache($cacheName, function () use ($pingArgs, $ifname, $bindAddress, $isMacOS) {
         // The routing-table gate runs inside the cache closure: it costs a
         // few `ip route get` forks, and running it per request would dwarf
         // the probe it guards on a host polled every few seconds.  macOS has
@@ -4898,8 +4937,11 @@ function network_interface_has_internet($ifname, $bindAddress = null)
  * that must not send traffic (the statistics page reads
  * /api/network/interface) keep the old behavior, and the probes honor the
  * NetworkInternetProbe setting and can be disabled entirely.
+ *
+ * $force bypasses the 20-second per-interface probe cache; see
+ * network_interface_has_internet().
  */
-function network_list_interfaces_obj($withInternet = false)
+function network_list_interfaces_obj($withInternet = false, $force = false)
 {
     global $settings;
 
@@ -4976,7 +5018,7 @@ function network_list_interfaces_obj($withInternet = false)
             // Same bound and default-route priority as the Linux path: a Mac
             // running Docker or VM host adapters must not stack probe timeouts
             // onto the header's status poll.
-            $results = network_probe_candidates($candidates);
+            $results = network_probe_candidates($candidates, 4, $force);
             foreach ($rc as $cand) {
                 if (isset($results[$cand->ifname])) {
                     $cand->internet = $results[$cand->ifname];
@@ -5043,7 +5085,7 @@ function network_list_interfaces_obj($withInternet = false)
             }
             // Anything left over keeps internet=false, which the header
             // renders as "not verified" (no dot).
-            $results = network_probe_candidates($candidates);
+            $results = network_probe_candidates($candidates, 4, $force);
             foreach ($rc as &$cand) {
                 if (isset($results[$cand['ifname']])) {
                     $cand['internet'] = $results[$cand['ifname']];

@@ -10113,7 +10113,7 @@
           "system"
         ],
         "summary": "Get system status",
-        "description": "Returns `fppd`, network, current playlist, schedule, utilization, host, version, and MQTT status. Pass an optional array of IP addresses (e.g. `&ip[]=192.168.0.1&ip[]=192.168.0.2`) to query remote instances instead.  Add `&internet=1` to include an `internet` boolean on each `interfaces` entry: true when traffic sent through that interface can currently reach the internet (verified by an interface-bound probe, so a default route is not required).  The browser header requests this on its own `?systemonly=1&internet=1` poll so a slow probe cannot delay the status response; other status consumers do not pay for the probe.",
+        "description": "Returns `fppd`, network, current playlist, schedule, utilization, host, version, and MQTT status. Pass an optional array of IP addresses (e.g. `&ip[]=192.168.0.1&ip[]=192.168.0.2`) to query remote instances instead.  Add `&internet=1` to include an `internet` boolean on each `interfaces` entry: true when traffic sent through that interface can currently reach the internet (verified by an interface-bound probe, so a default route is not required).  Add `&refresh=1` to bypass the probe cache, e.g. after network settings change.  The browser header requests this on its own `?systemonly=1&internet=1` poll so a slow probe cannot delay the status response; other status consumers do not pay for the probe.",
         "responses": {
           "200": {
             "description": "System status",
