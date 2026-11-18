@@ -1139,6 +1139,8 @@ int BBBMatrix::SendData(unsigned char* channelData) {
     // make sure memory is flushed before command is set to 1
     msync(ptr, m_fullFrameLen, MS_SYNC | MS_INVALIDATE);
     __builtin___clear_cache(ptr, ptr + m_fullFrameLen);
+    // the frame data must reach DDR before its address reaches the PRU
+    BBBPru::frameDataBarrier();
     m_pruData->address_dma = addr;
 
     __asm__ __volatile__("" ::

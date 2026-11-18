@@ -1622,9 +1622,9 @@ int BBShiftStringOutput::SendData(unsigned char* channelData) {
 
     sendData(m_pru0);
     sendData(m_pru1);
-    // make sure memory is flushed before command is set to 1
-    __asm__ __volatile__("" ::
-                             : "memory");
+    // the frame data must reach DDR before the command reaches the PRU (the
+    // AM62x pump writes only the PRU shared RAM, but a barrier costs nothing)
+    BBBPru::frameDataBarrier();
 
     // Send the start command.  A port set with no data to send must not get a
     // command at all: sendData() above leaves pendingFrame empty in that case,

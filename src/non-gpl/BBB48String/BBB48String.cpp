@@ -1105,14 +1105,8 @@ int BBB48StringOutput::SendData(unsigned char* channelData) {
         sendData(m_gpio0Data, &m_pru0Data->address_dma);
     }
 
-    // The frame data must be visible to the PRU before the command is: order
-    // every earlier store against the command store system wide (the PRU is
-    // outside the inner shareable domain, so dmb ish is not enough).
-#if defined(__arm__) || defined(__aarch64__)
-    __asm__ __volatile__("dmb sy" ::: "memory");
-#else
-    __asm__ __volatile__("" ::: "memory");
-#endif
+    // the frame data must reach DDR before the command reaches the PRU
+    BBBPru::frameDataBarrier();
 
     // Send the start command
     uint32_t flag = 0;
