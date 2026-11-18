@@ -47,6 +47,9 @@ public:
     // media holds until it is, instead of running ahead while the output
     // starts up.  Outputs that can't tell say yes.
     virtual bool IsAudible(void) { return true; }
+    // Once the media has ended: when (GetMonotonicTimeMS()) the last of its
+    // sound reaches the speaker, or 0 if not known.
+    virtual uint64_t SoundEndMS(void) { return 0; }
 
     float getMediaOffset() { return mediaOffset; };
     int getMediaOffsetMS() { return mediaOffsetMS; };

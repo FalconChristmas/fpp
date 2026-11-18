@@ -217,9 +217,20 @@ int PlaylistEntryBoth::Process(void) {
             // card's, as far as the lights following it are behind the end.
             // They play to the end of it; the next song's sequence takes over
             // when its own sound starts.
-            uint64_t length = m_mediaEntry->GetLengthInMS();
-            uint64_t at = m_sequenceEntry->GetElapsedMS();
-            uint64_t tail = length > at ? length - at : 0;
+            // As measured where the output knows (the sound still queued for
+            // the card when the media ended); else the media's length less
+            // how far the sequence has got, which is only as good as the
+            // length (a VBR mp3's can be off).
+            uint64_t tail;
+            uint64_t soundEnd = m_mediaEntry->SoundEndMS();
+            if (soundEnd) {
+                uint64_t now = GetMonotonicTimeMS();
+                tail = soundEnd > now ? soundEnd - now : 0;
+            } else {
+                uint64_t length = m_mediaEntry->GetLengthInMS();
+                uint64_t at = m_sequenceEntry->GetElapsedMS();
+                tail = length > at ? length - at : 0;
+            }
             if (m_sequenceEntry->IsStarted() && tail > 0 && tail <= MAX_SOUND_TAIL_MS) {
                 m_sequenceEntry->StopAfter((int)tail);
             } else {

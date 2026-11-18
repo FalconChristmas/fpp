@@ -172,6 +172,27 @@ PipeWireOutputStream* PipeWireOutputStream::ForSlot(int slot) {
     return s_slots[slot];
 }
 
+int64_t PipeWireOutputStream::QueuedAheadNsForSlot(int slot) {
+    if (slot < 1 || slot > StreamSlotManager::MAX_SLOTS) {
+        return -1;
+    }
+    PipeWireOutputStream* s;
+    {
+        std::unique_lock<std::mutex> lock(s_slotsLock);
+        s = s_slots[slot];
+    }
+    return s ? s->QueuedAheadNs() : -1;
+}
+
+int64_t PipeWireOutputStream::QueuedAheadNs() {
+    std::unique_lock<std::mutex> lock(m_lock);
+    if (!m_timelineValid || !m_clock) {
+        return -1;
+    }
+    GstClockTime now = gst_clock_get_time(m_clock);
+    return m_timelineEnd > now ? (int64_t)(m_timelineEnd - now) : 0;
+}
+
 void PipeWireOutputStream::Prewarm(int slot, int holdMs) {
     PipeWireOutputStream* s = ForSlot(slot);
     if (!s) {

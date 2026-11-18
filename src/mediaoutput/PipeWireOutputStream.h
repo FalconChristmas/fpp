@@ -120,6 +120,13 @@ public:
     // allows for that in its position and picture.
     bool ContinueTimeline(GstClockTime* baseTime, int64_t* earlyNs);
 
+    // How long until the last sample handed over is due on the clock, or -1
+    // if nothing is queued on a timeline.  Add the card's own queue for when
+    // it is heard.
+    int64_t QueuedAheadNs();
+    // The same for slot's stream, if it exists (none is created).
+    static int64_t QueuedAheadNsForSlot(int slot);
+
     // Route `appsink`'s samples into this stream, replacing any previous
     // feed.  Samples from a feed that has since been replaced are dropped, so
     // a track still tearing down can't interleave with the next one.  The

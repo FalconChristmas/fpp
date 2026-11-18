@@ -307,6 +307,7 @@ int PlaylistEntryMedia::StartPlaying(void) {
 
     lock.unlock();
     m_startTime = GetMonotonicTimeMS();
+    m_soundEndMs = 0;
     m_syncStartSent = false;
     StartExtraMedia();
     return PlaylistEntryBase::StartPlaying();
@@ -329,6 +330,7 @@ int PlaylistEntryMedia::Process(void) {
 
         m_mediaOutput->Process();
         if (!m_mediaOutput->IsPlaying()) {
+            m_soundEndMs = m_mediaOutput->SoundEndMS();
             FinishPlay();
             lock.unlock();
             // Companions are tied to this entry's lifetime, so they stop when

@@ -61,6 +61,7 @@ public:
     // True once the reported position -- already backed up to what is leaving
     // the card -- has moved past the start of the media.
     virtual bool IsAudible(void) override { return m_audible; }
+    virtual uint64_t SoundEndMS(void) override { return m_soundEndMs.load(); }
 
     /// Flush-seek to an absolute position in seconds.  Audible/visible glitch,
     /// so this is for repairing a stream that has genuinely left the show
@@ -171,6 +172,11 @@ private:
     // business until it plays (BusSyncHandler()).
     std::atomic<bool> m_prepared{false};
     std::atomic<bool> m_pipelineFailed{false};  // the bus reported a fatal error
+    // The card's own queue, as last read for the position (AudioSinkLatencyNs()),
+    // and when the end of the media's sound is heard (set at its end of stream).
+    std::atomic<int64_t> m_lastSinkLatencyNs{0};
+    std::atomic<uint64_t> m_soundEndMs{0};
+    std::atomic<bool> m_feedsStream{false};  // Go() attached m_pwFeed to m_pwStream
     // Prepared with its sound sent to the output stream before its channel
     // count was known; OnPadAdded() checks it (see Start()).
     std::atomic<bool> m_prepareCheckChannels{false};

@@ -1329,6 +1329,7 @@ int GStreamerOutput::Start(int msTime) {
     if (!m_preparing) {
         // Before anything below writes the slot's status.
         StreamSlotManager::Instance().ClaimSlot(m_streamSlot, this);
+        m_soundEndMs = 0;
 
         // Flush PipeWire filter-chain delay ring-buffers EARLY in Start().
         // This runs as a fire-and-forget thread (pw-cli calls take ~200ms+).
@@ -2752,6 +2753,7 @@ int GStreamerOutput::StartPrepared() {
     StreamSlotManager::Instance().DetachOutput(m_streamSlot, this);
     m_stopRequested = false;
     StreamSlotManager::Instance().ClaimSlot(m_streamSlot, this);
+    m_soundEndMs = 0;
     FlushPipeWireDelayBuffers();
     if (m_preparedTotalSecs >= 0) {
         std::lock_guard<std::mutex> lock(MediaOutputStatus::FieldsLock());
@@ -2798,6 +2800,7 @@ int GStreamerOutput::Go(int msTime, const std::string& pipelineSinkName, double 
         m_pwStream->AttachFeed(m_pwFeed);
         m_pwStreamAcquired = true;
     }
+    m_feedsStream = m_pwStream != nullptr;
 
     // Move the potentially-blocking state transition to a background thread.
     // pipewiresink's READY→PAUSED blocks in pw_thread_loop_wait if its
@@ -4207,6 +4210,7 @@ int GStreamerOutput::Process(void) {
                 // behind the sound on a Pi 5 once media sync stopped hiding
                 // anything under a frame.
                 int64_t latNs = AudioSinkLatencyNs();
+                m_lastSinkLatencyNs = latNs;
                 if (m_pwFeed) {
                     AlignPictureToSound(latNs);
                 }
@@ -4570,6 +4574,16 @@ GstBusSyncReply GStreamerOutput::BusSyncHandler(GstBus* bus, GstMessage* msg, gp
             ScheduleLoopSeek(scope.guard);
             LogDebug(VB_MEDIAOUT, "GStreamer sync: Looping (remaining: %d)\n", self->m_loopCount);
         } else {
+            // When the last of the sound is heard: what the output stream
+            // still has queued, then the card's queue.  Read now, before the
+            // stream lays silence behind it for the next track.
+            if (self->m_feedsStream) {
+                int64_t queued = PipeWireOutputStream::QueuedAheadNsForSlot(self->m_streamSlot);
+                if (queued >= 0) {
+                    self->m_soundEndMs = GetMonotonicTimeMS() +
+                                         (uint64_t)((queued + self->m_lastSinkLatencyNs.load()) / 1000000);
+                }
+            }
             // Detach AES67 inline branches so the standalone pipeline
             // resumes sending — EOS means no more data will flow through
             // the tee, so the inline branch is useless.
