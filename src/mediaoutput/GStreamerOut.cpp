@@ -3490,9 +3490,6 @@ bool GStreamerOutput::SetPipelineToNullBounded(GstElement* pipeline, int timeout
 // sound and the lights, which follow the sound, all meet.  Re-applied only as
 // the queue's average moves.
 void GStreamerOutput::AlignPictureToSound(int64_t latNs) {
-    if (m_timelineShiftNs) {
-        latNs += m_timelineShiftNs->load();
-    }
     if (latNs <= 0 || std::llabs(latNs - m_pictureDelayNs) < 2 * GST_MSECOND) {
         return;
     }
@@ -4226,34 +4223,56 @@ int GStreamerOutput::Process(void) {
             // sequence servo and the MultiSync packets both follow the sound
             // rather than the graph's write pointer.  See AudioSinkLatencyNs().
             if (posFromAudioSink) {
-                // Feeding the persistent stream adds nothing to this: the feed
-                // hands each buffer over a graph cycle early (FeedLeadNs()),
-                // which is the cycle the stream takes to pass it to the graph.
-                // Adding that cycle as well put the lights a quantum (21 ms)
-                // behind the sound on a Pi 5 once media sync stopped hiding
-                // anything under a frame.
-                int64_t latNs = AudioSinkLatencyNs();
-                m_lastSinkLatencyNs = latNs;
-                if (m_pwFeed) {
-                    AlignPictureToSound(latNs);
+                // Fed into the output stream, what is heard is measured: the
+                // stream knows which of the feed's samples is leaving the
+                // speaker now (HeardRunningTime()), and the position is backed
+                // up by however far the pipeline's running time is past it --
+                // the stream's queue, the graph and the card, and, for a track
+                // carrying on the stream's timeline, the lead it runs ahead.
+                int64_t latNs = 0;
+                bool measured = false;
+                if (m_pwFeed && m_pwStream) {
+                    GstClockTime heardRt = 0;
+                    int heard = m_pwStream->HeardRunningTime(m_pwFeed, &heardRt);
+                    if (heard == 1) {
+                        if (GstClock* clock = gst_element_get_clock(m_pipeline)) {
+                            GstClockTime now = gst_clock_get_time(clock);
+                            gst_object_unref(clock);
+                            latNs = (int64_t)(now - gst_element_get_base_time(m_pipeline)) - (int64_t)heardRt;
+                            measured = true;
+                            AlignPictureToSound(latNs);
+                        }
+                    } else if (heard == 0) {
+                        // None of it heard yet: the sound before it (the last
+                        // track's tail) is still playing.  It is at its start.
+                        latNs = pos;
+                        measured = true;
+                    }
                 }
-                // A track carrying on the stream's timeline runs a feed lead
-                // ahead of its sound (m_timelineShiftNs).
-                if (m_timelineShiftNs) {
-                    latNs += m_timelineShiftNs->load();
+                if (!measured) {
+                    // No timing from PipeWire: the card's own queue, and the
+                    // lead a track carrying on the timeline runs ahead.
+                    latNs = AudioSinkLatencyNs();
+                    if (m_timelineShiftNs) {
+                        latNs += m_timelineShiftNs->load();
+                    }
+                    if (m_pwFeed) {
+                        AlignPictureToSound(latNs);
+                    }
                 }
                 float latSec = (float)latNs / 1000000000.0f;
-                if (latSec > 0.0f) {
-                    elapsed -= latSec;
-                    if (elapsed < 0.0f) {
-                        elapsed = 0.0f;
-                    }
-                    remaining += latSec;
-                    if (!m_loggedSinkLatency) {
-                        m_loggedSinkLatency = true;
-                        LogDebug(VB_MEDIAOUT, "GStreamer: correcting reported position by %.1f ms of audio sink latency\n",
-                                latSec * 1000.0f);
-                    }
+                elapsed -= latSec;
+                if (elapsed < 0.0f) {
+                    elapsed = 0.0f;
+                }
+                remaining += latSec;
+                if (remaining < 0.0f) {
+                    remaining = 0.0f;
+                }
+                if (!m_loggedSinkLatency && latSec != 0.0f && (!measured || latNs != pos)) {
+                    m_loggedSinkLatency = true;
+                    LogDebug(VB_MEDIAOUT, "GStreamer: position backed up %.1f ms to the sound (%s)\n",
+                            latSec * 1000.0f, measured ? "measured" : "estimated");
                 }
             }
             // Audible before this report, not just as of it: see below.
@@ -4597,14 +4616,13 @@ GstBusSyncReply GStreamerOutput::BusSyncHandler(GstBus* bus, GstMessage* msg, gp
             ScheduleLoopSeek(scope.guard);
             LogDebug(VB_MEDIAOUT, "GStreamer sync: Looping (remaining: %d)\n", self->m_loopCount);
         } else {
-            // When the last of the sound is heard: what the output stream
-            // still has queued, then the card's queue.  Read now, before the
-            // stream lays silence behind it for the next track.
+            // When the last of the sound is heard, as the output stream
+            // measures it.  Read now, before the stream lays silence behind it
+            // for the next track.
             if (self->m_feedsStream) {
                 int64_t queued = PipeWireOutputStream::QueuedAheadNsForSlot(self->m_streamSlot);
                 if (queued >= 0) {
-                    self->m_soundEndMs = GetMonotonicTimeMS() +
-                                         (uint64_t)((queued + self->m_lastSinkLatencyNs.load()) / 1000000);
+                    self->m_soundEndMs = GetMonotonicTimeMS() + (uint64_t)(queued / 1000000);
                 }
             }
             // Detach AES67 inline branches so the standalone pipeline

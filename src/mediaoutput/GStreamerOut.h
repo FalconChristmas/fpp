@@ -182,9 +182,7 @@ private:
     // stream's timeline; made by the start thread if it doesn't after all.
     bool m_flushesDeferred = false;
     static void StartFlushes();
-    // The card's own queue, as last read for the position (AudioSinkLatencyNs()),
-    // and when the end of the media's sound is heard (set at its end of stream).
-    std::atomic<int64_t> m_lastSinkLatencyNs{0};
+    // When the end of the media's sound is heard (set at its end of stream).
     std::atomic<uint64_t> m_soundEndMs{0};
     std::atomic<bool> m_feedsStream{false};  // Go() attached m_pwFeed to m_pwStream
     // Prepared with its sound sent to the output stream before its channel
@@ -502,8 +500,9 @@ private:
     std::string m_pwSinkStreamId;
 
     // A video whose sound feeds the output stream: its picture is held back by
-    // the card's queue (AlignPictureToSound()), and a video that turns out to
-    // have no sound hands the stream back from the main loop.
+    // as long as its sound takes to be heard (AlignPictureToSound(), given
+    // that whole delay), and a video that turns out to have no sound hands
+    // the stream back from the main loop.
     void AlignPictureToSound(int64_t latNs);
     int64_t m_pictureDelayNs = 0;
     // A track that carried on the output stream's timeline

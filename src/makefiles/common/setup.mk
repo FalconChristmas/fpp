@@ -282,6 +282,21 @@ endif
 CFLAGS += $(GSTREAMER_CFLAGS)
 endif
 
+# libpipewire, for the persistent media output stream
+# (mediaoutput/PipeWireOutputStream.cpp), which plays through a native PipeWire
+# stream so it knows exactly when each sample it queued is heard.  That file
+# keys off __has_include(<pipewire/pipewire.h>), so the flags key off the same
+# header; absent it (macOS) the stream compiles out and media plays through a
+# pipewiresink of its own, as before the stream existed.
+ifneq ($(BUILD_OS),Darwin)
+HAVE_LIBPIPEWIRE := $(if $(wildcard /usr/include/pipewire-0.3/pipewire/pipewire.h),1)
+endif
+ifeq ($(HAVE_LIBPIPEWIRE),1)
+PIPEWIRE_CFLAGS := $(shell pkg-config --cflags libpipewire-0.3)
+PIPEWIRE_LIBS := $(shell pkg-config --libs libpipewire-0.3)
+CFLAGS += $(PIPEWIRE_CFLAGS)
+endif
+
 # libsamplerate, for AES67 media clock drift correction.  AES67Manager.cpp
 # enables the resampler on __has_include(<samplerate.h>), so the flags have to
 # key off that same header.  Absent it, the AES67 send path builds and runs
