@@ -106,6 +106,7 @@ private:
     const Config m_cfg;
     std::mutex m_lock;
     int m_users = 0;
+    uint64_t m_idleSinceMs = 0;      // when m_users last fell to 0 (GetMonotonicTimeMS())
     bool m_failed = false;           // the sink errored: rebuild on the next Acquire()
     bool m_closed = false;           // Teardown() has run
     // Build() is still running: a second Acquire() of the display waits for

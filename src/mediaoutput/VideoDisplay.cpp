@@ -40,6 +40,14 @@ constexpr int TEARDOWN_TIMEOUT_MS = 10000;
 // The Pi's vc4 driver needs this long after a kmssink lets go of a connector
 // before another can claim it ("general resource error" otherwise).
 constexpr int DRM_RELEASE_DELAY_MS = 150;
+// How long a display nothing uses stays up before it closes.  A next track
+// that was prepared holds it throughout; one that wasn't (more than two audio
+// channels, AES67 sending, a pause between entries, a prepare that expired)
+// acquires it again only as it starts, and closing at once put the console
+// up between them.  Short, so that what the display stands aside for -- a
+// Virtual Matrix on the port, the console after the show -- comes back at
+// once all the same.
+constexpr int IDLE_LINGER_MS = 400;
 
 std::mutex s_mapLock;
 std::map<std::string, std::shared_ptr<VideoDisplay>> s_displays;
@@ -223,6 +231,9 @@ void VideoDisplay::Release() {
     {
         std::lock_guard<std::mutex> lock(m_lock);
         last = m_users > 0 && --m_users == 0;
+        if (last) {
+            m_idleSinceMs = GetMonotonicTimeMS();
+        }
         if (last && m_releaseLeaseWhenUnused) {
             m_releaseLeaseWhenUnused = false;
             releaseLease = true;
@@ -588,10 +599,19 @@ void VideoDisplay::WorkerLoop() {
     std::unique_lock<std::mutex> lock(s_mapLock);
     while (!s_shutdown) {
         std::vector<std::shared_ptr<VideoDisplay>> closing;
+        uint64_t now = GetMonotonicTimeMS();
+        uint64_t nextCheckMs = 1000;
         for (auto it = s_displays.begin(); it != s_displays.end();) {
             std::shared_ptr<VideoDisplay> d = it->second;
             std::lock_guard<std::mutex> dl(d->m_lock);
-            if (d->m_users == 0 || d->m_failed) {
+            bool idle = d->m_users == 0 && !d->m_building;
+            if (idle && !d->m_failed && now - d->m_idleSinceMs < (uint64_t)IDLE_LINGER_MS) {
+                // Not yet: a track starting next may still take it up.
+                nextCheckMs = std::min<uint64_t>(nextCheckMs, IDLE_LINGER_MS - (now - d->m_idleSinceMs));
+                ++it;
+                continue;
+            }
+            if (idle || d->m_failed) {
                 DrmCards::RetireLease(d->m_lease);
                 closing.push_back(d);
                 it = s_displays.erase(it);
@@ -610,7 +630,7 @@ void VideoDisplay::WorkerLoop() {
             lock.lock();
             continue;
         }
-        s_wake.wait_for(lock, std::chrono::seconds(1));
+        s_wake.wait_for(lock, std::chrono::milliseconds(nextCheckMs));
     }
 }
 
