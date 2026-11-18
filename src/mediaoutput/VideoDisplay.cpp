@@ -46,6 +46,20 @@ std::map<std::string, std::shared_ptr<VideoDisplay>> s_displays;
 std::condition_variable s_wake;
 bool s_workerStarted = false;
 bool s_shutdown = false;
+// Displays taken off s_displays and still being torn down on another thread
+// (the worker, or a display replaced with other settings), which ShutdownAll()
+// waits for: fppd marks every open descriptor close-on-exec once media is shut
+// down, and a teardown still closing its lease then raced that.
+int s_closing = 0;
+std::condition_variable s_closed;
+
+void DoneClosing() {
+    {
+        std::lock_guard<std::mutex> lock(s_mapLock);
+        s_closing--;
+    }
+    s_closed.notify_all();
+}
 
 std::string KeyFor(const VideoDisplay::Config& cfg) {
     return cfg.cardPath + ":" + std::to_string(cfg.connectorId);
@@ -121,6 +135,7 @@ std::shared_ptr<VideoDisplay> VideoDisplay::Acquire(const Config& cfg) {
             // Idle with other settings, or failed: build a new one in its place.
             stale = cur;
             s_displays.erase(it);
+            s_closing++;
             // The new display's lease waits for this one's release (the
             // teardown below) rather than finding the connector held.
             DrmCards::RetireLease(stale->m_lease);
@@ -134,6 +149,7 @@ std::shared_ptr<VideoDisplay> VideoDisplay::Acquire(const Config& cfg) {
         std::thread([stale]() {
             SetThreadName("FPP-VDispClose");
             stale->Teardown("settings changed");
+            DoneClosing();
         }).detach();
     }
     if (!display->Build()) {
@@ -517,6 +533,7 @@ void VideoDisplay::WorkerLoop() {
                 DrmCards::RetireLease(d->m_lease);
                 closing.push_back(d);
                 it = s_displays.erase(it);
+                s_closing++;
                 continue;
             }
             ++it;
@@ -525,6 +542,7 @@ void VideoDisplay::WorkerLoop() {
             lock.unlock();
             for (auto& d : closing) {
                 d->Teardown(d->m_failed ? "failed" : "idle");
+                DoneClosing();
             }
             closing.clear();
             lock.lock();
@@ -547,6 +565,12 @@ void VideoDisplay::ShutdownAll() {
     s_wake.notify_all();
     for (auto& d : closing) {
         d->Teardown("shutdown");
+    }
+    // And any that were already closing.  Each teardown is itself bounded.
+    std::unique_lock<std::mutex> lock(s_mapLock);
+    if (!s_closed.wait_for(lock, std::chrono::milliseconds(TEARDOWN_TIMEOUT_MS + DRM_RELEASE_DELAY_MS + 1000),
+                           [] { return s_closing == 0; })) {
+        LogWarn(VB_MEDIAOUT, "VideoDisplay: %d display(s) still closing at shutdown\n", s_closing);
     }
 }
 
