@@ -41,6 +41,23 @@ void CloseMediaOutput();
 
 MediaOutputBase* CreateMediaOutput(const std::string& mediaFilename, const std::string& videoOut, int streamSlot = 1);
 
+// Media prepared ahead of the Start() that plays it (GStreamerOutput::
+// Prepare()), so that the next video in a playlist starts without building
+// its pipeline or decoding its first frame -- the gap a looping video showed
+// at every pass.  A prepare is only a guess at what plays next: whatever
+// decides what really does claims it, and anything else prepared for the
+// slot is thrown away.  At most one per slot.
+//
+// Prepare: on a worker, so it never holds up the caller.  A no-op if the
+// same is already prepared or being prepared, and for anything that isn't
+// prepared (see GStreamerOutput::Prepare()).
+void PrepareMediaOutput(const std::string& mediaFilename, const std::string& videoOut, int streamSlot);
+// The output prepared for exactly this (waiting for a prepare still under
+// way), or nullptr.  Anything else prepared for the slot is discarded.
+MediaOutputBase* ClaimPreparedMediaOutput(const std::string& mediaFilename, const std::string& videoOut, int streamSlot);
+// Throw away what is prepared for the slot, or for every slot (0).
+void DiscardPreparedMediaOutput(int streamSlot = 0);
+
 // "--Default--" or "" -> the VideoOutput setting, or the display when none is
 // configured (an HDMI connector on Linux, the video window on macOS), else
 // "--Disabled--". Anything else is returned unchanged.

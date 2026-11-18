@@ -79,6 +79,13 @@ int PlaylistEntryBoth::Init(Json::Value& config) {
     return PlaylistEntryBase::Init(config);
 }
 
+void PlaylistEntryBoth::PrepareAhead() {
+    std::unique_lock<std::recursive_mutex> seqLock(m_mutex);
+    if (CanPlay() && m_mediaOwned) {
+        m_mediaOwned->PrepareAhead();
+    }
+}
+
 /*
  *
  */

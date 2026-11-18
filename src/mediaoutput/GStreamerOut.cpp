@@ -1276,6 +1276,17 @@ int GStreamerOutput::Start(int msTime) {
     LogDebug(VB_MEDIAOUT, "GStreamer: Start(%d) enter - %s\n", msTime, m_mediaFilename.c_str());
     std::lock_guard<std::recursive_mutex> opLock(m_opMutex);
 
+    if (m_prepared) {
+        m_prepared = false;
+        if (msTime == 0 && m_pipeline && !m_pipelineFailed && !m_teardownComplete) {
+            return StartPrepared();
+        }
+        // Started part-way in, or it failed while waiting: build it again
+        // (the m_pipeline check below closes the prepared one first).
+        LogDebug(VB_MEDIAOUT, "GStreamer: not using the prepared pipeline for %s (%s)\n", m_mediaFilename.c_str(),
+                 msTime ? "starting part-way in" : "it failed");
+    }
+
     // Off the slot table until SetActiveOutput() at the end, as in Close():
     // an output started again below is still registered from its last run,
     // and the slot manager's calls into it (SetVolume() from Set Slot Volume
@@ -1309,15 +1320,19 @@ int GStreamerOutput::Start(int msTime) {
     m_sawAudioPad = false;
     m_dkmsConnectorNames.clear();
     m_dkmsCardPaths.clear();
-    // Before anything below writes the slot's status.
-    StreamSlotManager::Instance().ClaimSlot(m_streamSlot, this);
+    m_pipelineFailed = false;
+    m_preparedTotalSecs = -1;
+    if (!m_preparing) {
+        // Before anything below writes the slot's status.
+        StreamSlotManager::Instance().ClaimSlot(m_streamSlot, this);
 
-    // Flush PipeWire filter-chain delay ring-buffers EARLY in Start().
-    // This runs as a fire-and-forget thread (pw-cli calls take ~200ms+).
-    // By calling it here instead of right before set_state(PLAYING),
-    // the flush has the entire pipeline-build time (~50-100ms) to complete
-    // before audio actually starts flowing.
-    FlushPipeWireDelayBuffers();
+        // Flush PipeWire filter-chain delay ring-buffers EARLY in Start().
+        // This runs as a fire-and-forget thread (pw-cli calls take ~200ms+).
+        // By calling it here instead of right before set_state(PLAYING),
+        // the flush has the entire pipeline-build time (~50-100ms) to complete
+        // before audio actually starts flowing.
+        FlushPipeWireDelayBuffers();
+    }
 
     // Fresh pipeline — allow Stop()'s teardown to run for this track
     m_teardownComplete = false;
@@ -1370,12 +1385,17 @@ int GStreamerOutput::Start(int msTime) {
         mediaRate = details.sampleRate;
         if (details.lengthMS > 0) {
             int totalSecs = details.lengthMS / 1000;
-            std::lock_guard<std::mutex> lock(MediaOutputStatus::FieldsLock());
-            m_mediaOutputStatus->minutesTotal = totalSecs / 60;
-            m_mediaOutputStatus->secondsTotal = totalSecs % 60;
             m_maxDuration = (gint64)details.lengthMS * GST_MSECOND;
-            LogDebug(VB_MEDIAOUT, "GStreamer: pre-set duration from metadata: %d:%02d (%d ms)\n",
-                    m_mediaOutputStatus->minutesTotal, m_mediaOutputStatus->secondsTotal, details.lengthMS);
+            if (m_preparing) {
+                // The slot's status is the playing track's until this starts.
+                m_preparedTotalSecs = totalSecs;
+            } else {
+                std::lock_guard<std::mutex> lock(MediaOutputStatus::FieldsLock());
+                m_mediaOutputStatus->minutesTotal = totalSecs / 60;
+                m_mediaOutputStatus->secondsTotal = totalSecs % 60;
+                LogDebug(VB_MEDIAOUT, "GStreamer: pre-set duration from metadata: %d:%02d (%d ms)\n",
+                        m_mediaOutputStatus->minutesTotal, m_mediaOutputStatus->secondsTotal, details.lengthMS);
+            }
         }
     }
 
@@ -1479,6 +1499,21 @@ int GStreamerOutput::Start(int msTime) {
         } else {
             // PixelOverlay model name
             wantVideo = true;
+        }
+    }
+
+    if (m_preparing) {
+        // Only a video to the persistent display is prepared: its build
+        // touches nothing the playing track uses.  The other shapes claim a
+        // model, a PipeWire video node, AES67 branches or the macOS window as
+        // they are built.
+        bool aes67 = false;
+#ifdef HAS_AES67_GSTREAMER
+        aes67 = AES67Manager::INSTANCE.IsActive();
+#endif
+        if (wantVideo || !m_wantHDMI || !m_pwVideoSinkName.empty() || m_macVideoWindow || aes67) {
+            LogDebug(VB_MEDIAOUT, "GStreamer: %s is not a video to the display; not preparing it\n", m_mediaFilename.c_str());
+            return 0;
         }
     }
 
@@ -1604,6 +1639,27 @@ int GStreamerOutput::Start(int msTime) {
     PipeWireOutputStream* videoPwStream = (usePipeWire && mediaChannels >= 1 && mediaChannels <= 2)
                                               ? PipeWireOutputStream::ForSlot(m_streamSlot)
                                               : nullptr;
+
+    // A prepared pipeline must never have an audio sink of its own: waiting
+    // in PAUSED next to the playing track's, a second pipewiresink on the
+    // slot held that track short of its end and then wedged its teardown,
+    // and an alsasink would open the card the playing track holds.  Where the
+    // file's channel count is unknown (taglib reads none from Matroska), the
+    // sound goes to the output stream for now, and OnPadAdded() checks the
+    // decoded caps: one or two channels is the case the stream is meant for,
+    // and anything else leaves the prepared pipeline to be built again.
+    m_prepareCheckChannels = false;
+    if (m_preparing) {
+        if (!videoPwStream && usePipeWire && mediaChannels == 0) {
+            videoPwStream = PipeWireOutputStream::ForSlot(m_streamSlot);
+            m_prepareCheckChannels = videoPwStream != nullptr;
+        }
+        if (!videoPwStream) {
+            LogDebug(VB_MEDIAOUT, "GStreamer: %s would have an audio sink of its own; not preparing it\n",
+                     m_mediaFilename.c_str());
+            return 0;
+        }
+    }
 
     if (wantVideo) {
         // Build pipeline with decodebin pad-added for dynamic audio+video linking
@@ -1993,18 +2049,36 @@ int GStreamerOutput::Start(int msTime) {
                 cfg.height = m_hdmiDisplayHeight;
                 cfg.crop = VideoOutputManager::Instance().GetHdmiCropForConnector(m_streamSlot, m_hdmiConnectorId);
                 cfg.scaling = VideoOutputManager::Instance().GetHdmiScalingForConnector(m_streamSlot, m_hdmiConnectorId);
-                m_display = VideoDisplay::Acquire(cfg);
+                // Prepared, it only joins the display a video is already
+                // showing on: built now, it would take the connector from
+                // whatever is there until this one plays.
+                m_display = m_preparing ? VideoDisplay::AcquireRunning(cfg) : VideoDisplay::Acquire(cfg);
                 if (m_display) {
                     m_kmssink = gst_element_factory_make("appsink", "displayfeed");
                     if (m_kmssink) {
-                        m_displayFeedToken = m_display->AttachFeed(m_kmssink);
+                        m_displayFeedToken = m_display->AttachFeed(m_kmssink, !m_preparing);
                     } else {
-                        ReleaseDisplay(true);
+                        ReleaseDisplay();
                     }
                 } else {
                     LogWarn(VB_MEDIAOUT, "GStreamer: could not open the persistent display on %s; using a kmssink of this track's own\n",
                             cfg.connectorName.c_str());
                 }
+            }
+            if (!m_display && m_preparing) {
+                // No video showing there now, so nothing to keep up; and a
+                // kmssink of its own would take the display from what is.
+                if (m_volume) {
+                    gst_object_unref(m_volume);
+                    m_volume = nullptr;
+                }
+                if (m_appsink) {
+                    gst_object_unref(m_appsink);
+                    m_appsink = nullptr;
+                }
+                gst_object_unref(m_pipeline);
+                m_pipeline = nullptr;
+                return 0;
             }
             if (!m_display) {
 #endif
@@ -2637,9 +2711,86 @@ int GStreamerOutput::Start(int msTime) {
     }
 #endif
 
+    if (m_preparing) {
+        // Decode up to the first frame now; StartPrepared() does the rest.
+        // The thread holds its own ref, as Go()'s does, and puts a cancelled
+        // pipeline back to NULL itself (see the RefGuard there).
+        m_preparedSinkName = pipelineSinkName;
+        m_preparedTargetVolume = targetVolume;
+        m_prepared = true;  // before the bus can carry an error
+        m_startThreadCancel = std::make_shared<std::atomic<bool>>(false);
+        std::shared_ptr<std::atomic<bool>> cancel = m_startThreadCancel;
+        GstElement* pipeline = GST_ELEMENT(gst_object_ref(m_pipeline));
+        std::string name = m_mediaFilename;
+        std::thread([pipeline, cancel, name]() {
+            SetThreadName("FPP-GstPrepare");
+            uint64_t t0 = GetMonotonicTimeMS();
+            gst_element_set_state(pipeline, GST_STATE_PAUSED);
+            GstState state = GST_STATE_NULL;
+            gst_element_get_state(pipeline, &state, nullptr, (GstClockTime)PREROLL_TIMEOUT_MS * GST_MSECOND);
+            LogDebug(VB_MEDIAOUT, "GStreamer: prepared %s in %d ms (%s)\n", name.c_str(),
+                     (int)(GetMonotonicTimeMS() - t0), gst_element_state_get_name(state));
+            if (cancel->load() && !SetPipelineToNullSupervised(pipeline, PIPELINE_TEARDOWN_TIMEOUT_MS)) {
+                LogWarn(VB_MEDIAOUT, "GStreamer: cancelled prepare could not return its pipeline to NULL, abandoning it\n");
+            }
+            gst_object_unref(pipeline);
+        }).detach();
+        return 1;
+    }
+    return Go(msTime, pipelineSinkName, targetVolume);
+}
+
+// What Prepare() set aside, now that the prepared output is to play.
+int GStreamerOutput::StartPrepared() {
+    LogDebug(VB_MEDIAOUT, "GStreamer: starting %s, prepared\n", m_mediaFilename.c_str());
+    StreamSlotManager::Instance().DetachOutput(m_streamSlot, this);
+    m_stopRequested = false;
+    StreamSlotManager::Instance().ClaimSlot(m_streamSlot, this);
+    FlushPipeWireDelayBuffers();
+    if (m_preparedTotalSecs >= 0) {
+        std::lock_guard<std::mutex> lock(MediaOutputStatus::FieldsLock());
+        m_mediaOutputStatus->minutesTotal = m_preparedTotalSecs / 60;
+        m_mediaOutputStatus->secondsTotal = m_preparedTotalSecs % 60;
+    }
+#ifdef HAS_VIDEO_DISPLAY
+    if (m_display) {
+        m_display->ActivateFeed(m_displayFeedToken);
+    }
+#endif
+    return Go(0, m_preparedSinkName, m_preparedTargetVolume);
+}
+
+bool GStreamerOutput::Prepare() {
+#ifdef HAS_VIDEO_DISPLAY
+    std::lock_guard<std::recursive_mutex> opLock(m_opMutex);
+    if (m_pipeline) {
+        return m_prepared;
+    }
+    m_preparing = true;
+    int ok = Start(0);
+    m_preparing = false;
+    if (!ok) {
+        Close();
+        return false;
+    }
+    return true;
+#else
+    return false;
+#endif
+}
+
+int GStreamerOutput::Go(int msTime, const std::string& pipelineSinkName, double targetVolume) {
+    // A prepared pipeline has prerolled, so it knows already when the file
+    // has no sound (no-more-pads found none): nothing to feed the stream,
+    // and no reason to wait for it to open and drain before playing.
+    if (m_pwStream && m_pwFeedOrphaned.exchange(false)) {
+        LogDebug(VB_MEDIAOUT, "GStreamer: %s has no sound; not using the output stream\n", m_mediaFilename.c_str());
+        ReleasePipeWireStream();  // not acquired yet: only drops our refs
+    }
     if (m_pwStream) {
         m_pwStream->Acquire(pipelineSinkName);
         m_pwStream->AttachFeed(m_pwFeed);
+        m_pwStreamAcquired = true;
     }
 
     // Move the potentially-blocking state transition to a background thread.
@@ -2662,7 +2813,11 @@ int GStreamerOutput::Start(int msTime) {
         // Capture owning refs on the GStreamer objects we touch (pipeline already
         // ref'd above; volume ref'd here) plus a shared cancellation token; Stop()
         // sets the token so a fast stop aborts the ramp/attach early.
-        m_startThreadCancel = std::make_shared<std::atomic<bool>>(false);
+        // A prepared output keeps its prepare thread's token, so that a Stop()
+        // cancels both threads.
+        if (!m_startThreadCancel || m_startThreadCancel->load()) {
+            m_startThreadCancel = std::make_shared<std::atomic<bool>>(false);
+        }
         std::shared_ptr<std::atomic<bool>> cancel = m_startThreadCancel;
         m_startSeekPending = std::make_shared<std::atomic<bool>>(seekMs > 0);
         std::shared_ptr<std::atomic<bool>> seekPending = m_startSeekPending;
@@ -3267,11 +3422,11 @@ void GStreamerOutput::AlignPictureToSound(int64_t latNs) {
     LogDebug(VB_MEDIAOUT, "GStreamer: picture held back %.1f ms to meet the sound\n", latNs / 1e6);
 }
 
-void GStreamerOutput::ReleaseDisplay(bool closeNow) {
+void GStreamerOutput::ReleaseDisplay() {
 #ifdef HAS_VIDEO_DISPLAY
     if (m_display) {
         m_display->DetachFeed(m_displayFeedToken);
-        m_display->Release(closeNow);
+        m_display->Release();
         m_display.reset();
         m_displayFeedToken = 0;
     }
@@ -3280,8 +3435,11 @@ void GStreamerOutput::ReleaseDisplay(bool closeNow) {
 
 void GStreamerOutput::ReleasePipeWireStream() {
     if (m_pwStream) {
-        m_pwStream->Release(m_pwFeed);
+        if (m_pwStreamAcquired) {
+            m_pwStream->Release(m_pwFeed);
+        }
         m_pwStream = nullptr;
+        m_pwStreamAcquired = false;
     }
     if (m_pwFeed) {
         gst_object_unref(m_pwFeed);
@@ -4323,6 +4481,19 @@ GstBusSyncReply GStreamerOutput::BusSyncHandler(GstBus* bus, GstMessage* msg, gp
         gchar* debug;
         gst_message_parse_error(msg, &err, &debug);
 
+        if (self->m_prepared.load()) {
+            // Prepared and waiting while another track plays: the slot's
+            // status and the callbacks are that track's.  Start() builds this
+            // one again, and reports whatever fails then.
+            LogWarn(VB_MEDIAOUT, "GStreamer: prepared %s failed (%s); it will be built again when it starts\n",
+                    self->m_mediaFilename.c_str(), err && err->message ? err->message : "unknown error");
+            self->m_pipelineFailed = true;
+            g_error_free(err);
+            g_free(debug);
+            gst_message_unref(msg);
+            return GST_BUS_DROP;
+        }
+
         // Identify which element produced the error
         const gchar* srcName = GST_MESSAGE_SRC(msg) ?
             GST_OBJECT_NAME(GST_MESSAGE_SRC(msg)) : "unknown";
@@ -4495,6 +4666,7 @@ int GStreamerOutput::Close(void) {
 
     std::lock_guard<std::recursive_mutex> opLock(m_opMutex);
     DetachCallbacks();
+    m_prepared = false;
 
     if (m_pipeline) {
         // Flush PipeWire filter-chain delay buffers: a delayed group
@@ -5532,6 +5704,16 @@ void GStreamerOutput::OnPadAdded(GstElement* element, GstPad* pad, gpointer user
     // exactly the one that needs to know, so the flag is set before the check.
     if (g_str_has_prefix(name, "audio/")) {
         self->m_sawAudioPad.store(true, std::memory_order_release);
+        int channels = 0;
+        if (self->m_prepareCheckChannels &&
+            (!gst_structure_get_int(gst_caps_get_structure(caps, 0), "channels", &channels) || channels < 1 ||
+             channels > 2)) {
+            // Prepared with its sound sent to the output stream on a guess
+            // (Start()); the stream can't take this.
+            LogDebug(VB_MEDIAOUT, "GStreamer: %s has %d audio channels; it will be built again when it starts\n",
+                     self->m_mediaFilename.c_str(), channels);
+            self->m_pipelineFailed = true;
+        }
     }
 
     if (g_str_has_prefix(name, "audio/") && self->m_audioChain) {
@@ -5668,7 +5850,7 @@ void GStreamerOutput::OnNoMorePads(GstElement* element, gpointer userData) {
         self->m_kmssink = nullptr;  // owned by pipeline bin, already removed above
         // No picture of its own, so the last item's must not stay up behind
         // its sound.
-        self->ReleaseDisplay(true);
+        self->ReleaseDisplay();
     }
 }
 

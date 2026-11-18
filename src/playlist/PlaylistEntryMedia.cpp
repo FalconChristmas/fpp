@@ -194,7 +194,11 @@ int PlaylistEntryMedia::PreparePlay() {
         m_slotStatus->mediaSeconds = 0.0;
     }
 
-    if ((m_fileMode != "single") && !m_resuming) {
+    if ((m_fileMode != "single") && !m_resuming && !m_preparedFile.empty()) {
+        // Drawn when this entry was prepared, and its media made ready.
+        m_mediaFilename = m_preparedFile;
+        m_preparedFile.clear();
+    } else if ((m_fileMode != "single") && !m_resuming) {
         if (m_files.size()) {
             m_mediaFilename = GetNextRandomFile();
         } else {
@@ -222,6 +226,24 @@ int PlaylistEntryMedia::PreparePlay() {
     Events::Publish("playlist/media/title", MediaDetails::INSTANCE.title);
     Events::Publish("playlist/media/artist", MediaDetails::INSTANCE.artist);
     return 1;
+}
+
+void PlaylistEntryMedia::PrepareAhead() {
+    if (!CanPlay()) {
+        return;
+    }
+    std::string file = m_mediaFilename;
+    if (m_fileMode != "single") {
+        // Draw the random file now, and keep it for PreparePlay().
+        if (m_preparedFile.empty()) {
+            if (m_files.empty() && !GetFileList()) {
+                return;
+            }
+            m_preparedFile = GetNextRandomFile();
+        }
+        file = m_preparedFile;
+    }
+    PrepareMediaOutput(file, ResolveVideoOutput(m_videoOutput), m_streamSlot);
 }
 
 /*
@@ -499,7 +521,11 @@ int PlaylistEntryMedia::OpenMediaOutput(void) {
 
     std::string vOut = ResolveVideoOutput(m_videoOutput);
 
-    MediaOutputBase* out = CreateMediaOutput(tmpFile, vOut, m_streamSlot);
+    // Ready already if it was guessed to play next (Playlist::PrepareNextIfDue()).
+    MediaOutputBase* out = ClaimPreparedMediaOutput(tmpFile, vOut, m_streamSlot);
+    if (!out) {
+        out = CreateMediaOutput(tmpFile, vOut, m_streamSlot);
+    }
 
     if (!out) {
         LogDebug(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile.c_str());

@@ -27,6 +27,7 @@ public:
     virtual int Init(Json::Value& config) override;
 
     virtual int PreparePlay();
+    virtual void PrepareAhead() override;
     virtual int StartPlaying(void) override;
     virtual int Process(void) override;
     virtual int Stop(void) override;
@@ -106,6 +107,9 @@ private:
 
     std::string m_fileMode;
     std::vector<std::string> m_files;
+    // A random pick made by PrepareAhead(), which the next PreparePlay()
+    // plays instead of drawing again.
+    std::string m_preparedFile;
 
     int m_pausedTime;
     MediaOutputStatus m_pausedStatus;

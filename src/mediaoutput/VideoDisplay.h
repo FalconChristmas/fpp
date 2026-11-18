@@ -37,9 +37,10 @@
 // pipeline (appsrc -> crop/scale -> kmssink) shows it at once.  Between tracks
 // the last frame stays on screen, and the next track's frames replace it.
 //
-// The display stays up for LINGER_MS after its last user releases it, so the
-// next video in a playlist finds it running.  After that it closes, and the
-// console (or whatever stood aside for the video) comes back.
+// It closes as soon as its last user releases it, and the console -- or a
+// Virtual Matrix on the same connector, which stands aside while media holds
+// it -- comes back at once.  The next video in a playlist keeps it up by
+// holding it before the current one lets go (it is prepared ahead).
 class VideoDisplay : public std::enable_shared_from_this<VideoDisplay> {
 public:
     struct Config {
@@ -54,21 +55,26 @@ public:
         bool SameOutput(const Config& o) const;
     };
 
-    static constexpr int LINGER_MS = 5000;
-
     // The running display for cfg's connector, built if there is none.  Every
     // display returned needs a Release().  nullptr if it could not be built.
     static std::shared_ptr<VideoDisplay> Acquire(const Config& cfg);
-    // A user is done.  The display closes LINGER_MS after the last one, or
-    // straight away with closeNow (if no one else is using it).
-    void Release(bool closeNow = false);
+    // The same, but only a display already up with these settings; nullptr
+    // rather than build one.  For a track prepared while another plays: it
+    // must not take the connector from what is on it now (a Virtual Matrix
+    // stands aside for as long as a display holds it).
+    static std::shared_ptr<VideoDisplay> AcquireRunning(const Config& cfg);
+    // A user is done.  The display closes when the last one is.
+    void Release();
 
-    // Make `appsink` this display's feed: the caps it must deliver, its
-    // timing, and the callback that hands its frames over.  Frames from a
-    // feed attached earlier are dropped from then on, so a track still
-    // tearing down can't flash up between the next one's frames.  Returns the
-    // feed's token for DetachFeed().
-    uint64_t AttachFeed(GstElement* appsink);
+    // Make `appsink` a feed of this display: the caps it must deliver, its
+    // timing, and the callback that hands its frames over.  With activate,
+    // it becomes the feed shown, and frames from a feed attached earlier are
+    // dropped from then on, so a track still tearing down can't flash up
+    // between the next one's frames.  Without, its frames are dropped until
+    // ActivateFeed() (a track prepared while another plays).  Returns the
+    // feed's token.
+    uint64_t AttachFeed(GstElement* appsink, bool activate = true);
+    void ActivateFeed(uint64_t token);
     // That feed has stopped: its frames are no longer shown (the last one
     // stays on screen).  No-op if another feed has been attached since.
     void DetachFeed(uint64_t token);
@@ -97,7 +103,6 @@ private:
     const Config m_cfg;
     std::mutex m_lock;
     int m_users = 0;
-    uint64_t m_idleSinceMs = 0;      // when m_users last reached 0
     bool m_failed = false;           // the sink errored: rebuild on the next Acquire()
     bool m_closed = false;           // Teardown() has run
     uint64_t m_feedToken = 0;        // the feed allowed to show frames, 0 = none

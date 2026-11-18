@@ -151,6 +151,21 @@ private:
 
     bool WillStopAfterCurrent();
 
+    // Ready the media of the entry that plays next while the current one is
+    // in its last second (PrepareMediaOutput()), so the next video starts
+    // without building its pipeline.  Only a guess: what really plays next
+    // is decided as before, and claims or discards what was prepared.
+    void PrepareNextIfDue();
+    // The entry that plays when the current one ends, or nullptr where that
+    // isn't certain yet (an insert, a branch, a pause between items, a stop).
+    PlaylistEntryBase* PeekNextEntry();
+    PlaylistEntryBase* m_preparedAfter = nullptr;  // entry whose successor was prepared this pass
+    // The order the main playlist takes at its next pass, when it is
+    // reshuffled each pass and that pass's first entry was prepared: the
+    // shuffle is drawn then and kept.  Cleared with the entries it points at.
+    std::vector<PlaylistEntryBase*> m_nextShuffle;
+    std::vector<PlaylistEntryBase*> ShuffledMainPlaylist() const;
+
     // LoadJSONIntoPlaylist(), recording where each of the section's rows (as
     // the playlist file and editor number them) starts in the loaded entries.
     int LoadSection(std::vector<PlaylistEntryBase*>& part, const Json::Value& entries, int startPos,

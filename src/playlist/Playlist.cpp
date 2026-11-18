@@ -961,6 +961,7 @@ int Playlist::ReloadPlaylist(void) {
  */
 void Playlist::ReloadIfNeeded(void) {
     if (FileHasBeenModified()) {
+        m_nextShuffle.clear();
         LogDebug(VB_PLAYLIST, "Playlist .json file has been modified, reloading playlist\n");
 
         if (!ReloadPlaylist())
@@ -1550,6 +1551,7 @@ int Playlist::Process(void) {
 
     if (!m_currentSection->at(m_sectionPosition)->IsPaused() && m_currentSection->at(m_sectionPosition)->IsPlaying()) {
         m_currentSection->at(m_sectionPosition)->Process();
+        PrepareNextIfDue();
     }
 
     Playlist* pl = nullptr;
@@ -1745,8 +1747,14 @@ int Playlist::Process(void) {
                     }
 
                     if (m_random == 2) {
-                        RandomizeMainPlaylist();
+                        if (m_nextShuffle.size() == m_mainPlaylist.size()) {
+                            // Drawn when this pass's first entry was prepared.
+                            m_mainPlaylist = m_nextShuffle;
+                        } else {
+                            RandomizeMainPlaylist();
+                        }
                     }
+                    m_nextShuffle.clear();
 
                     // Goes through SwitchToMainPlaylist() for its empty-section
                     // guard; we are already in the MainPlaylist section, so the
@@ -1798,6 +1806,68 @@ int Playlist::Process(void) {
     }
 
     return 1;
+}
+
+// How long before the current entry ends the next one's media is prepared:
+// enough for a pipeline to build and decode its first frame on a slow board,
+// little enough that a guess overtaken by an insert costs little.
+static constexpr uint64_t PREPARE_NEXT_LEAD_MS = 1500;
+
+void Playlist::PrepareNextIfDue() {
+    PlaylistEntryBase* cur = m_currentSection->at(m_sectionPosition);
+    uint64_t length = cur->GetLengthInMS();
+    uint64_t elapsed = cur->GetElapsedMS();
+    if (!length || elapsed + PREPARE_NEXT_LEAD_MS < length) {
+        // Not due, so the next time it is, it is a new pass -- the same
+        // entry comes round again when a playlist of one entry repeats.
+        m_preparedAfter = nullptr;
+        return;
+    }
+    if (cur == m_preparedAfter) {
+        return;  // done for this pass
+    }
+    m_preparedAfter = cur;
+    if (PlaylistEntryBase* next = PeekNextEntry()) {
+        next->PrepareAhead();
+    }
+}
+
+// The same decisions Process() makes once the current entry has finished,
+// as far as they can be made now; nullptr wherever they can't.
+PlaylistEntryBase* Playlist::PeekNextEntry() {
+    if (!m_insertedPlaylist.empty() || m_stopAtPos != -1 || m_globalPauseBetweenSequencesMS > 0 ||
+        m_status == FPP_STATUS_STOPPING_GRACEFULLY || m_status == FPP_STATUS_STOPPING_NOW) {
+        return nullptr;
+    }
+    PlaylistEntryBase* cur = m_currentSection->at(m_sectionPosition);
+    if (cur->GetNextBranchType() != PlaylistEntryBase::PlaylistBranchType::NoBranch) {
+        return nullptr;
+    }
+    if (m_sectionPosition + 1 < m_currentSection->size()) {
+        return m_currentSection->at(m_sectionPosition + 1);
+    }
+    if (m_currentSectionStr == "LeadIn") {
+        if (!m_mainPlaylist.empty()) {
+            return m_mainPlaylist[0];  // already shuffled, when it is, by Start()
+        }
+        return m_leadOut.empty() ? nullptr : m_leadOut[0];
+    }
+    if (m_currentSectionStr != "MainPlaylist") {
+        return nullptr;
+    }
+    bool loopsAgain = m_repeat && (!m_loopCount || (m_loop + 1) < m_loopCount) &&
+                      m_status != FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP;
+    if (!loopsAgain) {
+        return m_leadOut.empty() ? nullptr : m_leadOut[0];
+    }
+    if (m_random == 2) {
+        // Reshuffled at the wrap: draw that shuffle now and keep it.
+        if (m_nextShuffle.size() != m_mainPlaylist.size()) {
+            m_nextShuffle = ShuffledMainPlaylist();
+        }
+        return m_nextShuffle.empty() ? nullptr : m_nextShuffle[0];
+    }
+    return m_mainPlaylist.empty() ? nullptr : m_mainPlaylist[0];
 }
 
 // Deepest stack of inserted playlists SwitchToInsertedPlaylist will build,
@@ -1931,6 +2001,9 @@ void Playlist::SetIdle(bool exit) {
     // An insert still waiting for the current item to end goes with the
     // playlist it was for.  Not in Cleanup(), which a reload also runs.
     m_insertedPlaylist = "";
+    // So does media prepared for what would have played next: it holds a
+    // decoder, and keeps the display up behind it.
+    DiscardPreparedMediaOutput();
 
     bool publishIdle = true;
     // Walk up past parents that are already condemned to PL_CLEANUPS — making
@@ -2065,6 +2138,8 @@ int Playlist::Cleanup(void) {
     m_leadInRows.clear();
     m_mainRows.clear();
     m_leadOutRows.clear();
+    m_nextShuffle.clear();
+    m_preparedAfter = nullptr;
 
     while (m_leadIn.size()) {
         PlaylistEntryBase* entry = m_leadIn.back();
@@ -2374,8 +2449,12 @@ void Playlist::RandomizeMainPlaylist() {
         return;
     }
 
+    m_mainPlaylist = ShuffledMainPlaylist();
+}
+
+std::vector<PlaylistEntryBase*> Playlist::ShuffledMainPlaylist() const {
     std::vector<PlaylistEntryBase*> tmpPlaylist = m_mainPlaylist;
-    m_mainPlaylist.clear();
+    std::vector<PlaylistEntryBase*> shuffled;
     int origSize = tmpPlaylist.size();
 
     while (tmpPlaylist.size()) {
@@ -2385,16 +2464,17 @@ void Playlist::RandomizeMainPlaylist() {
 
             // If this is the first item found and it is the last
             // item in the previous list then try again unless our playlist is only 2 items long
-            if ((!m_mainPlaylist.size()) && (p == (origSize - 1)) && origSize > 2)
+            if ((!shuffled.size()) && (p == (origSize - 1)) && origSize > 2)
                 continue;
 
-            m_mainPlaylist.push_back(tmpPlaylist[p]);
+            shuffled.push_back(tmpPlaylist[p]);
             tmpPlaylist.erase(tmpPlaylist.begin() + p);
         } else {
-            m_mainPlaylist.push_back(tmpPlaylist.back());
+            shuffled.push_back(tmpPlaylist.back());
             tmpPlaylist.pop_back();
         }
     }
+    return shuffled;
 }
 
 // Starting part-way into a shuffled main playlist: the entry loaded at

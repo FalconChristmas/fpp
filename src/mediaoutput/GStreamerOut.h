@@ -45,6 +45,14 @@ public:
     virtual ~GStreamerOutput();
 
     virtual int Start(int msTime = 0) override;
+    /// Build the pipeline and decode up to its first frame now, ahead of the
+    /// Start() that plays it, so that Start() only has to set it going.
+    /// Nothing the playing output owns is touched meanwhile: not the slot's
+    /// status, not the output stream's feed, not the display's.  False where
+    /// this kind of output isn't prepared (anything but a video to the
+    /// persistent display, or with AES67 sending); Start() then builds it as
+    /// usual.  An output prepared and never started is simply deleted.
+    bool Prepare();
     virtual int Stop(void) override;
     virtual int Process(void) override;
     virtual int Close(void) override;
@@ -155,6 +163,23 @@ private:
     // StreamSlotManager's lock, never the other way round.
     std::recursive_mutex m_opMutex;
     std::atomic<bool> m_stopRequested{false};
+
+    // Prepare(): Start() building without the side effects of playing,
+    // which StartPrepared() applies later, and what it set aside for them.
+    bool m_preparing = false;
+    // Read on streaming threads: a prepared output's errors are its own
+    // business until it plays (BusSyncHandler()).
+    std::atomic<bool> m_prepared{false};
+    std::atomic<bool> m_pipelineFailed{false};  // the bus reported a fatal error
+    // Prepared with its sound sent to the output stream before its channel
+    // count was known; OnPadAdded() checks it (see Start()).
+    std::atomic<bool> m_prepareCheckChannels{false};
+    int m_preparedTotalSecs = -1;
+    std::string m_preparedSinkName;
+    double m_preparedTargetVolume = 1.0;
+    int StartPrepared();
+    // The part of Start() that sets a built pipeline playing.
+    int Go(int msTime, const std::string& pipelineSinkName, double targetVolume);
 
     // An optional video branch -- a secondary display's kmssink, or the
     // PipeWire video tap -- whose sink failed.  Its GST_FLOW_ERROR would
@@ -328,11 +353,10 @@ private:
     // it, and this pipeline holds no DRM resources of its own.
     std::shared_ptr<VideoDisplay> m_display;
     uint64_t m_displayFeedToken = 0;
-    // Stop feeding the display and give it back; it keeps showing the last
-    // frame until the next video's first, or until it closes.  closeNow:
-    // close it without the usual linger (this item turned out to have no
-    // video, so the last item's picture must not stay up behind it).
-    void ReleaseDisplay(bool closeNow = false);
+    // Stop feeding the display and give it back.  It keeps showing the last
+    // frame while the next video (prepared ahead) holds it, and closes once
+    // nothing does.
+    void ReleaseDisplay();
 
     // PipeWire video routing — when PipeWireVideoSinkName is set, video is
     // tee'd to both kmssink (HDMI) and pipewiresink (PipeWire graph node).
@@ -495,6 +519,9 @@ private:
     // PipeWireOutputStream.h).  Both null on every other path.
     PipeWireOutputStream* m_pwStream = nullptr;
     GstElement* m_pwFeed = nullptr;
+    // Go() acquired m_pwStream.  A prepared output that never played must
+    // not give back a use of the stream it never took.
+    bool m_pwStreamAcquired = false;
     void ReleasePipeWireStream();
 
     std::atomic<bool> m_audible{false};

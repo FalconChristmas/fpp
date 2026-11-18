@@ -40,6 +40,7 @@ public:
 
     virtual uint64_t GetLengthInMS() override;
     virtual uint64_t GetElapsedMS() override;
+    virtual void PrepareAhead() override;
 
     virtual void Pause() override;
     virtual bool IsPaused() override;

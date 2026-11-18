@@ -150,13 +150,31 @@ std::shared_ptr<VideoDisplay> VideoDisplay::Acquire(const Config& cfg) {
     return display;
 }
 
-void VideoDisplay::Release(bool closeNow) {
-    std::lock_guard<std::mutex> lock(m_lock);
-    if (m_users > 0 && --m_users == 0) {
-        m_idleSinceMs = GetMonotonicTimeMS();
-        if (closeNow) {
-            m_idleSinceMs -= std::min<uint64_t>(m_idleSinceMs, LINGER_MS);
-        }
+std::shared_ptr<VideoDisplay> VideoDisplay::AcquireRunning(const Config& cfg) {
+    std::lock_guard<std::mutex> lock(s_mapLock);
+    auto it = s_displays.find(KeyFor(cfg));
+    if (s_shutdown || it == s_displays.end()) {
+        return nullptr;
+    }
+    std::shared_ptr<VideoDisplay> cur = it->second;
+    std::lock_guard<std::mutex> dl(cur->m_lock);
+    if (cur->m_failed || cur->m_closed || !cur->m_pipeline || !cur->m_cfg.SameOutput(cfg)) {
+        return nullptr;
+    }
+    cur->m_users++;
+    return cur;
+}
+
+void VideoDisplay::Release() {
+    bool last;
+    {
+        std::lock_guard<std::mutex> lock(m_lock);
+        last = m_users > 0 && --m_users == 0;
+    }
+    if (last) {
+        // Under the map lock, which the worker checks under: never between
+        // its look and its wait.
+        std::lock_guard<std::mutex> lock(s_mapLock);
         s_wake.notify_all();
     }
 }
@@ -320,13 +338,15 @@ void VideoDisplay::Teardown(const char* why) {
     }
 }
 
-uint64_t VideoDisplay::AttachFeed(GstElement* appsink) {
+uint64_t VideoDisplay::AttachFeed(GstElement* appsink, bool activate) {
     uint64_t token;
     GstCaps* caps = nullptr;
     {
         std::lock_guard<std::mutex> lock(m_lock);
         token = ++m_lastToken;
-        m_feedToken = token;
+        if (activate) {
+            m_feedToken = token;
+        }
         if (m_feedCaps) {
             caps = gst_caps_ref(m_feedCaps);
         }
@@ -385,6 +405,11 @@ bool VideoDisplay::AnswerAllocation(GstQuery* query) {
     }
     gst_object_unref(src);
     return answered;
+}
+
+void VideoDisplay::ActivateFeed(uint64_t token) {
+    std::lock_guard<std::mutex> lock(m_lock);
+    m_feedToken = token;
 }
 
 void VideoDisplay::DetachFeed(uint64_t token) {
@@ -485,20 +510,14 @@ void VideoDisplay::WorkerLoop() {
     std::unique_lock<std::mutex> lock(s_mapLock);
     while (!s_shutdown) {
         std::vector<std::shared_ptr<VideoDisplay>> closing;
-        uint64_t now = GetMonotonicTimeMS();
-        uint64_t nextMs = 1000;
         for (auto it = s_displays.begin(); it != s_displays.end();) {
             std::shared_ptr<VideoDisplay> d = it->second;
             std::lock_guard<std::mutex> dl(d->m_lock);
-            bool expired = d->m_users == 0 && now - d->m_idleSinceMs >= (uint64_t)LINGER_MS;
-            if (expired || d->m_failed) {
+            if (d->m_users == 0 || d->m_failed) {
                 DrmCards::RetireLease(d->m_lease);
                 closing.push_back(d);
                 it = s_displays.erase(it);
                 continue;
-            }
-            if (d->m_users == 0) {
-                nextMs = std::min<uint64_t>(nextMs, LINGER_MS - (now - d->m_idleSinceMs));
             }
             ++it;
         }
@@ -511,7 +530,7 @@ void VideoDisplay::WorkerLoop() {
             lock.lock();
             continue;
         }
-        s_wake.wait_for(lock, std::chrono::milliseconds(std::max<uint64_t>(nextMs, 10)));
+        s_wake.wait_for(lock, std::chrono::seconds(1));
     }
 }
 
