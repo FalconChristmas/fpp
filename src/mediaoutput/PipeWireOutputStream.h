@@ -112,10 +112,9 @@ public:
     //
     // A stopped track's feed leaves the stream bridged with silence, laid
     // exactly behind its last sample (see Release()), for a few seconds.  If
-    // the timeline is still running and nothing in it can be late -- the
-    // feeds have kept up since the last flush, nothing is backed up in front
-    // of the stream, and a card is watched for xruns (DisciplineClock()) --
-    // this stops the bridge and returns, in *baseTime, the clock time (on
+    // the timeline is still running, nothing is backed up in front of the
+    // stream, and a card is watched for xruns (DisciplineClock()), this
+    // stops the bridge and returns, in *baseTime, the clock time (on
     // Clock()) where the queue ends.  A pipeline given that base time (and
     // no start time) hands its first sample over so that it plays right after
     // the last one queued, and its position then maps onto the sound exactly
@@ -312,11 +311,6 @@ private:
     // sample handed over is due, in the terms a feed's position maps by.
     bool m_timelineValid = false;
     GstClockTime m_timelineEnd = 0;
-    // Since the last flush a feed ran dry -- a buffer came after the one
-    // before it had played -- so the sound may be behind its position by an
-    // amount nothing here can see.  Carried on, the next track would inherit
-    // it; the next track is flushed instead, as every track used to be.
-    bool m_timelineLate = false;
     // No feed is attached and the timeline is kept running with silence
     // until m_bridgeUntilMs (Release()).
     bool m_bridging = false;
@@ -325,10 +319,9 @@ private:
     // laid since (logged when the next track carries on).
     int64_t m_releasedUs = 0;
     GstClockTime m_bridgedNs = 0;
-    // The feed attached by ContinueTimeline() has handed nothing over yet.
-    // If its first buffer comes too late for the queue, the stream is flushed
-    // at once (the worker, m_flushNow): the track's head skips, but it plays
-    // with its position rather than behind it.
+    // The feed attached by ContinueTimeline() has handed nothing over yet
+    // (NoteTimelineLocked()).  m_flushNow: its sound starts so far into its
+    // timeline that it is taken for a fault, and the worker flushes.
     bool m_continuedFirst = false;
     bool m_flushNow = false;
     int m_rate = 0;                    // ...and their rate

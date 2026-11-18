@@ -194,7 +194,7 @@ bool PipeWireOutputStream::SlotMayCarryOn(int slot) {
         return false;
     }
     std::unique_lock<std::mutex> lock(s->m_lock);
-    return s->m_timelineValid && !s->m_timelineLate && s->m_state == State::Ready;
+    return s->m_timelineValid && s->m_state == State::Ready;
 }
 
 int64_t PipeWireOutputStream::QueuedAheadNsForSlot(int slot) {
@@ -316,7 +316,7 @@ void PipeWireOutputStream::Release(GstElement* feed) {
         if (feed && m_feed == feed) {
             m_feed = nullptr;
             m_continuedFirst = false;
-            if (m_timelineValid && !m_timelineLate && m_state == State::Ready) {
+            if (m_timelineValid && m_state == State::Ready) {
                 // Keep the timeline running for the next track to carry on
                 // (ContinueTimeline()): silence laid right behind the last
                 // sample, topped up by the worker (ServiceBridge()).  It also
@@ -404,7 +404,6 @@ void PipeWireOutputStream::Flush(FlushFor why) {
         // Whatever the timeline was, a flush ends it, and with it anything
         // that may have been late in it.
         EndTimelineLocked();
-        m_timelineLate = false;
         m_continuedFirst = false;
         // A flush covers an xrun still waiting for one.
         m_xrunPending = false;
@@ -414,9 +413,6 @@ void PipeWireOutputStream::Flush(FlushFor why) {
         m_flushed = true;
         m_lastFlushMs = NowMs();
         m_dropTo.store(m_writePos.load(std::memory_order_relaxed), std::memory_order_release);
-        // A seek or an xrun leaves the timeline's notion of where the queue
-        // ends behind: the next track starts from a drained stream.
-        m_timelineLate = why != FlushFor::NextTrack;
     }
     LogDebug(VB_MEDIAOUT, "PipeWire output stream %d flushed%s\n", m_slot,
              why == FlushFor::NextTrack ? " between tracks" : why == FlushFor::MidFeed ? " mid-feed" : " for a seek");
@@ -618,8 +614,8 @@ void PipeWireOutputStream::WorkerLoop() {
                     s->m_flushNow = false;
                 }
                 if (flushNow) {
-                    LogInfo(VB_MEDIAOUT, "PipeWire output stream %d: a track carrying on the timeline started too late "
-                                         "for it; flushing so the sound stays with the lights\n", s->m_slot);
+                    LogInfo(VB_MEDIAOUT, "PipeWire output stream %d: a track carrying on the timeline starts too far "
+                                         "into it; flushing\n", s->m_slot);
                     s->Flush(FlushFor::MidFeed);
                 }
                 anyBridging |= s->ServiceBridge();
@@ -860,7 +856,6 @@ bool PipeWireOutputStream::OpenLocked(std::unique_lock<std::mutex>& lock) {
     gst_caps_unref(fixedCaps);
     m_warnedCaps = false;
     EndTimelineLocked();
-    m_timelineLate = false;
     m_continuedFirst = false;
     m_flushNow = false;
     m_xrunPending = false;
@@ -1083,17 +1078,14 @@ void PipeWireOutputStream::NoteTimelineLocked(GstClockTime start, size_t frames,
         }
     }
     if (m_timelineValid && lateNs > (GstClockTimeDiff)kFeedLateToleranceMs * GST_MSECOND && ranDry) {
-        // Handed over late, and after the graph may have needed it: the
-        // queue ran dry, the graph played silence, and this and everything
-        // after it play that much behind the position.
-        if (m_continuedFirst) {
-            m_flushNow = true;
-            WakeWorker();
-        } else if (!m_timelineLate) {
-            m_timelineLate = true;
-            LogDebug(VB_MEDIAOUT, "PipeWire output stream %d: a feed ran late; the next track starts on a flushed stream\n",
-                     m_slot);
-        }
+        // Handed over late, and after the graph may have needed it: the queue
+        // may have run dry, and then this and everything after it play that
+        // much later.  Nothing to do about it: the position follows what is
+        // heard (HeardRunningTime()), so the lights stay with the sound, and
+        // a next track carrying on still queues right behind it.  (Before the
+        // position was measured, a late feed was a lag nothing could see: the
+        // track carrying on was flushed instead, and the next one drained.)
+        LogDebug(VB_MEDIAOUT, "PipeWire output stream %d: a feed buffer came %.1f ms late\n", m_slot, lateNs / 1e6);
     }
     m_continuedFirst = false;
     m_bridging = false;
@@ -1147,8 +1139,6 @@ bool PipeWireOutputStream::ContinueTimeline(GstClockTime* baseTime, int64_t* ear
     GstClockTime lead = (GstClockTime)FeedLeadNs();
     if (!m_timelineValid) {
         why = "nothing to carry on";
-    } else if (m_timelineLate) {
-        why = "a feed ran late, or the stream was flushed mid-track";
     } else if (m_state != State::Ready || m_target != m_wantTarget || !m_pwStream || !m_clock) {
         why = "the stream is not ready on this sink";
     } else if (m_cardStatusPath.empty() || !m_syncAnchored) {
@@ -1723,7 +1713,6 @@ void PipeWireOutputStream::CloseLocked(const char* why) {
     gst_caps_replace(&m_caps, nullptr);
     m_rate = 0;
     EndTimelineLocked();
-    m_timelineLate = false;
     m_continuedFirst = false;
     m_flushNow = false;
     m_xrunPending = false;
