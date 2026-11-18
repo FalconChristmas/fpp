@@ -142,7 +142,9 @@ int PlaylistEntrySequence::Process(void) {
 int PlaylistEntrySequence::StopAfter(int ms) {
     LogDebug(VB_PLAYLIST, "PlaylistEntrySequence::StopAfter(%d)\n", ms);
     uint64_t generation = sequence->OpenGeneration();
-    Timers::INSTANCE.addTimer("SequenceSoundTail", GetTimeMS() + ms, [generation]() {
+    // Named for its generation: a timer of the same name replaces the last
+    // (Timers::addTimer()), and two tails within one would lose the first.
+    Timers::INSTANCE.addTimer("SequenceSoundTail" + std::to_string(generation), GetTimeMS() + ms, [generation]() {
         sequence->CloseSequenceFileIfStill(generation);
     });
     m_prepared = false;
