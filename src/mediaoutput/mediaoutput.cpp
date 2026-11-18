@@ -915,6 +915,8 @@ constexpr int PREPARED_CLAIM_WAIT_MS = 2000;
 // prepare holds a decoder and keeps the display up.  Prepares are made about
 // 1.5 s before they are needed.
 constexpr int PREPARED_EXPIRY_MS = 6000;
+// How soon an expiry that found its prepare still building looks again.
+constexpr int PREPARED_EXPIRY_RECHECK_MS = 1000;
 
 // Off the caller's thread: deleting an output takes its pipeline down.
 void DeleteUnplayed(MediaOutputBase* out) {
@@ -924,6 +926,41 @@ void DeleteUnplayed(MediaOutputBase* out) {
             delete out;
         }).detach();
     }
+}
+
+// Throw away slot's prepare `gen` if it is still unclaimed in `inMs`.  Each
+// prepare has a timer of its own: a timer of the same name replaces the last
+// (Timers::addTimer()), and one slot's prepare cancelled another's expiry.
+// One still building then looks again a little later.
+void SchedulePreparedExpiry(int streamSlot, uint64_t gen, int inMs) {
+    std::string name = "PreparedMediaExpiry" + std::to_string(streamSlot) + "_" + std::to_string(gen);
+    Timers::INSTANCE.addTimer(name, GetTimeMS() + inMs, [streamSlot, gen]() {
+        MediaOutputBase* expired = nullptr;
+        bool building = false;
+        {
+            std::lock_guard<std::mutex> lock(s_preparedLock);
+            auto it = s_prepared.find(streamSlot);
+            if (it == s_prepared.end() || it->second.gen != gen) {
+                return;
+            }
+            building = it->second.building;
+        }
+        if (building) {
+            SchedulePreparedExpiry(streamSlot, gen, PREPARED_EXPIRY_RECHECK_MS);
+            return;
+        }
+        {
+            std::lock_guard<std::mutex> lock(s_preparedLock);
+            auto it = s_prepared.find(streamSlot);
+            if (it == s_prepared.end() || it->second.gen != gen || it->second.building) {
+                return;
+            }
+            LogDebug(VB_MEDIAOUT, "Discarding %s prepared for slot %d: not played\n", it->second.file.c_str(), streamSlot);
+            expired = it->second.out;
+            s_prepared.erase(it);
+        }
+        DeleteUnplayed(expired);
+    });
 }
 } // namespace
 
@@ -962,20 +999,7 @@ void PrepareMediaOutput(const std::string& mediaFilename, const std::string& vid
     }
     DeleteUnplayed(old);
     LogDebug(VB_MEDIAOUT, "Preparing %s for slot %d\n", mediaFilename.c_str(), streamSlot);
-    Timers::INSTANCE.addTimer("PreparedMediaExpiry", GetTimeMS() + PREPARED_EXPIRY_MS, [streamSlot, gen]() {
-        MediaOutputBase* expired = nullptr;
-        {
-            std::lock_guard<std::mutex> lock(s_preparedLock);
-            auto it = s_prepared.find(streamSlot);
-            if (it == s_prepared.end() || it->second.gen != gen || it->second.building) {
-                return;
-            }
-            LogDebug(VB_MEDIAOUT, "Discarding %s prepared for slot %d: not played\n", it->second.file.c_str(), streamSlot);
-            expired = it->second.out;
-            s_prepared.erase(it);
-        }
-        DeleteUnplayed(expired);
-    });
+    SchedulePreparedExpiry(streamSlot, gen, PREPARED_EXPIRY_MS);
     // What CreateMediaOutput() would build it with: sound alone for an audio file.
     std::string outVideoOut = displayVideo ? videoOut : (IsExtensionAudio(ext) ? std::string("--Disabled--") : videoOut);
     std::thread([mediaFilename, outVideoOut, streamSlot, gen]() {
