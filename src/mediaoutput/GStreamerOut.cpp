@@ -4239,8 +4239,17 @@ int GStreamerOutput::Process(void) {
                             GstClockTime now = gst_clock_get_time(clock);
                             gst_object_unref(clock);
                             latNs = (int64_t)(now - gst_element_get_base_time(m_pipeline)) - (int64_t)heardRt;
-                            measured = true;
-                            AlignPictureToSound(latNs);
+                            // The sound is never further ahead of the running
+                            // time than the feed's lead (as it is after a
+                            // flush mid-track, the feed's buffers coming that
+                            // early into an empty queue): a measurement that
+                            // says so is not of this track.
+                            measured = latNs > -(PipeWireOutputStream::FeedLeadNs() + (int64_t)(50 * GST_MSECOND));
+                            if (measured) {
+                                AlignPictureToSound(latNs);
+                            } else {
+                                latNs = 0;
+                            }
                         }
                     } else if (heard == 0) {
                         // None of it heard yet: the sound before it (the last

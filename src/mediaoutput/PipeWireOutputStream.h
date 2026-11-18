@@ -209,6 +209,8 @@ private:
     // Queue `frames` frames (silence when `data` is null); the queue position
     // of the first, or UINT64_MAX if the queue had no room for them.
     uint64_t WriteQueueLocked(const float* data, size_t frames);
+    // Forget where `feed`'s buffers went (HeardRunningTime()).
+    void DropFeedSpansLocked(GstElement* feed);
     // The queue position heard at CLOCK_MONOTONIC `nowNs`, from the cycle
     // records; false while there are none.
     bool FrameHeardAt(int64_t nowNs, uint64_t* frame);

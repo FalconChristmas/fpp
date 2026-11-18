@@ -313,6 +313,10 @@ static int64_t MonoUs();
 void PipeWireOutputStream::Release(GstElement* feed) {
     {
         std::unique_lock<std::mutex> lock(m_lock);
+        if (feed) {
+            // Nothing asks what this feed is heard at once it stops.
+            DropFeedSpansLocked(feed);
+        }
         if (feed && m_feed == feed) {
             m_feed = nullptr;
             m_continuedFirst = false;
@@ -436,9 +440,19 @@ int64_t PipeWireOutputStream::FeedLeadNs() {
 }
 
 
+void PipeWireOutputStream::DropFeedSpansLocked(GstElement* feed) {
+    m_feedSpans.erase(std::remove_if(m_feedSpans.begin(), m_feedSpans.end(),
+                                     [feed](const FeedSpan& s) { return s.feed == feed; }),
+                      m_feedSpans.end());
+}
+
 void PipeWireOutputStream::AttachFeed(GstElement* appsink) {
     {
         std::unique_lock<std::mutex> lock(m_lock);
+        // Spans are known by their feed's address, and an appsink can be
+        // allocated where a freed one was: any already under this one are
+        // that one's, and would be taken for this track's sound.
+        DropFeedSpansLocked(appsink);
         m_feed = appsink;
         m_continuedFirst = false;
         // Each feed starts at the card's own pace.  The feed clock is put back
