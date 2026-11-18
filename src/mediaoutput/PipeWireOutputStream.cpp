@@ -579,6 +579,14 @@ GstFlowReturn PipeWireOutputStream::OnFeedSample(GstElement* appsink, gpointer u
                 if (GST_CLOCK_TIME_IS_VALID(rt)) {
                     self->m_feedSpans.push_back({ pos, frames, rt, speed, appsink });
                 }
+                // Long gone to the graph (a second is kept, as in
+                // HeardRunningTime(), which trims too: a track whose position
+                // comes from elsewhere never asks).
+                uint64_t read = self->m_readPos.load(std::memory_order_acquire);
+                while (!self->m_feedSpans.empty() &&
+                       self->m_feedSpans.front().queuePos + self->m_feedSpans.front().frames + (uint64_t)self->m_rate < read) {
+                    self->m_feedSpans.pop_front();
+                }
             }
             gst_buffer_unmap(out, &map);
             self->m_flushed = false;
