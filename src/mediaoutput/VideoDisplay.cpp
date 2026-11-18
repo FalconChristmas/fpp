@@ -552,12 +552,14 @@ void VideoDisplay::Push(uint64_t token, GstSample* sample) {
         gst_app_src_set_caps(GST_APP_SRC(src), newCaps);
         gst_caps_unref(newCaps);
     }
-    // Same memory, new metadata: without a timestamp the sink shows it at
-    // once, and each track's timestamps start again from zero anyway.
-    GstBuffer* out = gst_buffer_copy(buf);
-    GST_BUFFER_PTS(out) = GST_CLOCK_TIME_NONE;
-    GST_BUFFER_DTS(out) = GST_CLOCK_TIME_NONE;
-    gst_app_src_push_buffer(GST_APP_SRC(src), out);
+    // The decoder's own buffer, held as long as the sink shows it -- as it
+    // was when the sink was in the track's pipeline.  A copy (same memory,
+    // new metadata) let the original go back to its pool at once: a hardware
+    // decoder's pool could then hand its memory to the driver again while it
+    // was on screen, and a pool that discards buffers whose memory is shared
+    // allocated a new one for every frame.  The sink doesn't sync (it shows a
+    // frame as it comes), so the track's own timestamps do no harm.
+    gst_app_src_push_buffer(GST_APP_SRC(src), gst_buffer_ref(buf));
     gst_object_unref(src);
 }
 
