@@ -79,7 +79,8 @@
 			"description": "Host Settings",
 			"settings": [
 				"HostName",
-				"HostDescription"
+				"HostDescription",
+				"NetworkInternetProbe"
 			]
 		},
 		"hostDesktop": {
@@ -407,8 +408,7 @@
 			"settings": [
 				"WifiRegulatoryDomain",
 				"WifiAntenna",
-				"AutoRebootOnUSBNetworkFailure",
-				"NetworkInternetProbe"
+				"AutoRebootOnUSBNetworkFailure"
 			]
 		},
 		"advNetworkSettingsGroup": {
@@ -534,7 +534,7 @@
 			"type": "checkbox",
 			"default": 1,
 			"gatherStats": false,
-			"level": 1,
+			"level": 0,
 			"restart": 0,
 			"reboot": 0
 		},

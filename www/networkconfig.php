@@ -1278,7 +1278,7 @@
                 contentDiv.find('#eth_wpa3_' + safeName).prop('checked', data.WPA3 == "1");
             }
 
-            // Display Internet status defaults to ON when absent/empty.
+            // Display Internet Indicator defaults to ON when absent/empty.
             if (data.INTERNETSTATUS === undefined) {
                 contentDiv.find('#internetStatus_' + safeName).prop('checked', true);
             } else {
@@ -2099,7 +2099,7 @@
                                         </div>
                                         <div class="row" id="internetStatusRow">
                                             <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
-                                                <div class="description">Display Internet status</div>
+                                                <div class="description">Display Internet Indicator</div>
                                             </div>
                                             <div class="printSettingFieldCol col-md">
                                                 <input type="checkbox" id="internetStatus" value="1" checked>

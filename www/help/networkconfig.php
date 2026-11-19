@@ -15,7 +15,7 @@
 
 <div class="callout callout-warning"><b>NOTE:</b> If you configure both eth0 and wlan0, they should not be on the same subnet. A common split is eth0 on a dedicated show LAN (e.g. <code>192.168.1.100</code>) and wlan0 on your home LAN via DHCP or a different Static subnet. Only <b>one</b> interface should have a Gateway. The interface that needs Internet access (for updates, time, or remote access) should be the one with the Gateway.</div>
 
-<p><b>Display Internet status</b> — On by default. When checked, FPP periodically checks whether it can reach the internet through this interface and places a green dot beside that interface's icon in the header. The dot means FPP actually verified internet reachability through the interface, not just that a link or gateway is present. Unchecking it stops FPP from probing that interface at all. The global <code>NetworkInternetProbe</code> setting (<b>Internet Connectivity Indicator</b>) in the WiFi Configuration section below turns probing off for every interface at once.</p>
+<p><b>Display Internet Indicator</b> — On by default. When checked, FPP periodically checks whether it can reach the internet through this interface and places a green dot beside that interface's icon in the header. The dot means FPP actually verified internet reachability through the interface, not just that a link or gateway is present. Unchecking it stops FPP from probing that interface at all. The global <code>NetworkInternetProbe</code> setting (<b>Internet Connectivity Indicator</b>) under Host Configuration on the Global Network Settings tab turns probing off for every interface at once.</p>
 
 <h4>DNS Settings</h4>
 
