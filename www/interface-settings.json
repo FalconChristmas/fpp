@@ -157,6 +157,14 @@
 			"tip": "Priority of this interface's default route; lower wins.",
 			"type": "number",
 			"gatherStats": true
+		},
+		"INTERNETSTATUS": {
+			"name": "INTERNETSTATUS",
+			"description": "Display Internet status",
+			"tip": "Show a green dot on the header network icon when FPP has verified internet access through this interface. Unchecking also stops the outbound connectivity probe for this interface.",
+			"type": "checkbox",
+			"default": 1,
+			"gatherStats": true
 		}
 	}
 }

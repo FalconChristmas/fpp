@@ -1487,13 +1487,7 @@ function SystemGetAudio()
  *
  * Returns `fppd`, network, current playlist, schedule, utilization, host, version, and MQTT status.
  * Pass an optional array of IP addresses (e.g. `&ip[]=192.168.0.1&ip[]=192.168.0.2`) to query
- * remote instances instead.  Add `&internet=1` to include an `internet` boolean on
- * each `interfaces` entry: true when traffic sent through that interface can
- * currently reach the internet (verified by an interface-bound probe, so a
- * default route is not required).  Add `&refresh=1` to bypass the probe cache,
- * e.g. after network settings change.  The browser header requests this on its
- * own `?systemonly=1&internet=1` poll so a slow probe cannot delay the status
- * response; other status consumers do not pay for the probe.
+ * remote instances instead.
  *
  * @route GET /api/system/status
  * @response 200 System status
@@ -1844,22 +1838,7 @@ function finalizeStatusJson($obj)
 
     if (!isset($_GET['nonetwork'])) {
         $obj['wifi'] = network_wifi_strength_obj();
-        // Opt-in: only the browser header asks for &internet=1.  Other
-        // consumers of /api/system/status (MultiSync, WLED, restart polling)
-        // must not inherit an outbound probe or its timeout.  Parse the value
-        // rather than testing isset(): "?internet=0" must mean no, and a
-        // non-string (internet[]=1) is not a request the endpoint documents.
-        $withInternet = isset($_GET['internet'])
-            && is_string($_GET['internet'])
-            && filter_var($_GET['internet'], FILTER_VALIDATE_BOOLEAN);
-        // refresh=1 bypasses the probe cache.  The header sends it after a
-        // network configuration change or restart so the badge reflects the
-        // new routing immediately instead of the previous cache window's
-        // answer.
-        $forceInternet = isset($_GET['refresh'])
-            && is_string($_GET['refresh'])
-            && filter_var($_GET['refresh'], FILTER_VALIDATE_BOOLEAN);
-        $obj['interfaces'] = network_list_interfaces_obj($withInternet, $withInternet && $forceInternet);
+        $obj['interfaces'] = network_list_interfaces_obj();
     }
 
     if (isset($settings['rebootFlag'])) {

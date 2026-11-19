@@ -55,6 +55,7 @@ extern std::atomic_int fppdStopSignalled;
 #include <unistd.h>
 #include <vector>
 
+#include "InternetConnectivityMonitor.h"
 #include "MultiSync.h"
 #include "OutputMonitor.h"
 #include "mediaoutput/VideoInputManager.h"
@@ -234,6 +235,21 @@ void GetCurrentFPPDStatus(Json::Value& result) {
         }
         MergeStatus(result, statusSlowCache);
         MergeStatus(result, statusClockCache);
+    }
+
+    // Per-interface internet reachability comes from the background probe,
+    // so building status never blocks on a network timeout.  Only verified
+    // interfaces are listed; absence means "not verified" (no header dot).
+    // Kept out of the cached slow fields because it changes on its own
+    // schedule, and a read of this small map is cheap on every build.
+    {
+        Json::Value internetState(Json::objectValue);
+        for (const auto& entry : InternetConnectivityMonitor::INSTANCE.getState()) {
+            if (entry.second) {
+                internetState[entry.first] = true;
+            }
+        }
+        result["internetState"] = std::move(internetState);
     }
 
     // System uptime: one syscall, so read on every build rather than cached.
