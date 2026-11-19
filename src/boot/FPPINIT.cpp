@@ -320,6 +320,14 @@ int main(int argc, char* argv[]) {
     }
     printf("\n");
     if (action == "start") {
+        // www/common.php caches the system UUID and its source here and treats
+        // the cache as once-per-boot.  In a container /tmp is the writable layer
+        // and survives restarts and in-place upgrades, so a UUID an older
+        // scripts/get_uuid took from the image's shared machine-id was being
+        // served for good, even after get_uuid stopped producing it.  Drop both
+        // so each start asks the current get_uuid again.
+        unlink("/tmp/fpp_uuid");
+        unlink("/tmp/fpp_uuid_source");
         if (!FileExists("/etc/fpp/container")) {
 #ifdef CAPEDETECT
             printf("FPP - Cleaning tmp\n");
