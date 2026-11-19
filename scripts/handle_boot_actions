@@ -1,18 +1,27 @@
 #!/usr/bin/php
 <?php
+// Read before the includes, which share this scope.
+$bootActionArgs = $argv;
 $skipJSsettings = true;
 require_once('/opt/fpp/www/config.php');
 require_once('/opt/fpp/www/common.php');
 require_once('/opt/fpp/www/common/settings.php');
-function HandleSettings()
+
+// $repair: a restore queued again on a box whose earlier restore may never
+// have finished (upgrade/165), not the first one after a new OS. It applies the
+// settings the user saved and leaves alone what they never set: the absent
+// password settings otherwise reset the OS password to the default, which a
+// fresh OS already has but a box restored long ago may not.
+function HandleSettings($repair = false)
 {
     global $settings;
     if (array_key_exists("TimeZone", $settings))
         ApplySetting("TimeZone", $settings["TimeZone"]);
     if (array_key_exists("ntpServer", $settings))
         ApplySetting("ntpServer", $settings["ntpServer"]);
-    if (array_key_exists("UseNTPFromDHCP", $settings))
-        ApplySetting("UseNTPFromDHCP", $settings["UseNTPFromDHCP"]);
+    // UseNTPFromDHCP is not applied here: fppinit's setupNetwork(), which runs
+    // right after the boot actions, writes the networkd files from it on every
+    // boot, and the routable.d chrony hook fills chrony's DHCP sources from it.
     if (array_key_exists("ForceHDMI", $settings))
         ApplySetting("ForceHDMI", $settings["ForceHDMI"]);
     if (array_key_exists("ForceHDMIResolution", $settings))
@@ -39,12 +48,12 @@ function HandleSettings()
         ApplySetting("screensaver", $settings["screensaver"]);
     if (array_key_exists("osPasswordEnable", $settings)) {
         ApplySetting("osPasswordEnable", $settings["osPasswordEnable"]);
-    } else {
+    } else if (!$repair) {
         ApplySetting("osPasswordEnable", "0");
     }
     if (array_key_exists("passwordEnable", $settings)) {
         ApplySetting("passwordEnable", $settings["passwordEnable"]);
-    } else {
+    } else if (!$repair) {
         ApplySetting("passwordEnable", "0");
     }
 
@@ -62,24 +71,65 @@ function HandleExpandFS()
     system("/sbin/reboot -f");
     exit(0);
 }
-$actions = explode(",", $settings["BootActions"]);
-$action = array_shift($actions);
-while ($action != NULL) {
-    echo "Performing boot action: " . $action . "\n";
 
-    // save the actions we haven't handled yet back out to settings in case
-    // we reboot or something we can keep processing
-    $newactions = implode(",", $actions);
-    if ($newactions == "") {
+// The child the action loop runs a restore in.
+if (($bootActionArgs[1] ?? "") == "--settings") {
+    HandleSettings(($bootActionArgs[2] ?? "") == "repair");
+    exit(0);
+}
+
+// A restore runs inside `fppinit start`, ahead of setupNetwork(), and fppinit
+// is killed at its 90s start timeout. A step that blocks (a systemctl call
+// waiting on a unit ordered after fpp_postnetwork, which is ordered after
+// fppinit) would then take the network down with it: a WiFi-only player stays
+// off the network until it is power cycled. So the restore runs in a child
+// under a limit that leaves fppinit time to set up the network. timeout
+// signals the child's whole process group, so a hung sudo/systemctl goes too.
+//
+// expandfs is not limited: killing a partition resize part way through is
+// worse than any hang.
+function RunSettings($repair)
+{
+    $cmd = "timeout -k 5 45 /opt/fpp/scripts/handle_boot_actions --settings" . ($repair ? " repair" : "");
+    system($cmd, $rc);
+    if ($rc != 0) {
+        echo "Restoring settings " . (($rc == 124 || $rc == 137) ? "timed out" : "failed ($rc)") . "\n";
+    }
+    return $rc == 0;
+}
+
+// The actions still to do, saved so a reboot part way through carries on.
+function SaveActions($actions)
+{
+    if (empty($actions)) {
         DeleteSettingFromFile("BootActions");
     } else {
-        WriteSettingToFile("BootActions", $newactions);
+        WriteSettingToFile("BootActions", implode(",", $actions));
     }
-
-    if ($action == "settings") {
-        HandleSettings();
-    } else if ($action == "expandfs") {
-        HandleExpandFS();
-    }
-    $action = array_shift($actions);
 }
+
+// A restore stays queued while it runs, as "<action>-retry", and comes off
+// only once it finishes: one that is cut short (fppinit killed, the time
+// limit, a power cut) gets one more attempt on the next boot. Only one, so a
+// step that hangs every time can't cost every boot from then on.
+$retry = array();
+$actions = array_filter(explode(",", $settings["BootActions"] ?? ""), 'strlen');
+while (($action = array_shift($actions)) !== null) {
+    echo "Performing boot action: " . $action . "\n";
+    $isRetry = str_ends_with($action, "-retry");
+    $base = $isRetry ? substr($action, 0, -strlen("-retry")) : $action;
+
+    if ($base == "settings" || $base == "settings-repair") {
+        SaveActions(array_merge($retry, $isRetry ? array() : array($base . "-retry"), $actions));
+        if (!RunSettings($base == "settings-repair") && !$isRetry) {
+            echo "Will try restoring settings once more on the next boot\n";
+            $retry[] = $base . "-retry";
+        }
+    } else {
+        SaveActions(array_merge($retry, $actions));
+        if ($base == "expandfs") {
+            HandleExpandFS();
+        }
+    }
+}
+SaveActions($retry);

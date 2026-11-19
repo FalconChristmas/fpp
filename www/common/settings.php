@@ -58,14 +58,18 @@ function SetRTC($rtc)
 
 function RestartNTPD()
 {
-    // --no-block: queue the restart and return. Waiting for it deadlocks the
-    // first boot after an OS upgrade: the "settings" boot action runs inside
-    // `fppinit start`, and chrony is ordered after fpp_postnetwork (fpp-defer.conf
-    // from FPP_Install.sh), which is ordered after fppinit. The wait then lasts
-    // until fppinit is killed at its start timeout, and setupNetwork() never runs.
-    // Queued, the restart runs once fpp_postnetwork is done and reads the
-    // chrony.conf written above.
-    exec("sudo systemctl --no-block restart chrony");
+    // Wait for the restart only once boot is over, so a Settings page save
+    // returns with the new server in use. During boot ("starting"), queue it
+    // with --no-block instead: chrony is ordered after fpp_postnetwork (and on
+    // a BeagleBone after fppd, apache2 and php-fpm too; fpp-defer.conf from
+    // FPP_Install.sh), and fpp_postnetwork is ordered after fppinit. The
+    // "settings" boot action runs inside `fppinit start`, so waiting there
+    // deadlocks until fppinit is killed at its start timeout, before
+    // setupNetwork() has run. The queued restart runs once those units are up
+    // and reads the chrony.conf written above.
+    $state = exec("systemctl is-system-running 2>/dev/null");
+    $block = ($state == "running" || $state == "degraded");
+    exec("sudo systemctl " . ($block ? "" : "--no-block ") . "restart chrony");
 }
 
 function SetNTPServer($value)
@@ -519,8 +523,9 @@ function ApplySetting($setting, $value)
             SetNTPServer($value);
             break;
         case 'UseNTPFromDHCP':
-            // Reconfigure network to apply UseNTP setting
-            exec("sudo " . $settings['fppDir'] . "/src/fppinit configureNetwork", $output);
+            // Rewrites the networkd files' UseNTP= and refreshes chrony's DHCP
+            // sources. In the background: it waits for the renewed lease.
+            exec("sudo " . $settings['fppDir'] . "/src/fppinit applyNTPFromDHCP > /dev/null 2>&1 &");
             break;
         case 'passwordEnable':
             EnableUIPassword($value);
