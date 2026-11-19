@@ -396,6 +396,12 @@ static void RestartForStuckTeardowns(const char* why) {
 // than with none until its first position, which put the picture ahead of the
 // sound for the first frames and then held it that long.
 static std::array<std::atomic<int64_t>, StreamSlotManager::MAX_SLOTS + 1> s_pictureDelayBaseNs{};
+// On a MultiSync remote, how far each slot's next prepared track starts ahead
+// of (> 0) or behind (< 0) the master's start packet, in ms: learnt from how
+// far off the last such track's sound began (AdjustFeedSpeed()).  The
+// difference is the two boxes' output delays, the same from track to track.
+static std::array<std::atomic<int>, StreamSlotManager::MAX_SLOTS + 1> s_remoteStartAdjustMs{};
+static constexpr int kMaxRemoteStartAdjustMs = 250;
 
 // `ifLate` runs on the teardown thread if the pipeline does reach NULL after
 // all, once the caller has given up on it (returned false).
@@ -1316,6 +1322,12 @@ int GStreamerOutput::Start(int msTime) {
         LogDebug(VB_MEDIAOUT, "GStreamer: not using the prepared pipeline for %s (%s)\n", m_mediaFilename.c_str(),
                  msTime ? "starting part-way in" : "it failed");
     }
+    // A start adjustment is a prepared start's (see m_startAdjustMs); a
+    // prepare below takes it afresh.
+    m_startAdjustMs = 0;
+    m_startSeekAdjMs = 0;
+    m_startErrPending = false;
+    m_preparedSeek.reset();
 
     // Off the slot table until SetActiveOutput() at the end, as in Close():
     // an output started again below is still registered from its last run,
@@ -2787,6 +2799,24 @@ int GStreamerOutput::Start(int msTime) {
         GstElement* pipeline = GST_ELEMENT(gst_object_ref(m_pipeline));
         std::string name = m_mediaFilename;
         uint64_t t0 = GetMonotonicTimeMS();
+        // On a remote, how far this track is to start in or held (see
+        // m_startAdjustMs).  Only a remote ever learns one (AdjustFeedSpeed()),
+        // and only for tracks that start prepared: the same path each time,
+        // so the same start-up delay, and a sound through the slot's stream
+        // to measure it by.
+        m_startAdjustMs = 0;
+        m_startSeekAdjMs = 0;
+        m_startErrPending = false;
+        m_preparedSeek.reset();
+        if (m_pwFeed && m_streamSlot >= 1 && m_streamSlot <= StreamSlotManager::MAX_SLOTS) {
+            m_startAdjustMs = s_remoteStartAdjustMs[m_streamSlot].load();
+            m_startErrPending = true;
+            if (m_startAdjustMs > 0) {
+                m_preparedSeek = std::make_shared<PreparedSeek>();
+            }
+        }
+        std::shared_ptr<PreparedSeek> preparedSeek = m_preparedSeek;
+        int prepSeekMs = m_startAdjustMs;
         // Here, before Prepare() returns, not on the thread below: a claim
         // can come at once (an insert in an entry's last moments, a remote's
         // Open right behind its Prepare), and Go()'s thread could then reach
@@ -2794,12 +2824,33 @@ int GStreamerOutput::Start(int msTime) {
         // (Prepare() runs on its own thread, and PAUSED returns at once;
         // only waiting for the preroll takes time.)
         gst_element_set_state(m_pipeline, GST_STATE_PAUSED);
-        std::thread([pipeline, cancel, name, t0]() {
+        std::thread([pipeline, cancel, name, t0, preparedSeek, prepSeekMs]() {
             SetThreadName("FPP-GstPrepare");
             GstState state = GST_STATE_NULL;
             gst_element_get_state(pipeline, &state, nullptr, (GstClockTime)PREROLL_TIMEOUT_MS * GST_MSECOND);
             LogDebug(VB_MEDIAOUT, "GStreamer: prepared %s in %d ms (%s)\n", name.c_str(),
                      (int)(GetMonotonicTimeMS() - t0), gst_element_state_get_name(state));
+            if (preparedSeek && state == GST_STATE_PAUSED && !cancel->load()) {
+                // Held only while the seek is sent (its preroll runs on after,
+                // and Go() waits for a preroll anyway): a claim meanwhile
+                // either finds it made or makes it itself, never both.
+                bool sought = false;
+                {
+                    std::lock_guard<std::mutex> seekLock(preparedSeek->lock);
+                    if (preparedSeek->state == PreparedSeek::Pending &&
+                        gst_element_seek_simple(pipeline, GST_FORMAT_TIME,
+                                                (GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_ACCURATE),
+                                                (gint64)prepSeekMs * GST_MSECOND)) {
+                        preparedSeek->state = PreparedSeek::Done;
+                        sought = true;
+                    }
+                }
+                if (sought) {
+                    gst_element_get_state(pipeline, nullptr, nullptr, (GstClockTime)PREROLL_TIMEOUT_MS * GST_MSECOND);
+                    LogDebug(VB_MEDIAOUT, "GStreamer: %s will start %d ms in, as the last track's sound was behind the master\n",
+                             name.c_str(), prepSeekMs);
+                }
+            }
             if (cancel->load() && !SetPipelineToNullSupervised(pipeline, PIPELINE_TEARDOWN_TIMEOUT_MS)) {
                 LogWarn(VB_MEDIAOUT, "GStreamer: cancelled prepare could not return its pipeline to NULL, abandoning it\n");
             }
@@ -2835,6 +2886,20 @@ int GStreamerOutput::StartPrepared() {
         m_display->ActivateFeed(m_displayFeedToken);
     }
 #endif
+    // The start adjustment Prepare() took (m_startAdjustMs): a seek the
+    // prepare thread hasn't made yet is Go()'s to make.
+    m_startSeekAdjMs = 0;
+    if (m_preparedSeek) {
+        std::lock_guard<std::mutex> seekLock(m_preparedSeek->lock);
+        if (m_preparedSeek->state != PreparedSeek::Done) {
+            m_preparedSeek->state = PreparedSeek::Taken;
+            m_startSeekAdjMs = m_startAdjustMs;
+        }
+    }
+    if (m_startAdjustMs < 0) {
+        LogDebug(VB_MEDIAOUT, "GStreamer: %s starts %d ms late, as the last track's sound was ahead of the master\n",
+                 m_mediaFilename.c_str(), -m_startAdjustMs);
+    }
     return Go(0, m_preparedSinkName, m_preparedTargetVolume);
 }
 
@@ -2882,7 +2947,11 @@ int GStreamerOutput::Go(int msTime, const std::string& pipelineSinkName, double 
     m_playStartMs = GetMonotonicTimeMS();
 
     {
-        int seekMs = msTime;
+        // A remote's learnt start adjustment (m_startAdjustMs): started that
+        // far in (if the prepare thread hasn't sought there already), or held
+        // that long before it plays.
+        int seekMs = msTime + m_startSeekAdjMs;
+        int holdMs = std::max(-m_startAdjustMs, 0);
         bool videoPW = m_videoPipeWireRouting;
         int streamSlot = m_streamSlot;
 
@@ -2946,7 +3015,7 @@ int GStreamerOutput::Go(int msTime, const std::string& pipelineSinkName, double 
         // See VideoOutputManager::ProducerGeneration(): consumers are started
         // from this thread, possibly after this output has been stopped.
         const uint64_t producerGeneration = VideoOutputManager::Instance().ProducerGeneration();
-        std::thread([pipeline, volume, cancel, seekPending, seekMs, videoPW, targetVolume,
+        std::thread([pipeline, volume, cancel, seekPending, seekMs, holdMs, videoPW, targetVolume,
                      streamSlot, pwStream, timelineShift, handover, pwFeed, displayFeed,
                      producerGeneration, flushesDeferred]() {
             // Releases our owning refs on exit no matter which path we return on.
@@ -3049,7 +3118,7 @@ int GStreamerOutput::Go(int msTime, const std::string& pipelineSinkName, double 
                         // by the same to match.
                         int64_t lead = PipeWireOutputStream::FeedLeadNs();
                         gst_element_set_start_time(pipeline, GST_CLOCK_TIME_NONE);
-                        gst_element_set_base_time(pipeline, base - early);
+                        gst_element_set_base_time(pipeline, base - early + (GstClockTime)holdMs * GST_MSECOND);
                         g_object_set(pwFeed, "ts-offset", (gint64)(early - lead), NULL);
                         if (displayFeed) {
                             gint64 held = 0;
@@ -3067,6 +3136,15 @@ int GStreamerOutput::Go(int msTime, const std::string& pipelineSinkName, double 
                         StartFlushes();
                     }
                     pwStream->WaitDrained(PW_STREAM_DRAIN_MAX_MS);
+                }
+                if (cancel->load()) {
+                    return;
+                }
+            }
+            if (holdMs > 0 && !continued) {
+                uint64_t until = GetMonotonicTimeMS() + holdMs;
+                while (!cancel->load() && GetMonotonicTimeMS() < until) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(2));
                 }
                 if (cancel->load()) {
                     return;
@@ -5419,6 +5497,25 @@ int GStreamerOutput::AdjustFeedSpeed(float masterMediaPosition) {
         }
         LogDebug(VB_MEDIAOUT, "GStreamer feed sync: resync landed %+.1f ms from the master; seeks now aim %.0f ms ahead\n",
                  err * 1000.0, leadS * 1000.0);
+    }
+    if (m_startErrPending && agreed) {
+        // The first error this track agrees on, before the servo has moved
+        // it: how far its start was off, the adjustment it started with
+        // included.  The next prepared track starts with half of it: starts
+        // also scatter, by up to a graph cycle and on a busy box by tens of
+        // ms, and taken whole each would push the next start that far the
+        // other way.  A steady difference is within a few ms by the fourth
+        // track.  An error past what an adjustment may take is a start gone
+        // wrong some other way, not the boxes' difference, and teaches
+        // nothing.
+        m_startErrPending = false;
+        if (m_feedSeekTimesMs.empty() && local < 5.0 && std::fabs(err) * 1000.0 < kMaxRemoteStartAdjustMs) {
+            int next = std::clamp(m_startAdjustMs - (int)std::lround(err * 500.0),
+                                  -kMaxRemoteStartAdjustMs, kMaxRemoteStartAdjustMs);
+            s_remoteStartAdjustMs[m_streamSlot] = next;
+            LogDebug(VB_MEDIAOUT, "GStreamer feed sync: started %+.1f ms from the master (moved %+d ms); the next track starts %+d ms\n",
+                     err * 1000.0, m_startAdjustMs, next);
+        }
     }
     if (video) {
         while (!m_feedSeekTimesMs.empty() && now - m_feedSeekTimesMs.front() > kSeekWindowMs) {

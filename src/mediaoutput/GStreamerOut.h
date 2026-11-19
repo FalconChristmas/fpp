@@ -552,6 +552,22 @@ private:
     double m_feedVideoLeadS = 0.06;
     std::deque<uint64_t> m_feedSeekTimesMs;  // this media's recent resync seeks
     bool m_feedSeekGaveUp = false;
+    // A remote's sound reaches its card later or sooner than the master's
+    // does: each box's stream, graph and card add their own delay, and a
+    // track starting on both at once is heard that far apart.  What its first
+    // readings say it was off is how much earlier (> 0: started that far in)
+    // or later (< 0: held) the next prepared track starts (StartPrepared()).
+    int m_startAdjustMs = 0;         // what this track's start was moved by
+    int m_startSeekAdjMs = 0;        // of that, what Go() still has to seek
+    bool m_startErrPending = false;  // its first agreed error is still to learn from
+    // Starting a track part-way in is a seek, and one made as it starts takes
+    // tens of ms that vary from track to track: the prepare thread makes it
+    // instead, unless the track is claimed first and Go() has to.
+    struct PreparedSeek {
+        std::mutex lock;
+        enum { Pending, Done, Taken } state = Pending;
+    };
+    std::shared_ptr<PreparedSeek> m_preparedSeek;
 
     int m_streamSlot = 1;  // stream slot number (1-5), determines PipeWire node name
 
