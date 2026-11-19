@@ -576,11 +576,20 @@ void OutputMonitor::RemovePortConfiguration(int port, const Json::Value& config)
     if (port < portPins.size() && portPins[port] && portPins[port]->name == name) {
         PortPinInfo* pi = portPins[port];
         if (pi->enablePin) {
+            // The pin stays on the enable list while another enabled port
+            // shares it, and stays claimed while any other port, enabled or
+            // not, still holds it.  A port with no pixels is registered
+            // disabled, but its pin was claimed all the same, and Port Status
+            // and the eFuse handlers still drive it through that port.
             bool sharedWithEnabledPort = false;
+            bool sharedWithAnyPort = false;
             for (auto other : portPins) {
-                if (other && other != pi && other->enablePin == pi->enablePin && other->receivers[0].enabled) {
-                    sharedWithEnabledPort = true;
-                    break;
+                if (other && other != pi && other->enablePin == pi->enablePin) {
+                    sharedWithAnyPort = true;
+                    if (other->receivers[0].enabled) {
+                        sharedWithEnabledPort = true;
+                        break;
+                    }
                 }
             }
             if (!sharedWithEnabledPort) {
@@ -589,11 +598,12 @@ void OutputMonitor::RemovePortConfiguration(int port, const Json::Value& config)
                 } else {
                     pullLowOutputPins.remove(pi->enablePin);
                 }
-                // Release only with the last port using the pin, as for the
-                // list above: the pin object is shared, and releasing it
-                // drops its gpiod request, so setValue() on it becomes a
-                // silent no-op for the ports still using it (on a Pi the
-                // line also reverts to an input and floats).
+            }
+            if (!sharedWithAnyPort) {
+                // The pin object is shared, and releasing it drops its gpiod
+                // request, so setValue() on it becomes a silent no-op for any
+                // port still using it (on a Pi the line also reverts to an
+                // input and floats).
                 pi->enablePin->releasePin();
             }
         }
