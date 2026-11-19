@@ -8,725 +8,159 @@
  * v1.0 - April 2026
  */
 
-// Bootstrap Table options for Sequences table
-const bootstrapTableOptions_Sequences = {
-	// *** APPEARANCE ***
-	// Bootstrap 5 theme
-	theme: 'bootstrapTable',
-
-	// Basic table functionality
-	striped: true,
-	bordered: false,
-	hover: true,
-	condensed: false,
-
-	// Sorting configuration
-	sortName: 'name',
-	sortOrder: 'asc',
-	sortable: true,
-	multiSort: false,
-
-	// Pagination
-	pagination: false,
-	pageSize: 50,
-	pageList: [10, 25, 50, 100],
-
-	// Toolbar
-	showHeader: true,
-	showFooter: false,
-	showColumns: false,
-	showColumnsPagination: false,
-	showExport: false,
-
-	// Fixed header with scrollable body
-	height: 300,
-
-	// Row selection
-	selectItemName: 'btSelectItem',
-	singleSelect: false,
-	checkboxHeader: true,
-	maintainSelected: false,
-
-	// Column definitions with data-field names matching table headers
-	columns: [
-		{
-			field: 'filename',
-			title: 'File',
-			sortable: true,
-			searchable: true,
-			filterControl: 'input'
-		},
-		{
-			field: 'size',
-			title: 'Size',
-			sortable: true,
-			searchable: true,
-			align: 'right',
-			sorter: 'metricSorter',
-			filterControl: 'input'
-		},
-		{
-			field: 'fps',
-			title: 'FPS',
-			sortable: true,
-			searchable: true,
-			align: 'right',
-			sorter: 'numericSorter',
-			filterControl: 'input'
-		},
-		{
-			field: 'dateModified',
-			title: 'Date Modified',
-			sortable: true,
-			searchable: true,
-			sorter: 'dateSorter',
-			filterControl: 'input'
-		}
-	],
-
-	// Callbacks
-	onClickRow: function (row, $element, field) {
-		// Handle row click - select/deselect
-		$($element).toggleClass('table-active');
-	},
-
-	onDblClickRow: function (row, $element, field) {
-		// Handle double-click - could open file or edit
-	},
-
-	// Filter control
-	filterControl: true,
-	filterShowClear: true,
-	filter_hideFilters: false,
-
-	// Classes
-	classes: 'table table-hover table-sm',
-
-	// Locale
-	locale: 'en-US',
-
-	// Event handlers for Bootstrap Table
-	onPostBody: function () {
-		UpdateFileCount('Sequences');
-	},
-	onPostFilter: function () {
-		UpdateFileCount('Sequences');
-	}
+// Column definitions shared by the file manager tables. These are functions,
+// not shared objects, so no two tables are ever handed the same column object.
+const fileTableColumns = {
+	filename: () => ({
+		field: 'filename',
+		title: 'File',
+		sortable: true,
+		searchable: true,
+		filterControl: 'input'
+	}),
+	size: () => ({
+		field: 'size',
+		title: 'Size',
+		sortable: true,
+		searchable: true,
+		align: 'right',
+		sorter: 'metricSorter',
+		filterControl: 'input'
+	}),
+	duration: () => ({
+		field: 'duration',
+		title: 'Duration',
+		sortable: true,
+		searchable: true,
+		align: 'right',
+		filterControl: 'input'
+	}),
+	fps: () => ({
+		field: 'fps',
+		title: 'FPS',
+		sortable: true,
+		searchable: true,
+		align: 'right',
+		sorter: 'numericSorter',
+		filterControl: 'input'
+	}),
+	thumbnail: () => ({
+		field: 'thumbnail',
+		title: 'Thumbnail',
+		sortable: false,
+		searchable: false,
+		filterControl: false
+	}),
+	dateModified: () => ({
+		field: 'dateModified',
+		title: 'Date Modified',
+		sortable: true,
+		searchable: true,
+		sorter: 'dateSorter',
+		filterControl: 'input'
+	})
 };
 
-// Bootstrap Table options for Music table
-const bootstrapTableOptions_Music = {
-	theme: 'bootstrapTable',
-	striped: true,
-	bordered: false,
-	hover: true,
-	sortName: 'name',
-	sortOrder: 'asc',
-	sortable: true,
-	multiSort: false,
-	pagination: false,
-	showHeader: true,
-	showFooter: false,
-	showColumns: false,
-	selectItemName: 'btSelectItem',
-	singleSelect: false,
-	checkboxHeader: true,
-	// Fixed header with scrollable body
-	height: 300,
-	// Filter control
-	filterControl: true,
-	filterShowClear: true,
-	filter_hideFilters: false,
-	columns: [
-		{
-			field: 'filename',
-			title: 'File',
-			sortable: true,
-			searchable: true,
-			filterControl: 'input'
+/**
+ * Build the Bootstrap Table options for one file manager table.
+ *
+ * There is deliberately no sortName: api/files/<dir> already returns the list
+ * sorted, directories first, and a default client-side sort on the File column
+ * would interleave the directories with the files.
+ *
+ * @param {string} dir - The file manager directory ('Sequences', 'Logs', ...)
+ * @param {string[]} columnNames - Keys of fileTableColumns, in display order
+ * @param {object} extra - Options specific to this table
+ */
+function makeFileTableOptions (dir, columnNames, extra = {}) {
+	return {
+		theme: 'bootstrapTable',
+		striped: true,
+		bordered: false,
+		hover: true,
+		sortable: true,
+		multiSort: false,
+		pagination: false,
+		showHeader: true,
+		showFooter: false,
+		showColumns: false,
+		selectItemName: 'btSelectItem',
+		singleSelect: false,
+		checkboxHeader: true,
+		// Fixed header with scrollable body
+		height: 300,
+		// Filter control
+		filterControl: true,
+		filterShowClear: true,
+		filter_hideFilters: false,
+		columns: columnNames.map(name => fileTableColumns[name]()),
+		classes: 'table table-hover table-sm',
+		locale: 'en-US',
+		onPostBody: function () {
+			UpdateFileCount(dir);
 		},
-		{
-			field: 'duration',
-			title: 'Duration',
-			sortable: true,
-			searchable: true,
-			align: 'right',
-			filterControl: 'input'
+		onPostFilter: function () {
+			UpdateFileCount(dir);
 		},
-		{
-			field: 'dateModified',
-			title: 'Date Modified',
-			sortable: true,
-			searchable: true,
-			sorter: 'dateSorter',
-			filterControl: 'input'
+		...extra
+	};
+}
+
+const sizeTableColumns = ['filename', 'size', 'dateModified'];
+const durationTableColumns = ['filename', 'duration', 'dateModified'];
+
+const bootstrapTableOptions_Sequences = makeFileTableOptions(
+	'Sequences',
+	['filename', 'size', 'fps', 'dateModified'],
+	{
+		onClickRow: function (row, $element, field) {
+			$($element).toggleClass('table-active');
 		}
-	],
-	classes: 'table table-hover table-sm',
-	locale: 'en-US',
-
-	// Event handlers for Bootstrap Table
-	onPostBody: function () {
-		UpdateFileCount('Music');
-	},
-	onPostFilter: function () {
-		UpdateFileCount('Music');
 	}
-};
-
-// Bootstrap Table options for Videos table
-const bootstrapTableOptions_Videos = {
-	theme: 'bootstrapTable',
-	striped: true,
-	bordered: false,
-	hover: true,
-	sortName: 'name',
-	sortOrder: 'asc',
-	sortable: true,
-	multiSort: false,
-	pagination: false,
-	showHeader: true,
-	showFooter: false,
-	showColumns: false,
-	selectItemName: 'btSelectItem',
-	singleSelect: false,
-	checkboxHeader: true,
-	// Fixed header with scrollable body
-	height: 300,
-	// Filter control
-	filterControl: true,
-	filterShowClear: true,
-	filter_hideFilters: false,
-	columns: [
-		{
-			field: 'filename',
-			title: 'File',
-			sortable: true,
-			searchable: true,
-			filterControl: 'input'
-		},
-		{
-			field: 'duration',
-			title: 'Duration',
-			sortable: true,
-			searchable: true,
-			align: 'right',
-			filterControl: 'input'
-		},
-		{
-			field: 'dateModified',
-			title: 'Date Modified',
-			sortable: true,
-			searchable: true,
-			sorter: 'dateSorter',
-			filterControl: 'input'
-		}
-	],
-	classes: 'table table-hover table-sm',
-	locale: 'en-US',
-
-	// Event handlers for Bootstrap Table
-	onPostBody: function () {
-		UpdateFileCount('Videos');
-	},
-	onPostFilter: function () {
-		UpdateFileCount('Videos');
-	}
-};
-
-// Bootstrap Table options for Images table
-const bootstrapTableOptions_Images = {
-	theme: 'bootstrapTable',
-	striped: true,
-	bordered: false,
-	hover: true,
-	sortName: 'name',
-	sortOrder: 'asc',
-	sortable: true,
-	multiSort: false,
-	pagination: false,
-	showHeader: true,
-	showFooter: false,
-	showColumns: false,
-	selectItemName: 'btSelectItem',
-	singleSelect: false,
-	checkboxHeader: true,
-	// Fixed header with scrollable body
-	height: 300,
-	// Filter control
-	filterControl: true,
-	filterShowClear: true,
-	filter_hideFilters: false,
-	columns: [
-		{
-			field: 'filename',
-			title: 'File',
-			sortable: true,
-			searchable: true,
-			filterControl: 'input'
-		},
-		{
-			field: 'size',
-			title: 'Size',
-			sortable: true,
-			searchable: true,
-			align: 'right',
-			sorter: 'metricSorter',
-			filterControl: 'input'
-		},
-		{
-			field: 'thumbnail',
-			title: 'Thumbnail',
-			sortable: false,
-			searchable: false,
-			filterControl: false
-		},
-		{
-			field: 'dateModified',
-			title: 'Date Modified',
-			sortable: true,
-			searchable: true,
-			sorter: 'dateSorter',
-			filterControl: 'input'
-		}
-	],
-	classes: 'table table-hover table-sm',
-	locale: 'en-US',
-
-	// Event handlers for Bootstrap Table
-	onPostBody: function () {
-		UpdateFileCount('Images');
-	},
-	onPostFilter: function () {
-		UpdateFileCount('Images');
-	}
-};
-
-// Bootstrap Table options for Effects table
-const bootstrapTableOptions_Effects = {
-	theme: 'bootstrapTable',
-	striped: true,
-	bordered: false,
-	hover: true,
-	sortName: 'name',
-	sortOrder: 'asc',
-	sortable: true,
-	multiSort: false,
-	pagination: false,
-	showHeader: true,
-	showFooter: false,
-	showColumns: false,
-	selectItemName: 'btSelectItem',
-	singleSelect: false,
-	checkboxHeader: true,
-	// Fixed header with scrollable body
-	height: 300,
-	// Filter control
-	filterControl: true,
-	filterShowClear: true,
-	filter_hideFilters: false,
-	columns: [
-		{
-			field: 'filename',
-			title: 'File',
-			sortable: true,
-			searchable: true,
-			filterControl: 'input'
-		},
-		{
-			field: 'duration',
-			title: 'Duration',
-			sortable: true,
-			searchable: true,
-			align: 'right',
-			filterControl: 'input'
-		},
-		{
-			field: 'dateModified',
-			title: 'Date Modified',
-			sortable: true,
-			searchable: true,
-			sorter: 'dateSorter',
-			filterControl: 'input'
-		}
-	],
-	classes: 'table table-hover table-sm',
-	locale: 'en-US',
-
-	// Event handlers for Bootstrap Table
-	onPostBody: function () {
-		UpdateFileCount('Effects');
-	},
-	onPostFilter: function () {
-		UpdateFileCount('Effects');
-	}
-};
-
-// Bootstrap Table options for Scripts table
-const bootstrapTableOptions_Scripts = {
-	theme: 'bootstrapTable',
-	striped: true,
-	bordered: false,
-	hover: true,
-	sortName: 'name',
-	sortOrder: 'asc',
-	sortable: true,
-	multiSort: false,
-	pagination: false,
-	showHeader: true,
-	showFooter: false,
-	showColumns: false,
-	selectItemName: 'btSelectItem',
-	singleSelect: false,
-	checkboxHeader: true,
-	// Fixed header with scrollable body
-	height: 300,
-	// Filter control
-	filterControl: true,
-	filterShowClear: true,
-	filter_hideFilters: false,
-	columns: [
-		{
-			field: 'filename',
-			title: 'File',
-			sortable: true,
-			searchable: true,
-			filterControl: 'input'
-		},
-		{
-			field: 'size',
-			title: 'Size',
-			sortable: true,
-			searchable: true,
-			align: 'right',
-			sorter: 'metricSorter',
-			filterControl: 'input'
-		},
-		{
-			field: 'dateModified',
-			title: 'Date Modified',
-			sortable: true,
-			searchable: true,
-			sorter: 'dateSorter',
-			filterControl: 'input'
-		}
-	],
-	classes: 'table table-hover table-sm',
-	locale: 'en-US',
-
-	// Event handlers for Bootstrap Table
-	onPostBody: function () {
-		UpdateFileCount('Scripts');
-	},
-	onPostFilter: function () {
-		UpdateFileCount('Scripts');
-	}
-};
-
-// Bootstrap Table options for Logs table
-const bootstrapTableOptions_Logs = {
-	theme: 'bootstrapTable',
-	striped: true,
-	bordered: false,
-	hover: true,
-	sortName: 'name',
-	sortOrder: 'asc',
-	sortable: true,
-	multiSort: false,
-	pagination: false,
-	showHeader: true,
-	showFooter: false,
-	showColumns: false,
-	selectItemName: 'btSelectItem',
-	singleSelect: false,
-	checkboxHeader: true,
-	// Fixed header with scrollable body
-	height: 300,
-	// Filter control
-	filterControl: true,
-	filterShowClear: true,
-	filter_hideFilters: false,
-	columns: [
-		{
-			field: 'filename',
-			title: 'File',
-			sortable: true,
-			searchable: true,
-			filterControl: 'input'
-		},
-		{
-			field: 'size',
-			title: 'Size',
-			sortable: true,
-			searchable: true,
-			align: 'right',
-			sorter: 'metricSorter',
-			filterControl: 'input'
-		},
-		{
-			field: 'dateModified',
-			title: 'Date Modified',
-			sortable: true,
-			searchable: true,
-			sorter: 'dateSorter',
-			filterControl: 'input'
-		}
-	],
-	classes: 'table table-hover table-sm',
-	locale: 'en-US',
-
-	// Event handlers for Bootstrap Table
-	onPostBody: function () {
-		UpdateFileCount('Logs');
-	},
-	onPostFilter: function () {
-		UpdateFileCount('Logs');
-	}
-};
-
-// Bootstrap Table options for Uploads table
-const bootstrapTableOptions_Uploads = {
-	theme: 'bootstrapTable',
-	striped: true,
-	bordered: false,
-	hover: true,
-	sortName: 'name',
-	sortOrder: 'asc',
-	sortable: true,
-	multiSort: false,
-	pagination: false,
-	showHeader: true,
-	showFooter: false,
-	showColumns: false,
-	selectItemName: 'btSelectItem',
-	singleSelect: false,
-	checkboxHeader: true,
-	// Fixed header with scrollable body
-	height: 300,
-	// Filter control
-	filterControl: true,
-	filterShowClear: true,
-	filter_hideFilters: false,
-	columns: [
-		{
-			field: 'filename',
-			title: 'File',
-			sortable: true,
-			searchable: true,
-			filterControl: 'input'
-		},
-		{
-			field: 'size',
-			title: 'Size',
-			sortable: true,
-			searchable: true,
-			align: 'right',
-			sorter: 'metricSorter',
-			filterControl: 'input'
-		},
-		{
-			field: 'dateModified',
-			title: 'Date Modified',
-			sortable: true,
-			searchable: true,
-			sorter: 'dateSorter',
-			filterControl: 'input'
-		}
-	],
-	classes: 'table table-hover table-sm',
-	locale: 'en-US',
-
-	// Event handlers for Bootstrap Table
-	onPostBody: function () {
-		UpdateFileCount('Uploads');
-	},
-	onPostFilter: function () {
-		UpdateFileCount('Uploads');
-	}
-};
-
-// Bootstrap Table options for Crashes table
-const bootstrapTableOptions_Crashes = {
-	theme: 'bootstrapTable',
-	striped: true,
-	bordered: false,
-	hover: true,
-	sortName: 'name',
-	sortOrder: 'asc',
-	sortable: true,
-	multiSort: false,
-	pagination: false,
-	showHeader: true,
-	showFooter: false,
-	showColumns: false,
-	selectItemName: 'btSelectItem',
-	singleSelect: false,
-	checkboxHeader: true,
-	// Fixed header with scrollable body
-	height: 300,
-	// Filter control
-	filterControl: true,
-	filterShowClear: true,
-	filter_hideFilters: false,
-	columns: [
-		{
-			field: 'filename',
-			title: 'File',
-			sortable: true,
-			searchable: true,
-			filterControl: 'input'
-		},
-		{
-			field: 'size',
-			title: 'Size',
-			sortable: true,
-			searchable: true,
-			align: 'right',
-			sorter: 'metricSorter',
-			filterControl: 'input'
-		},
-		{
-			field: 'dateModified',
-			title: 'Date Modified',
-			sortable: true,
-			searchable: true,
-			sorter: 'dateSorter',
-			filterControl: 'input'
-		}
-	],
-	classes: 'table table-hover table-sm',
-	locale: 'en-US',
-
-	// Event handlers for Bootstrap Table
-	onPostBody: function () {
-		UpdateFileCount('Crashes');
-	},
-	onPostFilter: function () {
-		UpdateFileCount('Crashes');
-	}
-};
-
-// Bootstrap Table options for Config table (developer mode, uiLevel >= 3)
-const bootstrapTableOptions_Config = {
-	theme: 'bootstrapTable',
-	striped: true,
-	bordered: false,
-	hover: true,
-	sortName: 'name',
-	sortOrder: 'asc',
-	sortable: true,
-	multiSort: false,
-	pagination: false,
-	showHeader: true,
-	showFooter: false,
-	showColumns: false,
-	selectItemName: 'btSelectItem',
-	singleSelect: false,
-	checkboxHeader: true,
-	// Fixed header with scrollable body
-	height: 300,
-	// Filter control
-	filterControl: true,
-	filterShowClear: true,
-	filter_hideFilters: false,
-	columns: [
-		{
-			field: 'filename',
-			title: 'File',
-			sortable: true,
-			searchable: true,
-			filterControl: 'input'
-		},
-		{
-			field: 'size',
-			title: 'Size',
-			sortable: true,
-			searchable: true,
-			align: 'right',
-			sorter: 'metricSorter',
-			filterControl: 'input'
-		},
-		{
-			field: 'dateModified',
-			title: 'Date Modified',
-			sortable: true,
-			searchable: true,
-			sorter: 'dateSorter',
-			filterControl: 'input'
-		}
-	],
-	classes: 'table table-hover table-sm',
-	locale: 'en-US',
-
-	// Event handlers for Bootstrap Table
-	onPostBody: function () {
-		UpdateFileCount('Config');
-	},
-	onPostFilter: function () {
-		UpdateFileCount('Config');
-	}
-};
-
-// Bootstrap Table options for Backups table
-const bootstrapTableOptions_Backups = {
-	theme: 'bootstrapTable',
-	striped: true,
-	bordered: false,
-	hover: true,
-	sortName: 'name',
-	sortOrder: 'asc',
-	sortable: true,
-	multiSort: false,
-	pagination: false,
-	showHeader: true,
-	showFooter: false,
-	showColumns: false,
-	selectItemName: 'btSelectItem',
-	singleSelect: false,
-	checkboxHeader: true,
-	// Fixed header with scrollable body
-	height: 300,
-	// Filter control
-	filterControl: true,
-	filterShowClear: true,
-	filter_hideFilters: false,
-	columns: [
-		{
-			field: 'filename',
-			title: 'File',
-			sortable: true,
-			searchable: true,
-			filterControl: 'input'
-		},
-		{
-			field: 'size',
-			title: 'Size',
-			sortable: true,
-			searchable: true,
-			align: 'right',
-			sorter: 'metricSorter',
-			filterControl: 'input'
-		},
-		{
-			field: 'dateModified',
-			title: 'Date Modified',
-			sortable: true,
-			searchable: true,
-			sorter: 'dateSorter',
-			filterControl: 'input'
-		}
-	],
-	classes: 'table table-hover table-sm',
-	locale: 'en-US',
-
-	// Event handlers for Bootstrap Table
-	onPostBody: function () {
-		UpdateFileCount('Backups');
-	},
-	onPostFilter: function () {
-		UpdateFileCount('Backups');
-	}
-};
+);
+const bootstrapTableOptions_Music = makeFileTableOptions(
+	'Music',
+	durationTableColumns
+);
+const bootstrapTableOptions_Videos = makeFileTableOptions(
+	'Videos',
+	durationTableColumns
+);
+const bootstrapTableOptions_Images = makeFileTableOptions('Images', [
+	'filename',
+	'size',
+	'thumbnail',
+	'dateModified'
+]);
+const bootstrapTableOptions_Effects = makeFileTableOptions(
+	'Effects',
+	durationTableColumns
+);
+const bootstrapTableOptions_Scripts = makeFileTableOptions(
+	'Scripts',
+	sizeTableColumns
+);
+const bootstrapTableOptions_Logs = makeFileTableOptions(
+	'Logs',
+	sizeTableColumns
+);
+const bootstrapTableOptions_Uploads = makeFileTableOptions(
+	'Uploads',
+	sizeTableColumns
+);
+const bootstrapTableOptions_Crashes = makeFileTableOptions(
+	'Crashes',
+	sizeTableColumns
+);
+// Config tab is developer mode only (uiLevel >= 3)
+const bootstrapTableOptions_Config = makeFileTableOptions(
+	'Config',
+	sizeTableColumns
+);
+const bootstrapTableOptions_Backups = makeFileTableOptions(
+	'Backups',
+	sizeTableColumns
+);
 
 /**
  * Custom sorters for Bootstrap Table
