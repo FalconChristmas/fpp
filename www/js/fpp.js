@@ -4909,6 +4909,20 @@ function PingE131IP (id) {
 	PingIP(ip, 3);
 }
 
+// Opens the controller's web page in a new tab. Reads the address from the
+// button's own row, so it stays right when rows are added, cloned or deleted.
+function OpenE131IP (btn) {
+	var ip = String($(btn).closest('tr').find('input.txtIP').val() || '').trim();
+	if (ip === '') {
+		$.jGrowl('No unicast address set for this output', {
+			themeState: 'danger'
+		});
+		return;
+	}
+	var url = /^https?:\/\//i.test(ip) ? ip : 'http://' + ip + '/';
+	window.open(url, '_blank', 'noopener');
+}
+
 function ViewReleaseNotes (version) {
 	var opts = {
 		id: 'releaseNotesDialog',
@@ -5270,7 +5284,7 @@ function IPOutputTypeChanged (item, input) {
 		$(item).parent().parent().find('input.txtIP').prop('hidden', false);
 
 		if (!input) {
-			$(item).parent().parent().find('input.pingButton').prop('hidden', false);
+			$(item).parent().parent().find('input.pingButton, input.openButton').prop('hidden', false);
 		}
 	} else {
 		// 0,1 = E1.31, 2,3,9 = Artnet, 6,7 = KiNet
@@ -5295,13 +5309,13 @@ function IPOutputTypeChanged (item, input) {
 			if (type == 0 || type == 2) {
 				$(item).parent().parent().find('input.txtIP').val('');
 				$(item).parent().parent().find('input.txtIP').prop('hidden', true);
-				$(item).parent().parent().find('input.pingButton').prop('hidden', true);
+				$(item).parent().parent().find('input.pingButton, input.openButton').prop('hidden', true);
 			} else {
 				$(item).parent().parent().find('input.txtIP').prop('hidden', false);
 				$(item)
 					.parent()
 					.parent()
-					.find('input.pingButton')
+					.find('input.pingButton, input.openButton')
 					.prop('hidden', false);
 			}
 
@@ -5610,6 +5624,10 @@ function populateUniverseData (data, reload, input) {
 			"><input type=button class='pingButton buttons' onClick='PingE131IP(" +
 			i.toString() +
 			");' value='Ping' " +
+			ipDisabled +
+			"> <input type=button class='openButton buttons' " +
+			"onClick='OpenE131IP(this);' value='Open' " +
+			"title='Open the controller web page in a new tab' " +
 			ipDisabled +
 			'></td>' +
 			'</tr>';

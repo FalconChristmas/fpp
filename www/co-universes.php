@@ -246,9 +246,9 @@ if (file_exists(__DIR__ . "/fppdefines.php")) {
 											data-bs-toggle='tooltip' data-bs-html='true' data-bs-placement='auto'
 											data-bs-title='De-Duplication: Suppress sending duplicate network packets when channel data has not changed. Reduces network traffic and controller processing load.'><i
 												class="fas fa-filter"></i></span></th>
-									<th aria-label='Test ping controller'>Ping <span data-bs-toggle='tooltip'
+									<th aria-label='Test ping controller or open its web page'>Ping / Open <span data-bs-toggle='tooltip'
 											data-bs-html='true' data-bs-placement='auto'
-											data-bs-title='Test network connectivity by pinging the controller. Helps verify that the controller is reachable on the network.'><i
+											data-bs-title='Ping tests network connectivity to the controller. Open opens the controller&apos;s web page in a new tab.'><i
 												class="fas fa-network-wired"></i></span></th>
 								</tr>
 							</thead>
