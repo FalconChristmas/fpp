@@ -4909,11 +4909,10 @@ function PingE131IP (id) {
 	PingIP(ip, 3);
 }
 
-// Opens the controller's web page through this FPP's /proxy/, so it works
-// even when the controller is on a show network the browser can't reach.
-// Adds the controller to the proxy list first if it isn't there yet. Reads
-// the address from the button's own row, so it stays right when rows are
-// added, cloned or deleted.
+// Opens the controller's web page in a new tab: through this FPP's /proxy/
+// when the controller is on the proxy list, otherwise directly (the same
+// choice MultiSync makes). Reads the address from the button's own row, so
+// it stays right when rows are added, cloned or deleted.
 function OpenE131IP (btn) {
 	var addr = String($(btn).closest('tr').find('input.txtIP').val() || '')
 		.trim()
@@ -4926,18 +4925,18 @@ function OpenE131IP (btn) {
 		return;
 	}
 	var host = addr.replace(/:\d+$/, '');
-	if (!/^[a-zA-Z0-9.-]+$/.test(host)) {
+	if (!/^[a-zA-Z0-9.-]+(:\d+)?$/.test(addr)) {
 		$.jGrowl('Not a valid IP address or hostname: ' + addr, {
 			themeState: 'danger'
 		});
 		return;
 	}
-	var url = new URL('proxy/' + addr + '/', document.baseURI).href;
+	var direct = 'http://' + addr + '/';
 
 	// Open the tab now, while still handling the click, so popup blockers
-	// allow it; point it at the proxy once the proxy is in place.
+	// allow it; point it at the right URL once the proxy list is back.
 	var win = window.open('', '_blank');
-	function go () {
+	function go (url) {
 		if (win) {
 			win.opener = null;
 			win.location.href = url;
@@ -4945,32 +4944,21 @@ function OpenE131IP (btn) {
 			window.open(url, '_blank', 'noopener');
 		}
 	}
-	function fail () {
-		if (win) win.close();
-		$.jGrowl('Could not set up a proxy for ' + host, { themeState: 'danger' });
-	}
 
 	$.get('api/proxies')
 		.done(function (list) {
-			var found = (list || []).some(function (p) {
+			var proxied = (list || []).some(function (p) {
 				return p.host === host;
 			});
-			if (found) {
-				go();
-				return;
-			}
-			$.ajax({
-				url: 'api/proxies/' + encodeURIComponent(host),
-				type: 'POST',
-				data: 'AddProxy'
-			})
-				.done(function () {
-					// Adding a proxy reloads Apache; give it a moment.
-					setTimeout(go, 1000);
-				})
-				.fail(fail);
+			go(
+				proxied ?
+					new URL('proxy/' + addr + '/', document.baseURI).href
+				:	direct
+			);
 		})
-		.fail(fail);
+		.fail(function () {
+			go(direct);
+		});
 }
 
 function ViewReleaseNotes (version) {
@@ -5677,7 +5665,7 @@ function populateUniverseData (data, reload, input) {
 			ipDisabled +
 			"> <input type=button class='openButton buttons' " +
 			"onClick='OpenE131IP(this);' value='Open' " +
-			"title='Open the controller web page through the FPP proxy' " +
+			"title='Open the controller web page (through the FPP proxy if it is proxied)' " +
 			ipDisabled +
 			'></td>' +
 			'</tr>';
