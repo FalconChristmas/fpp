@@ -248,7 +248,7 @@ if (file_exists(__DIR__ . "/fppdefines.php")) {
 												class="fas fa-filter"></i></span></th>
 									<th aria-label='Test ping controller or open its web page'>Ping / Open <span data-bs-toggle='tooltip'
 											data-bs-html='true' data-bs-placement='auto'
-											data-bs-title='Ping tests network connectivity to the controller. Open opens the controller&apos;s web page in a new tab.'><i
+											data-bs-title='Ping tests network connectivity to the controller. Open opens the controller&apos;s web page through this FPP&apos;s proxy, adding it to the proxy list if needed.'><i
 												class="fas fa-network-wired"></i></span></th>
 								</tr>
 							</thead>
