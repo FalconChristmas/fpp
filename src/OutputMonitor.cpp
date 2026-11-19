@@ -589,8 +589,13 @@ void OutputMonitor::RemovePortConfiguration(int port, const Json::Value& config)
                 } else {
                     pullLowOutputPins.remove(pi->enablePin);
                 }
+                // Release only with the last port using the pin, as for the
+                // list above: the pin object is shared, and releasing it
+                // drops its gpiod request, so setValue() on it becomes a
+                // silent no-op for the ports still using it (on a Pi the
+                // line also reverts to an input and floats).
+                pi->enablePin->releasePin();
             }
-            pi->enablePin->releasePin();
         }
         if (pi->eFuseInterruptPin) {
             // One interrupt pin (and its GPIO callback) can serve several
