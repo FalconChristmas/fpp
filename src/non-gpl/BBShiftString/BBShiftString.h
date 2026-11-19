@@ -245,7 +245,7 @@ private:
     // the same without the FalconV5 query frames, which depend on the query
     // spacing and so on the frame rate
     int m_frameTimeBaseUs = 0;
-    void applyV5QueryCost();
+    void applyV5QueryCost(bool atInit = false);
     float m_lastBudgetRate = -1.0f;
     std::string m_budgetWarnText;
     void checkFrameRateBudget(float rate);

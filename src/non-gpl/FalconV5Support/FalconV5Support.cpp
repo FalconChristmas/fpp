@@ -137,6 +137,13 @@ FalconV5Support::FalconV5Support() {
         } else {
             return;
         }
+        {
+            std::unique_lock<std::mutex> lock(queriedPortsLock);
+            if (port < 0 || port >= (int)queriedPorts.size() || !queriedPorts[port]) {
+                LogDebug(VB_CHANNELOUT, "FalconV5: %s for port %d dropped, no queried V5 chain covers it\n", cmd.c_str(), port);
+                return;
+            }
+        }
         pendingToggle.store(pt);
     });
 }
@@ -240,18 +247,33 @@ float FalconV5Support::queryFrameShare() const {
     return queryFrameShare(queryRestFrames);
 }
 
-float FalconV5Support::queryFrameShare(int restFrames) const {
-    if (!pru) {
-        return 0.0f;
-    }
+int FalconV5Support::queriedReceivers() const {
     int receivers = 0;
     for (auto c : maxCount) {
         receivers += c;
     }
+    return receivers;
+}
+
+int FalconV5Support::queriedMuxes() const {
+    int muxes = 0;
+    for (auto c : maxCount) {
+        if (c > 0) {
+            muxes++;
+        }
+    }
+    return muxes;
+}
+
+float FalconV5Support::queryFrameShare(int restFrames) const {
+    if (!pru) {
+        return 0.0f;
+    }
+    int receivers = queriedReceivers();
     if (receivers == 0) {
         return 0.0f;
     }
-    return (float)receivers / (float)(receivers + maxCount.size() * (1 + restFrames));
+    return (float)receivers / (float)(receivers + queriedMuxes() * (1 + restFrames));
 }
 
 bool FalconV5Support::setFrameBudget(float frameRate, int frameTimeWithoutQueriesUs, int queryFrameCostUs) {
@@ -259,11 +281,8 @@ bool FalconV5Support::setFrameBudget(float frameRate, int frameTimeWithoutQuerie
     if (queryRestOverride >= 0) {
         rest = queryRestOverride;
     } else if (frameRate > 0.0f && frameTimeWithoutQueriesUs > 0 && queryFrameCostUs > 0 && queryFrameShare(0) > 0.0f) {
-        int receivers = 0;
-        for (auto c : maxCount) {
-            receivers += c;
-        }
-        const float muxes = (float)maxCount.size();
+        const int receivers = queriedReceivers();
+        const float muxes = (float)queriedMuxes();
         const float periodUs = 1000000.0f / frameRate;
         const float slackUs = periodUs - (float)frameTimeWithoutQueriesUs;
         // a round is one frame per query plus (1 + rest) rest frames per mux;
@@ -444,6 +463,18 @@ FalconV5Support::ReceiverChain* FalconV5Support::addReceiverChain(PixelString* p
         }
     }
     queryData[m][group].push_back(rc);
+    if (p1 && p1->m_portNumber >= 0) {
+        // generateDynamicPacket() hands a toggle to the chain whose first
+        // port is within 4 below it
+        std::unique_lock<std::mutex> lock(queriedPortsLock);
+        size_t end = (size_t)p1->m_portNumber + 4;
+        if (queriedPorts.size() < end) {
+            queriedPorts.resize(end, false);
+        }
+        for (size_t p = p1->m_portNumber; p < end; p++) {
+            queriedPorts[p] = true;
+        }
+    }
 
     // A round of queries needs as many frames as the receivers of ONE listener
     // group, not of all groups together: every group's front chain is queried
@@ -596,11 +627,15 @@ bool FalconV5Support::generateDynamicPacket(std::vector<std::array<uint8_t, 64>>
     }
     if (curCount > maxCount[curMux] + rest) {
         curCount = 0;
-        int newMux = curMux + 1;
-        if (newMux >= maxCount.size()) {
-            newMux = 0;
-            triggerPixelCount = false;
-        }
+        // skip muxes without receivers: switching to one only spent a frame
+        // (and 'rest' more) on a position nothing answers on
+        int newMux = curMux;
+        do {
+            if (++newMux >= (int)maxCount.size()) {
+                newMux = 0;
+                triggerPixelCount = false;
+            }
+        } while (maxCount[newMux] == 0 && newMux != curMux);
         if (newMux != curMux) {
             setCurrentMux(newMux);
         }

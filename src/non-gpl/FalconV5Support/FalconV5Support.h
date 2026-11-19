@@ -121,6 +121,10 @@ private:
     bool stageValid = false;
 
     float queryFrameShare(int restFrames) const;
+    // receivers summed over the muxes, and the muxes that have any: a mux
+    // with none is skipped by the scheduler
+    int queriedReceivers() const;
+    int queriedMuxes() const;
 
     // extra rest frames after every round of queries, on top of the one rest
     // frame a round always ends with before the mux changes
@@ -157,4 +161,12 @@ private:
     static_assert(sizeof(PendingToggle) == 4, "PendingToggle must be a single unpadded word");
     static_assert(std::atomic<PendingToggle>::is_always_lock_free, "PendingToggle atomic must be lock-free");
     std::atomic<PendingToggle> pendingToggle{ PendingToggle() };
+
+    // Ports a queried chain covers, i.e. the ports a pending toggle can go
+    // out on.  The callback drops any other toggle: one that no chain picks
+    // up would stay pending forever and, since a pending toggle cuts the rest
+    // between query rounds short, hold the scheduler at its fastest cadence.
+    // Filled by addReceiverChain() while the callback may already be live.
+    mutable std::mutex queriedPortsLock;
+    std::vector<bool> queriedPorts;
 };
