@@ -24,6 +24,10 @@
 #include <mutex>
 #include <string>
 #include <utility>
+#include <vector>
+
+struct pw_thread_loop;
+struct pw_stream;
 
 // A PipeWire playback stream that outlives the media played through it.
 //
@@ -38,7 +42,14 @@
 // that once.  A track fed into a stream that is already open reaches the graph
 // in tens of milliseconds.  Media pipelines feed it through an appsink (see
 // AttachFeed()), converted to the stream's one fixed format (CapsFields()).
-// While open and idle PipeWire plays silence, which keeps the card running.
+// While open and idle the stream plays silence, which keeps the card running.
+//
+// It is a native PipeWire stream fed from a queue of our own, so that
+// PipeWire's timing for each cycle (pw_stream_get_time_n(): when the samples
+// it takes reach the device) says exactly when every sample queued is heard
+// (HeardRunningTime()).  Through a pipewiresink, where a track's sound landed
+// could only be estimated, and a track started on a drained stream landed
+// anywhere within a graph cycle of the estimate.
 //
 // The stream presents exactly the node a per-track pipewiresink used to --
 // node.name fppd_stream_N, same description, same target and stream
@@ -70,9 +81,9 @@ public:
 
     // The fixed format every stream carries, as caps fields to append to
     // "audio/x-raw" (",format=F32LE,rate=...,channels=2,layout=interleaved").
-    // A feed must deliver exactly this: pipewiresink fixes its PipeWire format
-    // when the stream connects and never renegotiates it, so a feed in any
-    // other format would be reinterpreted, not converted.
+    // A feed must deliver exactly this: the stream's PipeWire format is fixed
+    // when it connects, so a feed in any other format would be reinterpreted,
+    // not converted.
     static std::string CapsFields();
 
     // A track is about to play through this stream.  Opens it (or reopens it
@@ -96,6 +107,52 @@ public:
     // graph -- would otherwise sit ahead of every track to come, and every
     // track starts from the same empty queue (see Flush()).
     void WaitDrained(int maxMs);
+    // Instead of WaitDrained(), for a track that starts right behind another:
+    // carry on the stream's timeline rather than wait for it to drain.
+    //
+    // A stopped track's feed leaves the stream bridged with silence, laid
+    // exactly behind its last sample (see Release()), for a few seconds.  If
+    // the timeline is still running, nothing is backed up in front of the
+    // stream, and a card is watched for xruns (DisciplineClock()), this
+    // stops the bridge and returns, in *baseTime, the clock time (on
+    // Clock()) where the queue ends.  A pipeline given that base time (and
+    // no start time) hands its first sample over so that it plays right after
+    // the last one queued, and its position then maps onto the sound exactly
+    // as the track before's did.  If the queue is about to run out, it is
+    // first extended with silence, just long enough for the pipeline to get
+    // going.  Otherwise false, and the caller uses WaitDrained().
+    //
+    // *earlyNs is how far ahead of `baseTime` the pipeline may hand its first
+    // sample over: the feed's lead (FeedLeadNs()), or less when less than
+    // that is left queued.  A sink can't render before its base time, so the
+    // caller runs the pipeline on baseTime - *earlyNs with its feed's
+    // ts-offset at *earlyNs - FeedLeadNs() rather than minus the lead, and
+    // allows for that in its position and picture.
+    bool ContinueTimeline(GstClockTime* baseTime, int64_t* earlyNs);
+
+    // Whether slot's stream (if it exists; none is created) has a timeline
+    // the next track could carry on: a track starting now most likely will.
+    // Its sound then runs on behind the last track's without a break, so
+    // nothing that only makes sense between drained tracks (flushing an
+    // audio group's delay lines) should run.
+    static bool SlotMayCarryOn(int slot);
+
+    // How long until the last sample handed over is heard, or -1 if that
+    // isn't known (nothing is queued, or PipeWire hasn't timed a cycle yet).
+    int64_t QueuedAheadNs();
+    // The same for slot's stream, if it exists (none is created).
+    static int64_t QueuedAheadNsForSlot(int slot);
+
+    // What `feed` is being heard at: the running time (in the feeding
+    // pipeline) of the sample leaving the speaker now.  PipeWire reports for
+    // every cycle when the samples it takes from the stream reach the device,
+    // and each buffer a feed hands over is kept with its running time and
+    // where it went in the queue, so this is measured, not modelled: however
+    // the track started, and through any stall in the graph.
+    //   1: *runningTime is set.
+    //   0: none of `feed`'s sound has been heard yet.
+    //  -1: not known (no timing from PipeWire, or `feed` isn't feeding).
+    int HeardRunningTime(GstElement* feed, GstClockTime* runningTime);
 
     // Route `appsink`'s samples into this stream, replacing any previous
     // feed.  Samples from a feed that has since been replaced are dropped, so
@@ -149,11 +206,33 @@ private:
     bool OpenLocked(std::unique_lock<std::mutex>& lock);
     void CloseLocked(const char* why);
     void ForgetFailureLocked();
-    void PushSilenceLocked(int ms);
-    bool WaitQueuedUntil(int64_t deadlineUs);
-    void Flush(bool prime);
+    // Queue `frames` frames (silence when `data` is null); the queue position
+    // of the first, or UINT64_MAX if the queue had no room for them.
+    uint64_t WriteQueueLocked(const float* data, size_t frames);
+    // Forget where `feed`'s buffers went (HeardRunningTime()).
+    void DropFeedSpansLocked(GstElement* feed);
+    // The queue position heard at CLOCK_MONOTONIC `nowNs`, from the cycle
+    // records; false while there are none.
+    bool FrameHeardAt(int64_t nowNs, uint64_t* frame);
+    static void OnProcess(void* data);
+    static void OnStreamError(void* data, const char* error);
+    // Silence laid on the timeline right behind its end, up to `until`.
+    void ExtendTimelineLocked(GstClockTime until);
+    // Keep a bridged timeline from running out (see Release()); whether it
+    // is still bridging.
+    bool ServiceBridge();
+    void EndTimelineLocked();
+    // A feed buffer starting at `start` (on m_clock) and `frames` long was
+    // handed over, `lateNs` after its sink was due to hand it over.
+    void NoteTimelineLocked(GstClockTime start, size_t frames, GstClockTimeDiff lateNs);
+    // Until everything queued has gone to the graph, or the deadline.
+    bool WaitQueueEmpty(int64_t deadlineUs);
+    // Why the stream is flushed (for the log; the flush itself is the same).
+    enum class FlushFor { NextTrack,
+                          MidFeed,
+                          Seek };
+    void Flush(FlushFor why);
     bool CardRunning();
-    static int TailFlushMs();
     bool StreamLinked();
 
     static GstFlowReturn OnFeedSample(GstElement* appsink, gpointer userData);
@@ -185,15 +264,68 @@ private:
     uint64_t m_linkedMs = 0;
     uint64_t m_lastLinkCheckMs = 0;
 
-    GstElement* m_pipeline = nullptr;
-    GstElement* m_src = nullptr;
+    // The native PipeWire stream, and the thread loop it runs on.  OnProcess()
+    // runs on PipeWire's data thread and takes no lock: it reads the queue
+    // below through m_writePos/m_dropTo and publishes m_readPos and the cycle
+    // records.
+    struct pw_thread_loop* m_pwLoop = nullptr;
+    struct pw_stream* m_pwStream = nullptr;
+    std::atomic<bool> m_pwError{ false };
     GstCaps* m_caps = nullptr;         // the stream's fixed caps, set at open
-    // When (CLOCK_MONOTONIC, us) everything handed to the stream so far will
-    // have played, assuming the graph takes it at real time once queued.
-    int64_t m_queuedUntilUs = 0;
-    void NoteQueuedLocked(size_t bytes);
+    // The queue: a ring of m_ringFrames frames, written under m_lock (feeds,
+    // silence), read by OnProcess().  Positions count frames ever written or
+    // read; a flush moves m_dropTo up to m_writePos and OnProcess() skips to it.
+    std::vector<float> m_ring;
+    uint64_t m_ringFrames = 0;
+    std::atomic<uint64_t> m_writePos{ 0 };
+    std::atomic<uint64_t> m_readPos{ 0 };
+    std::atomic<uint64_t> m_dropTo{ 0 };
+    bool m_warnedFull = false;
+    // One per graph cycle, newest at m_cycleCount - 1: the queue position of
+    // the first frame given to that cycle, how many were given (the rest was
+    // silence), and when (CLOCK_MONOTONIC ns) the first is heard.  `seq` is
+    // odd while OnProcess() writes the record.
+    struct CycleRecord {
+        std::atomic<uint32_t> seq{ 0 };
+        std::atomic<uint64_t> readPos{ 0 };
+        std::atomic<uint32_t> frames{ 0 };
+        std::atomic<int64_t> heardNs{ 0 };
+    };
+    static constexpr int kCycleRecords = 64;
+    CycleRecord m_cycles[kCycleRecords];
+    std::atomic<uint64_t> m_cycleCount{ 0 };
+    // Where each feed buffer went in the queue, and its running time in the
+    // feeding pipeline (HeardRunningTime()); `speed` is the feed's media
+    // seconds per second of sound (SetFeedSpeed()).  Under m_lock.
+    struct FeedSpan {
+        uint64_t queuePos;
+        uint64_t frames;
+        GstClockTime runningTime;
+        double speed;
+        GstElement* feed;
+    };
+    std::deque<FeedSpan> m_feedSpans;
     // Nothing has been handed to the stream since it was last flushed.
     bool m_flushed = false;
+    // The stream's timeline (ContinueTimeline()).  Valid from the first feed
+    // buffer after a flush or an open for as long as what is handed over
+    // stays contiguous: m_timelineEnd is the time on m_clock at which the last
+    // sample handed over is due, in the terms a feed's position maps by.
+    bool m_timelineValid = false;
+    GstClockTime m_timelineEnd = 0;
+    // No feed is attached and the timeline is kept running with silence
+    // until m_bridgeUntilMs (Release()).
+    bool m_bridging = false;
+    uint64_t m_bridgeUntilMs = 0;
+    // When the last track was released, and how much silence the bridge has
+    // laid since (logged when the next track carries on).
+    int64_t m_releasedUs = 0;
+    GstClockTime m_bridgedNs = 0;
+    // The feed attached by ContinueTimeline() has handed nothing over yet
+    // (NoteTimelineLocked()).  m_flushNow: its sound starts so far into its
+    // timeline that it is taken for a fault, and the worker flushes.
+    bool m_continuedFirst = false;
+    bool m_flushNow = false;
     int m_rate = 0;                    // ...and their rate
     bool m_warnedCaps = false;         // logged a feed in the wrong format
     GstElement* m_feed = nullptr;      // appsink currently allowed to feed (no ref held)
@@ -228,6 +360,9 @@ private:
     int64_t m_syncLastHw = 0;          // hw_ptr as last read
     int64_t m_syncWrap = 0;            // added to hw_ptr for each time it wrapped
     std::string m_syncTrigger;         // the card's trigger_time as last read
+    // The card was seen stopped under a feed (an xrun): flush once it runs
+    // again (see DisciplineClock()).
+    bool m_xrunPending = false;
     uint64_t m_lastFlushMs = 0;        // NowMs() of the last Flush() (under m_lock)
     GstClockTime m_syncLastInt = 0;
     // (seconds of internal time, seconds of card time) since the anchor.

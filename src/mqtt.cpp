@@ -350,7 +350,9 @@ int MosquittoClient::Init(const std::string& username, const std::string& passwo
  * must not change.
  */
 int MosquittoClient::PublishRaw(const std::string& topic, const std::string& msg, const bool retain, const int qos) {
-    LogDebug(VB_CONTROL, "Publishing message '%s' on topic '%s'\n", msg.c_str(), topic.c_str());
+    // Truncated: status publishes are multi-KB, and a LogDebug is always
+    // formatted into the crash ring.
+    LogDebug(VB_CONTROL, "Publishing message '%s' on topic '%s'\n", TruncateForLog(msg).c_str(), topic.c_str());
 
     int result;
     {

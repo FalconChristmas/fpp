@@ -28,6 +28,21 @@ public:
     BBBPru(int pru, bool mapShared = false, bool mapOther = false);
     ~BBBPru();
 
+    // Call between writing a frame into the DDR region and writing the PRU
+    // memory word (address, command) that tells the PRU to read it.  The DDR
+    // region is write-combined Normal memory and the PRU memories are Device
+    // memory, and nothing orders stores to the two against each other without
+    // a barrier; the PRU is outside the inner shareable domain, so it has to
+    // be dmb sy, not the dmb ish of __sync_synchronize().  An empty asm with
+    // a "memory" clobber only stops the compiler reordering and emits nothing.
+    static inline void frameDataBarrier() {
+#if defined(__arm__) || defined(__aarch64__)
+        __asm__ __volatile__("dmb sy" ::: "memory");
+#else
+        __asm__ __volatile__("" ::: "memory");
+#endif
+    }
+
     // clearSharedMems: clear the shared RAM and (if mapped) the other
     // PRU's data RAM after the firmware load.  Pass false when another
     // driver owns the other PRU (a shared panels + strings cape) so a

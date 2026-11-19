@@ -102,9 +102,9 @@ static void compilePRUMatrixCode(std::vector<std::string>& sargs) {
 void BBBMatrix::calcBrightnessFlags(std::vector<std::string>& sargs) {
     LogDebug(VB_CHANNELOUT, "Calc Brightness:   maxPanel:  %d    maxOutput: %d     Brightness: %d    rpo: %d    ph:  %d    pw:  %d\n", m_longestChain, m_outputs, m_brightness, m_panelScan, m_panelHeight, m_panelWidth);
 
-    // The tables stop at 8 outputs and 16 panels a chain, and the cape
-    // takes 16 outputs: past the tables this read beyond them.  Use the
-    // nearest entry, the slowest timing the tables know.
+    // The tables stop at 8 outputs (MAX_OUTPUTS) and 16 panels a chain:
+    // past them this read beyond the tables.  Use the nearest entry, the
+    // slowest timing the tables know.
     int to = std::clamp(m_outputs, 1, 8) - 1;
     int tc = std::clamp(m_longestChain, 1, 16) - 1;
     uint32_t max = 0xB00;
@@ -359,12 +359,7 @@ int BBBMatrix::Init(Json::Value config) {
         LogErr(VB_CHANNELOUT, "BBBMatrix: Unable to create PanelMatrix\n");
         return 0;
     }
-    bool usesOutput[16] = {
-        false, false, false, false,
-        false, false, false, false,
-        false, false, false, false,
-        false, false, false, false
-    };
+    bool usesOutput[MAX_OUTPUTS] = {};
     for (int i = 0; i < config["panels"].size(); i++) {
         Json::Value p = config["panels"][i];
         char orientation = 'N';
@@ -376,9 +371,13 @@ int BBBMatrix::Init(Json::Value config) {
         if (p["colorOrder"].asString() == "")
             p["colorOrder"] = ColorOrderToString(m_colorOrder);
 
-        // the cape has at most 16 outputs, and usesOutput is sized for that
-        if (p["outputNumber"].asInt() >= 16) {
-            LogErr(VB_CHANNELOUT, "Invalid panel output number %d\n", p["outputNumber"].asInt());
+        // Only the first MAX_OUTPUTS outputs have pins: m_outputs, and every
+        // table indexed by output, stay within them.  A panel past them used
+        // to raise m_outputs anyway, and buildPrepTables() then read the pins
+        // of an output that has none and indexed with them.
+        if (p["outputNumber"].asInt() < 0 || p["outputNumber"].asInt() >= MAX_OUTPUTS) {
+            LogErr(VB_CHANNELOUT, "Invalid panel output number %d, LED panels drive outputs 1-%d\n", p["outputNumber"].asInt() + 1, MAX_OUTPUTS);
+            AddOutputConfigWarning(20, "BBBMatrix: a panel is on output " + std::to_string(p["outputNumber"].asInt() + 1) + ", past the " + std::to_string(MAX_OUTPUTS) + " outputs LED panels can drive; it is not shown");
             continue;
         }
         // a refused panel (out of range) must not count toward the outputs or chains below
@@ -562,7 +561,7 @@ int BBBMatrix::Init(Json::Value config) {
         if (m_outputs > root["outputs"].size()) {
             m_outputs = root["outputs"].size();
         }
-        for (int x = 0; x < 8; x++) {
+        for (int x = 0; x < MAX_OUTPUTS; x++) {
             if (usesOutput[x] && x < m_outputs) {
                 configurePanelPins(x, root, outputFile, minPort);
             } else {
@@ -820,12 +819,10 @@ int BBBMatrix::Init(Json::Value config) {
     for (int x = 0; x < m_numFrames; x++) {
         memset(m_frames[x], 0x1, m_fullFrameLen);
     }
-    msync(m_frames[0], m_pru->ddr_size, MS_SYNC | MS_INVALIDATE);
     SendData(nullptr);
     for (int x = 0; x < m_numFrames; x++) {
         memset(m_frames[x], 0x0, m_fullFrameLen);
     }
-    msync(m_frames[0], m_pru->ddr_size, MS_SYNC | MS_INVALIDATE);
     SendData(nullptr);
     return ChannelOutput::Init(config);
 }
@@ -1136,9 +1133,9 @@ int BBBMatrix::SendData(unsigned char* channelData) {
         m_curFrame--;
     }
 
-    // make sure memory is flushed before command is set to 1
-    msync(ptr, m_fullFrameLen, MS_SYNC | MS_INVALIDATE);
-    __builtin___clear_cache(ptr, ptr + m_fullFrameLen);
+    // the frame data must reach DDR before its address reaches the PRU (the
+    // DDR region is mapped non-cacheable, so ordering is all it needs)
+    BBBPru::frameDataBarrier();
     m_pruData->address_dma = addr;
 
     __asm__ __volatile__("" ::

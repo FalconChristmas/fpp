@@ -122,4 +122,17 @@ void Colorize(const uint8_t* mask, int w, int h, const Layout& layout,
               Mode mode, const Palette& pal, double phase, bool cyclic,
               uint32_t seed, uint8_t* rgbOut);
 
+/**
+ * Colorize() restricted to the rectangle [rx0, rx1) x [ry0, ry1) of the same
+ * w*h image (clamped to it); pixels outside are left untouched. Every pixel
+ * gets exactly the colour Colorize() would give it. A scrolling effect uses
+ * this to repaint only what is on the model each tick rather than the whole
+ * message. `spanScratch` is reused between calls for the span modes.
+ */
+void ColorizeRegion(const uint8_t* mask, int w, int h, const Layout& layout,
+                    Mode mode, const Palette& pal, double phase, bool cyclic,
+                    uint32_t seed, uint8_t* rgbOut,
+                    int rx0, int ry0, int rx1, int ry1,
+                    std::vector<int32_t>& spanScratch);
+
 } // namespace TextColor

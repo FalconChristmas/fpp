@@ -1243,6 +1243,25 @@ void Sequence::CloseIfOpen(const std::string& filename) {
     }
 }
 
+uint64_t Sequence::OpenGeneration() {
+    std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
+    return m_openGeneration;
+}
+
+void Sequence::CloseSequenceFileIfStill(uint64_t generation) {
+    {
+        std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
+        if (generation != m_openGeneration || !m_seqFile.load()) {
+            return;
+        }
+    }
+    // Outside the lock, as every other caller: CloseSequenceFile() sends the
+    // MultiSync stop before it takes it.  The only opener that could slip in
+    // between is another thread's Start Sequence, and callers of this run on
+    // the main loop with the playlist.
+    CloseSequenceFile();
+}
+
 void Sequence::CloseSequenceFile(void) {
     // These two reads happen before m_sequenceLock is taken below, so they need
     // the snapshot; callers arrive here from the playlist, MultiSync and the
@@ -1307,7 +1326,16 @@ void Sequence::CloseSequenceFile(void) {
 bool Sequence::WriteBridgeData(uint8_t* data, int startChannel, int len) {
     if (this->IsSequenceRunning()) {
         if (m_warn_if_bridging) {
-            WarningHolder::AddWarningTimeout(60 ,11, "Received bridging data while sequence is running.");
+            // Called for every bridged packet, so refresh the warning at most
+            // once a second rather than taking the warnings lock (and logging)
+            // hundreds of times a second.  The 60s timeout still tracks the
+            // last packet to within a second.
+            static std::atomic<long long> lastWarnMS{ 0 };
+            long long now = GetMonotonicTimeMS();
+            long long last = lastWarnMS.load(std::memory_order_relaxed);
+            if (now - last >= 1000 && lastWarnMS.compare_exchange_strong(last, now, std::memory_order_relaxed)) {
+                WarningHolder::AddWarningTimeout(60, 11, "Received bridging data while sequence is running.");
+            }
         }
         if (m_prioritize_sequence_over_bridge) {
             return false;

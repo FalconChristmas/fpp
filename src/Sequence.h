@@ -68,6 +68,12 @@ public:
     void SendBlankingData(void);
     void CloseIfOpen(const std::string& filename);
     void CloseSequenceFile(void);
+    // Every OpenSequenceFile() starts a new generation.  Closing by
+    // generation closes the file only if no other has been opened since:
+    // a sequence left to play out the end of its song's sound
+    // (PlaylistEntrySequence::StopAfter()) must not close the next one.
+    uint64_t OpenGeneration();
+    void CloseSequenceFileIfStill(uint64_t generation);
     void ToggleSequencePause(void);
     void SingleStepSequence(void);
     void SingleStepSequenceBack(void);

@@ -238,9 +238,14 @@ private:
     std::chrono::steady_clock::time_point m_bpWindowStart{};
     void setFrameRateWarning(bool on);
 
-    // predictive frame-rate budget: computed once in Init() from the longest
-    // string, compared against the sequence rate whenever output starts
+    // predictive frame-rate budget: computed in Init() from the longest string
+    // (plus the FalconV5 query frames, see applyV5QueryCost), compared against
+    // the sequence rate whenever output starts
     int m_frameTimeUs = 0;
+    // the same without the FalconV5 query frames, which depend on the query
+    // spacing and so on the frame rate
+    int m_frameTimeBaseUs = 0;
+    void applyV5QueryCost(bool atInit = false);
     float m_lastBudgetRate = -1.0f;
     std::string m_budgetWarnText;
     void checkFrameRateBudget(float rate);

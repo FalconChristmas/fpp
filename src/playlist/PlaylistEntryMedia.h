@@ -27,6 +27,7 @@ public:
     virtual int Init(Json::Value& config) override;
 
     virtual int PreparePlay();
+    virtual void PrepareAhead() override;
     virtual int StartPlaying(void) override;
     virtual int Process(void) override;
     virtual int Stop(void) override;
@@ -63,11 +64,15 @@ public:
     // MediaOutputBase::IsAudible).  True when there is no media output.
     bool IsAudible();
     int32_t GetMediaOffsetMS();
+    // Once the media has ended: when the last of its sound is heard
+    // (GetMonotonicTimeMS()), or 0 if not known (MediaOutputBase::SoundEndMS).
+    uint64_t SoundEndMS() const { return m_soundEndMs; }
 
     int m_status;
 
     long long m_openTime;
     long long m_startTime;
+    uint64_t m_soundEndMs = 0;
     // With a media offset the MultiSync start goes out from Process() once the
     // offset has passed.  Once: there used to be no flag, so it was resent on
     // every main-loop tick for the whole song and remotes restarted their media
@@ -106,6 +111,9 @@ private:
 
     std::string m_fileMode;
     std::vector<std::string> m_files;
+    // A random pick made by PrepareAhead(), which the next PreparePlay()
+    // plays instead of drawing again.
+    std::string m_preparedFile;
 
     int m_pausedTime;
     MediaOutputStatus m_pausedStatus;

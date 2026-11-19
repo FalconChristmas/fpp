@@ -442,6 +442,50 @@ if [ -f "$CRASH_TMP"/fppd_crash_context.log ] && [ -x "$FPPDIR"/scripts/crash_mo
     [ -s "$TEMP_DIR/module_integrity.json" ] || rm -f "$TEMP_DIR/module_integrity.json"
 fi
 
+# fppd's open file descriptors, counted by kind. A player that leaks them
+# crashes once it reaches its limit, often as a library asserting on EMFILE
+# somewhere far from the leak, and the one thing that names the leak is which
+# kind there are a thousand of. fppd passes its pid (FPPD_PID): the crash
+# handler runs this script while the crashed process still holds everything.
+#
+# Shipped at every level, so it carries no names: socket/pipe/anon inode
+# numbers are dropped, anything under the media folder (song, video and user
+# file names) becomes its folder, and only system paths -- /dev, /proc, /sys,
+# /run, the libraries and FPP's own tree -- are kept whole. Any other file is
+# "(other file)".
+FPPD_FD_PID=${FPPD_PID:-$(pidof -s fppd 2>/dev/null)}
+if [ -n "$FPPD_FD_PID" ] && [ -d "/proc/$FPPD_FD_PID/fd" ]; then
+    {
+        echo "# fppd's open file descriptors by kind, as count and kind."
+        echo "# limits: $(grep -i '^Max open files' "/proc/$FPPD_FD_PID/limits" 2>/dev/null | tr -s ' ')"
+        for fd in /proc/"$FPPD_FD_PID"/fd/*; do
+            readlink "$fd"
+        done 2>/dev/null | awk -v media="$MEDIADIR" '
+            {
+                deleted = sub(/ \(deleted\)$/, "")
+                k = $0
+                if (k ~ /^[a-z_]+:\[/) {
+                    sub(/\[[0-9]+\]/, "[N]", k)             # socket:[123], pipe:[123]
+                } else if (k ~ /^anon_inode:/) {
+                    # anon_inode:[eventfd], anon_inode:inotify -- the kind is the point
+                } else if (media != "" && index(k, media "/") == 1) {
+                    rest = substr(k, length(media) + 2)
+                    k = (index(rest, "/") ? media "/" substr(rest, 1, index(rest, "/") - 1) "/*" : media "/*")
+                } else if (k ~ /^\/(dev|proc|sys|run|usr|lib|lib64|bin|sbin|opt\/fpp|var\/log)\//) {
+                    gsub(/\/[0-9]+(\/|$)/, "/N/", k)          # /proc/1234/... and the like
+                    sub(/\/$/, "", k)
+                } else if (k ~ /^\/tmp\/[A-Za-z_-]+\.[A-Za-z0-9]+$/) {
+                    sub(/\.[A-Za-z0-9]+$/, ".*", k)          # /tmp/orcexec.XXXXXX
+                } else {
+                    k = "(other file)"
+                }
+                if (deleted) k = k " (deleted)"
+                n[k]++
+            }
+            END { for (k in n) printf "%6d %s\n", n[k], k }' | sort -rn
+    } > "$TEMP_DIR/fppd_open_files.txt" 2>/dev/null || rm -f "$TEMP_DIR/fppd_open_files.txt"
+fi
+
 # Contact address, if the user gave one.
 #
 # This ships at EVERY level, including "stack traces only". The field exists so

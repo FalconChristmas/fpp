@@ -48,6 +48,11 @@ buf[7]     = Sync Action:
    - 0x01  Stop
    - 0x02  Sync
    - 0x03  Open
+   - 0x04  Prepare (Media only): the master expects to play this file
+           next, in a second or so.  A remote may get its media ready so
+           that the Open and Start which follow begin without delay.  A
+           hint only: the master may play something else instead.
+           Receivers from before it was added ignore it.
 buf[8]     = Sync Type:
    - 0x00  FSEQ
    - 0x01  Media

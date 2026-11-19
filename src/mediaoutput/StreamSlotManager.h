@@ -55,6 +55,9 @@ public:
     /// that lands in between leaves the slot alone instead of wiping what the
     /// new one has already written.
     void ClaimSlot(int slot, GStreamerOutput* output);
+    /// Whether `output` may write the slot's status: no other output has
+    /// claimed the slot since.
+    bool ClaimedByOrFree(int slot, GStreamerOutput* output);
 
     /// Clear a slot when playback finishes.  If `owner` is non-null, the slot
     /// is only cleared when it is still registered to that instance -- a
@@ -132,7 +135,9 @@ private:
         MediaOutputStatus status = {};
         GStreamerOutput* activeOutput = nullptr;
         GStreamerOutput* closingOutput = nullptr;  // detached, Close() not finished
-        GStreamerOutput* claimedBy = nullptr;      // started on this slot (ClaimSlot)
+        // Started on this slot (ClaimSlot).  Written under m_mutex; read
+        // without it by ClaimedByOrFree(), which a bus sync handler calls.
+        std::atomic<GStreamerOutput*> claimedBy{ nullptr };
         std::string mediaFilename;
         bool isBackground = false;  // background slots don't block playlist
         bool syncToMaster = false;  // follow the primary media's clock

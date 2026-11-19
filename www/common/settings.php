@@ -58,7 +58,18 @@ function SetRTC($rtc)
 
 function RestartNTPD()
 {
-    exec("sudo systemctl restart chrony");
+    // Wait for the restart only once boot is over, so a Settings page save
+    // returns with the new server in use. During boot ("starting"), queue it
+    // with --no-block instead: chrony is ordered after fpp_postnetwork (and on
+    // a BeagleBone after fppd, apache2 and php-fpm too; fpp-defer.conf from
+    // FPP_Install.sh), and fpp_postnetwork is ordered after fppinit. The
+    // "settings" boot action runs inside `fppinit start`, so waiting there
+    // deadlocks until fppinit is killed at its start timeout, before
+    // setupNetwork() has run. The queued restart runs once those units are up
+    // and reads the chrony.conf written above.
+    $state = exec("systemctl is-system-running 2>/dev/null");
+    $block = ($state == "running" || $state == "degraded");
+    exec("sudo systemctl " . ($block ? "" : "--no-block ") . "restart chrony");
 }
 
 function SetNTPServer($value)
@@ -277,9 +288,9 @@ function SetForceHDMI($value)
 function SetEnableBBBHDMI($value)
 {
     if ($value == '1') {
-        exec("sudo sed -i -e 's/^disable_uboot_overlay_video/#disable_uboot_overlay_video/' " . GetDirSetting('boot') . "/uEnv.txt", $output, $return_val);
+        exec("sudo sed -i -e 's/^disable_uboot_overlay_video/#disable_uboot_overlay_video/' " . escapeshellarg(GetDirSetting('boot') . "/uEnv.txt"), $output, $return_val);
     } else {
-        exec("sudo sed -i -e 's/#disable_uboot_overlay_video/disable_uboot_overlay_video/' " . GetDirSetting('boot') . "/uEnv.txt", $output, $return_val);
+        exec("sudo sed -i -e 's/#disable_uboot_overlay_video/disable_uboot_overlay_video/' " . escapeshellarg(GetDirSetting('boot') . "/uEnv.txt"), $output, $return_val);
     }
 }
 function SetForceHDMIResolution($value, $postfix)
@@ -306,19 +317,19 @@ function SetForceHDMIResolution($value, $postfix)
     }
 
     if ($settings["Platform"] == "BeagleBone Black") {
-        exec("sudo sed -i -e 's/^cmdline\(.*\) video=HDMI-A-1:\([A-Za-z@0-9]*\)\(.*\)/cmdline\\1 \\3/' " . GetDirSetting('boot') . "/uEnv.txt", $output, $return_val);
-        exec("sudo sed -i 's/[ \\t]*$//' " . GetDirSetting('boot') . "/uEnv.txt", $output, $return_val);
+        exec("sudo sed -i -e 's/^cmdline\(.*\) video=HDMI-A-1:\([A-Za-z@0-9]*\)\(.*\)/cmdline\\1 \\3/' " . escapeshellarg(GetDirSetting('boot') . "/uEnv.txt"), $output, $return_val);
+        exec("sudo sed -i 's/[ \\t]*$//' " . escapeshellarg(GetDirSetting('boot') . "/uEnv.txt"), $output, $return_val);
         if ($value != 'Default') {
-            exec("sudo sed -i -e 's/^cmdline\(.*\)/cmdline\\1 video=HDMI-A-1:" . $value . "/' " . GetDirSetting('boot') . "/uEnv.txt", $output, $return_val);
+            exec("sudo sed -i -e 's/^cmdline\(.*\)/cmdline\\1 video=HDMI-A-1:" . $value . "/' " . escapeshellarg(GetDirSetting('boot') . "/uEnv.txt"), $output, $return_val);
         }
     } else {
         $parts = explode("@", $value);
         $numParts = count($parts);
         if ($numParts == 2 || $value == "Default") {
-            exec("sudo sed -i -e 's/^c\(.*\) video=HDMI-A-" . $postfix . ":\([A-Za-z@0-9]*\)\(.*\)/c\\1 \\3/' " . GetDirSetting('boot') . "/cmdline.txt", $output, $return_val);
-            exec("sudo sed -i 's/[ \\t]*$//' " . GetDirSetting('boot') . "/cmdline.txt", $output, $return_val);
+            exec("sudo sed -i -e 's/^c\(.*\) video=HDMI-A-" . $postfix . ":\([A-Za-z@0-9]*\)\(.*\)/c\\1 \\3/' " . escapeshellarg(GetDirSetting('boot') . "/cmdline.txt"), $output, $return_val);
+            exec("sudo sed -i 's/[ \\t]*$//' " . escapeshellarg(GetDirSetting('boot') . "/cmdline.txt"), $output, $return_val);
             if ($value != 'Default') {
-                exec("sudo sed -i -e 's/^c\(.*\)/c\\1 video=HDMI-A-" . $postfix . ":" . $value . "/' " . GetDirSetting('boot') . "/cmdline.txt", $output, $return_val);
+                exec("sudo sed -i -e 's/^c\(.*\)/c\\1 video=HDMI-A-" . $postfix . ":" . $value . "/' " . escapeshellarg(GetDirSetting('boot') . "/cmdline.txt"), $output, $return_val);
             }
         } else {
             //  likely old format, not really easy to migrate
@@ -330,7 +341,7 @@ function SetInstalledCape($value)
 {
     global $settings;
     if ($value == "--None--") {
-        exec("sudo rm -f " . $settings['configDirectory'] . "/cape-eeprom.bin", $output, $return_val);
+        exec("sudo rm -f " . escapeshellarg($settings['configDirectory'] . "/cape-eeprom.bin"), $output, $return_val);
     } else {
         $directory = $settings["fppDir"] . "/capes";
         if ($settings['Platform'] == "Raspberry Pi") {
@@ -348,9 +359,9 @@ function SetInstalledCape($value)
             return;
         }
         exec("sudo cp -f " . escapeshellarg($eeprom) . " " . escapeshellarg($settings['configDirectory'] . "/cape-eeprom.bin"), $output, $return_val);
-        exec("sudo chown fpp:fpp " . $settings['configDirectory'] . "/cape-eeprom.bin", $output, $return_val);
+        exec("sudo chown fpp:fpp " . escapeshellarg($settings['configDirectory'] . "/cape-eeprom.bin"), $output, $return_val);
     }
-    exec("sudo " . $settings['fppBinDir'] . "/fppcapedetect", $output, $return_val);
+    exec("sudo " . escapeshellarg($settings['fppBinDir'] . "/fppcapedetect"), $output, $return_val);
 }
 /////////////////////////////////////////////////////////////////////////////
 function ApplyServiceSetting($setting, $value, $now)
@@ -362,7 +373,7 @@ function ApplyServiceSetting($setting, $value, $now)
             // background.  The script applies whatever value is saved when it
             // runs, serialized per setting, so an off/on toggle can't race
             // (issue #3107); $value has already been written to the file.
-            exec("sudo " . $settings['fppDir'] . "/scripts/apply_service_setting " . $setting . ($now == "--now" ? " --now" : "") . " >/dev/null 2>&1 &");
+            exec("sudo " . escapeshellarg($settings['fppDir'] . "/scripts/apply_service_setting") . " " . $setting . ($now == "--now" ? " --now" : "") . " >/dev/null 2>&1 &");
         }
     }
 }
@@ -416,13 +427,13 @@ function SetGPIOFanProperties()
     // then no line was written at all.
     if (!preg_match('/^#?dtoverlay=gpio-fan/m', $contents)) {
         $contents = $contents . "\n";
-        exec("echo \"\" | sudo tee -a " . GetDirSetting('boot') . "/config.txt");
-        exec("echo \"[all]\" | sudo tee -a " . GetDirSetting('boot') . "/config.txt");
-        exec("echo \"" . $pfx . "dtoverlay=gpio-fan,gpiopin=14,temp=" . $fanTemp . "\" | sudo tee -a " . GetDirSetting('boot') . "/config.txt");
-        exec("echo \"\" | sudo tee -a " . GetDirSetting('boot') . "/config.txt");
+        exec("echo \"\" | sudo tee -a " . escapeshellarg(GetDirSetting('boot') . "/config.txt"));
+        exec("echo \"[all]\" | sudo tee -a " . escapeshellarg(GetDirSetting('boot') . "/config.txt"));
+        exec("echo \"" . $pfx . "dtoverlay=gpio-fan,gpiopin=14,temp=" . $fanTemp . "\" | sudo tee -a " . escapeshellarg(GetDirSetting('boot') . "/config.txt"));
+        exec("echo \"\" | sudo tee -a " . escapeshellarg(GetDirSetting('boot') . "/config.txt"));
     } else {
-        exec("sudo sed -i -e 's/^dtoverlay=gpio-fan\(.*\)$/" . $pfx . "dtoverlay=gpio-fan,gpiopin=14,temp=" . $fanTemp . "/g' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
-        exec("sudo sed -i -e 's/^#dtoverlay=gpio-fan\(.*\)$/" . $pfx . "dtoverlay=gpio-fan,gpiopin=14,temp=" . $fanTemp . "/g' " . GetDirSetting('boot') . "/config.txt", $output, $return_val);
+        exec("sudo sed -i -e 's/^dtoverlay=gpio-fan\(.*\)$/" . $pfx . "dtoverlay=gpio-fan,gpiopin=14,temp=" . $fanTemp . "/g' " . escapeshellarg(GetDirSetting('boot') . "/config.txt"), $output, $return_val);
+        exec("sudo sed -i -e 's/^#dtoverlay=gpio-fan\(.*\)$/" . $pfx . "dtoverlay=gpio-fan,gpiopin=14,temp=" . $fanTemp . "/g' " . escapeshellarg(GetDirSetting('boot') . "/config.txt"), $output, $return_val);
     }
 }
 
@@ -487,12 +498,12 @@ function SetupScreenBlanking($value)
 
     if ($settings["Platform"] == "Raspberry Pi") {
         if ($value == 0) {
-            $cmd = "sudo sed -i -e 's/^c\(.*\)consoleblank=[0-9]*\(.*\)/c\\1 \\2/' " . GetDirSetting('boot') . "/cmdline.txt";
+            $cmd = "sudo sed -i -e 's/^c\(.*\)consoleblank=[0-9]*\(.*\)/c\\1 \\2/' " . escapeshellarg(GetDirSetting('boot') . "/cmdline.txt");
         } else {
-            $cmd = "sudo sed -i -e 's/^c\(.*\) */c\\1 consoleblank=" . $timeout . "/' " . GetDirSetting('boot') . "/cmdline.txt";
+            $cmd = "sudo sed -i -e 's/^c\(.*\) */c\\1 consoleblank=" . $timeout . "/' " . escapeshellarg(GetDirSetting('boot') . "/cmdline.txt");
         }
         exec($cmd, $output, $return_val);
-        exec("sudo sed -i -e 's/  */ /g' " . GetDirSetting('boot') . "/cmdline.txt", $output, $return_val);
+        exec("sudo sed -i -e 's/  */ /g' " . escapeshellarg(GetDirSetting('boot') . "/cmdline.txt"), $output, $return_val);
     }
 }
 
@@ -512,8 +523,9 @@ function ApplySetting($setting, $value)
             SetNTPServer($value);
             break;
         case 'UseNTPFromDHCP':
-            // Reconfigure network to apply UseNTP setting
-            exec("sudo " . $settings['fppDir'] . "/src/fppinit configureNetwork", $output);
+            // Rewrites the networkd files' UseNTP= and refreshes chrony's DHCP
+            // sources. In the background: it waits for the renewed lease.
+            exec("sudo " . escapeshellarg($settings['fppDir'] . "/src/fppinit") . " applyNTPFromDHCP > /dev/null 2>&1 &");
             break;
         case 'passwordEnable':
             EnableUIPassword($value);
@@ -567,22 +579,22 @@ function ApplySetting($setting, $value)
             // capes that ship DisablePiRTC in defaultSettings), so don't duplicate
             // the edit here.  It won't reboot -- the setting is declared
             // "reboot": 1, so the UI is already prompting for that.
-            exec("sudo " . $settings['fppDir'] . "/src/fppinit setupPiRTC", $output);
+            exec("sudo " . escapeshellarg($settings['fppDir'] . "/src/fppinit") . " setupPiRTC", $output);
             break;
         case 'DisableHDMICECInit':
             // fppinit owns the config.txt block. The setting is declared
             // "reboot": 1, so the UI already prompts for reboot.
-            exec("sudo " . $settings['fppDir'] . "/src/fppinit setupHDMICEC", $output);
+            exec("sudo " . escapeshellarg($settings['fppDir'] . "/src/fppinit") . " setupHDMICEC", $output);
             break;
         case 'WifiAntenna':
             // fppinit owns the config.txt block. The setting is declared
             // "reboot": 1, so the UI already prompts for reboot.
-            exec("sudo " . $settings['fppDir'] . "/src/fppinit setupWifiAntenna", $output);
+            exec("sudo " . escapeshellarg($settings['fppDir'] . "/src/fppinit") . " setupWifiAntenna", $output);
             break;
         case 'Pi16KPageKernel':
             // fppinit owns the kernel swap and re-applies it at boot. The setting
             // is declared "reboot": 1, so the UI already prompts for reboot.
-            exec("sudo " . $settings['fppDir'] . "/src/fppinit setup16KPageKernel", $output);
+            exec("sudo " . escapeshellarg($settings['fppDir'] . "/src/fppinit") . " setup16KPageKernel", $output);
             break;
         case 'screensaver':
             SetupScreenBlanking($value);
@@ -607,7 +619,7 @@ function ApplySetting($setting, $value)
                 // Dynamic fan thermal trip settings (PrintFanThermalSettings in
                 // common.php).  fppinit owns the sysfs writes so the live apply
                 // here and the boot-time re-apply share a single implementation.
-                exec("sudo " . $settings['fppDir'] . "/src/fppinit applyThermal", $output);
+                exec("sudo " . escapeshellarg($settings['fppDir'] . "/src/fppinit") . " applyThermal", $output);
             } else {
                 ApplyServiceSetting($setting, $value, "--now");
             }

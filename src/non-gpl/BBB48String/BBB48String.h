@@ -66,8 +66,16 @@ private:
     class FrameData {
     public:
         std::vector<int> gpioStringMap;
+        // The two frame buffers the PRU reads, in the shared DDR region.
+        // Write-only from the ARM: the region is not cache coherent with the
+        // PRU, so anything that reads a buffer pulls its lines into the cache
+        // and the next frame's writes to them never reach DDR (GH #3200).
         uint8_t* lastData = nullptr;
         uint8_t* curData = nullptr;
+        // The frame is formatted and compared here, in ordinary memory, then
+        // copied to the PRU memories and to curData.
+        std::vector<uint8_t> fmtCur;
+        std::vector<uint8_t> fmtLast;
         uint32_t frameSize = 0;
         int maxStringLen = 0;
         bool copyToPru = true;

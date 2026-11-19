@@ -279,7 +279,7 @@ int main(int argc, char* argv[]) {
             // - and now, which plugin/UserCallbackHook scripts it found and ran -
             // should land in fppd.log rather than nowhere.
             teeOutput(logFile, "fppinit", "Scripts", getpid());
-        } else if (action == "setupNetwork" || action == "checkForTether" || action == "maybeRemoveTether") {
+        } else if (action == "setupNetwork" || action == "checkForTether" || action == "maybeRemoveTether" || action == "applyNTPFromDHCP") {
             // These drive AP<->client WiFi transitions (the interactive "Restart
             // Network" apply, and the networkd-dispatcher-triggered tether
             // watchdog/removal). Without this, their output only reaches
@@ -320,6 +320,14 @@ int main(int argc, char* argv[]) {
     }
     printf("\n");
     if (action == "start") {
+        // www/common.php caches the system UUID and its source here and treats
+        // the cache as once-per-boot.  In a container /tmp is the writable layer
+        // and survives restarts and in-place upgrades, so a UUID an older
+        // scripts/get_uuid took from the image's shared machine-id was being
+        // served for good, even after get_uuid stopped producing it.  Drop both
+        // so each start asks the current get_uuid again.
+        unlink("/tmp/fpp_uuid");
+        unlink("/tmp/fpp_uuid_source");
         if (!FileExists("/etc/fpp/container")) {
 #ifdef CAPEDETECT
             printf("FPP - Cleaning tmp\n");
@@ -551,6 +559,24 @@ int main(int argc, char* argv[]) {
         detectNetworkModules();
         maybeEnableTethering();
         unlink(networkSetupMut.c_str());
+    } else if (action == "applyNTPFromDHCP") {
+        // The UseNTPFromDHCP setting changed. Two things follow it: the
+        // networkd files (UseNTP=no stops networkd asking the DHCP server for
+        // NTP servers at all, so the lease has none to offer) and chrony's
+        // sources in /run/chrony-dhcp, which the routable.d hook fills from the
+        // leases. setupNetwork() rewrites the files, and networkd reloads when
+        // one changed, renewing the lease with the new request list. Refresh
+        // chrony's sources now, and again once the renewed lease is likely in:
+        // a reload keeps the link routable, so the hook doesn't run by itself.
+        if (!FileExists("/etc/fpp/desktop") && !getRawSettingInt("SkipNetworkReset", 0)) {
+            PutFileContents(networkSetupMut, "1");
+            setupNetwork(false);
+            unlink(networkSetupMut.c_str());
+        }
+        static const std::string hook = "/opt/fpp/etc/networkd-dispatcher/routable.d/chrony --sources-only";
+        exec(hook);
+        sleep(10);
+        exec(hook);
     } else if (action == "checkForTether") {
         if (!FileExists(networkSetupMut)) {
             std::string a = execAndReturn("systemctl is-active fpp_postnetwork");

@@ -8,6 +8,8 @@
 #
 #   - magic header (bytes 0-1) not AA55, i.e. nothing was written at all
 #   - valid header but the serial number (bytes 52-55) still all FF
+#   - valid header but the template write stopped part way, leaving the board ID
+#     (bytes 46-49) and everything after the cut-off still FF
 #
 # Neither is cosmetic.  u-boot's SPL only applies the 1GB DDRSS timings when the
 # EEPROM identifies the board as the industrial variant, so a PocketBeagle2
@@ -171,7 +173,7 @@ fi
 # An EEPROM that answers the probe read but fails a real one lands here otherwise as
 # an empty header, which reads as "blank" -- and sends a board whose i2c is failing
 # down the repair path to abort later with a misleading complaint about the write.
-GOT=$(dd if="${EEPROM}" bs=1 count=64 2>/dev/null | wc -c)
+GOT=$(dd if="${EEPROM}" bs=1 count=64 2>/dev/null | wc -c | tr -d ' ')
 [ "${GOT}" = "64" ] || fatal "${EEPROM} exists but a 64-byte read returned ${GOT} bytes.
 
   The at24 driver bound, so 0x50 answered at probe time, but it is not serving
@@ -190,8 +192,20 @@ UNIT=$(read_field 50 6)
 # Offset 46 holds the board ID: "PB2I" on the industrial board, "PB20" on the base
 # one.  It survives the "valid header, blank serial" failure mode, so read it
 # whenever the header is there at all.
+#
+# But a valid header does not mean the board ID was written: boards also turn up
+# with the template write cut off part way, e.g. magic and the first few bytes of
+# the board name, then 0xFF from offset 0x10 on.  An ID with any byte still 0xFF
+# was never programmed, so it is no evidence either way -- treat it as blank and
+# let the eMMC decide, and the merge then fills it in.  Rejecting it as
+# "unrecognised" refused a board the fix repairs without trouble.
 BOARDID=""
-[ "${MAGIC}" = "aa55" ] && BOARDID=$(read_field 46 4)
+if [ "${MAGIC}" = "aa55" ]; then
+    case "$(read_field 46 4 | xxd -p)" in
+        *ff*) info "EEPROM: header valid but the board ID is not programmed" ;;
+        *)    BOARDID=$(read_field 46 4) ;;
+    esac
+fi
 
 # Which board is this really?
 #
@@ -227,10 +241,10 @@ if [ -n "${BOARDID}" ]; then
     esac
 elif emmc_present; then
     INDUSTRIAL=true
-    info "EEPROM: header blank; eMMC is present, so this is the industrial board."
+    info "EEPROM: board ID blank; eMMC is present, so this is the industrial board."
 else
     INDUSTRIAL=false
-    info "EEPROM: header blank and no eMMC found, so this is the base board."
+    info "EEPROM: board ID blank and no eMMC found, so this is the base board."
 fi
 
 # An EEPROM that claims to be the base board on hardware that has eMMC is the one
@@ -248,12 +262,31 @@ if [ "${INDUSTRIAL}" = "false" ] && [ -n "${BOARDID}" ] && emmc_present; then
   Rewriting it needs a deliberate, destructive write; refusing to guess here."
 fi
 
+# Bytes 0..0x3d are the whole identity blob u-boot parses -- header, board-info
+# record, DDR record, 0xFE end marker -- and a factory board has no 0xFF anywhere
+# in it.  The serial-number write is a separate step from the template write, so
+# it can succeed after the template stopped part way: magic and unit number
+# fine, board ID or date still blank.  Checking only those two fields called
+# that board healthy, and it then had no usable board serial (scripts/get_uuid
+# fell back to the image's shared machine-id).  The merge fills exactly the bytes
+# that are still 0xFF, so this is precisely what it can repair.
+#
+# Keep this in step with pb2EepromValid() in src/boot/FPPINIT_Config.cpp, which
+# decides at boot whether to run this script at all.
+IDENTITY_LEN=62
+identity_complete() {
+    ! read_field 0 "${IDENTITY_LEN}" | xxd -p -c1 | grep -qx ff
+}
+
 NEEDS_FIX=false
 if [ "${MAGIC}" != "aa55" ]; then
     info "EEPROM: header invalid (expected aa55, got ${MAGIC:-empty})"
     NEEDS_FIX=true
 elif ! [[ "${UNIT}" =~ ^[0-9]{6}$ ]]; then
     info "EEPROM: header valid but the unit number is blank or malformed"
+    NEEDS_FIX=true
+elif ! identity_complete; then
+    info "EEPROM: header valid but part of the board identity was never written"
     NEEDS_FIX=true
 fi
 
@@ -283,6 +316,8 @@ BOARDID=$(read_field 46 4)
 [ "${MAGIC}" = "aa55" ] || fatal "still no valid header after the repair (magic=${MAGIC:-empty}).
   The EEPROM did not accept the write.  This board must not be flashed."
 [[ "${UNIT}" =~ ^[0-9]{6}$ ]] || fatal "unit number is still blank or malformed after the repair (unit=${UNIT}).
+  The EEPROM did not accept the write.  This board must not be flashed."
+identity_complete || fatal "part of the board identity (bytes 0-61) is still unprogrammed after the repair.
   The EEPROM did not accept the write.  This board must not be flashed."
 
 if [ "${INDUSTRIAL}" = "true" ]; then

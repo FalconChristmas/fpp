@@ -110,7 +110,10 @@ function PrintStorageDeviceSelect($platform)
     global $settings;
 
     //exec('lsblk -l | grep ' . GetDirSetting('boot') . ' | cut -f1 -d" " | sed -e "s/p[0-9]$//"', $output, $return_val);
-    exec('lsblk -l | grep ' . GetDirSetting('boot') . ' | cut -f1 -d" "', $output, $return_val);
+    // The directory comes from settings and goes through a shell; quote it so
+    // a path with a space or a metacharacter stays one argument.
+    $bootDirArg = escapeshellarg(GetDirSetting('boot'));
+    exec('lsblk -l | grep ' . $bootDirArg . ' | cut -f1 -d" "', $output, $return_val);
     if (count($output) > 0) {
         $bootDevice = $output[0];
     } else {
@@ -135,10 +138,13 @@ function PrintStorageDeviceSelect($platform)
     }
 
     $storageDevice = "";
-    exec('findmnt -no source -T ' . GetSettingValue('mediaDirectory') . '  | sed -e "s/\/dev\///"', $output, $return_val);
-    if (isset($output[0]))
-        $storageDevice = $output[0];
-    unset($output);
+    $mediaDir = GetSettingValue('mediaDirectory');
+    if ($mediaDir !== '') {
+        exec('findmnt -no source -T ' . escapeshellarg($mediaDir) . '  | sed -e "s/\/dev\///"', $output, $return_val);
+        if (isset($output[0]))
+            $storageDevice = $output[0];
+        unset($output);
+    }
 
     $found = 0;
     $values = array();
@@ -149,7 +155,10 @@ function PrintStorageDeviceSelect($platform)
             (preg_match("/^mmcblk[0-9]p[0-9]/", $fileName)) ||
             (preg_match("/^nvme[0-9]n[0-9]p[0-9]/", $fileName))
         ) {
-            exec($SUDO . " sfdisk -s /dev/$fileName", $output, $return_val);
+            // Device names come from /dev; quote them so a name is an argument,
+            // not shell syntax.
+            $devArg = escapeshellarg("/dev/" . $fileName);
+            exec($SUDO . " sfdisk -s " . $devArg, $output, $return_val);
             $GB = isset($output[0]) ? intval($output[0]) / 1024.0 / 1024.0 : 0;
             unset($output);
 
@@ -157,7 +166,7 @@ function PrintStorageDeviceSelect($platform)
                 continue;
 
             $FreeGB = "Not Mounted";
-            exec("df -k /dev/$fileName | grep $fileName | awk '{print $4}'", $output, $return_val);
+            exec("df -k " . $devArg . " | grep " . escapeshellarg($fileName) . " | awk '{print $4}'", $output, $return_val);
             if (count($output)) {
                 $FreeGB = sprintf("%.1fGB Free", intval($output[0]) / 1024.0 / 1024.0);
                 unset($output);
@@ -400,7 +409,8 @@ if (!empty($systems_UsbDevices)) {
         if ($deviceIsUsable != '') {
             $foundAMountedDevice = true;
             //find where mounted
-            $usbMountLocation = shell_exec('findmnt -nr -o target -S /dev/' . $usbName);
+            $usbDevArg = escapeshellarg("/dev/" . $usbName);
+            $usbMountLocation = shell_exec('findmnt -nr -o target -S ' . $usbDevArg);
             $usbMountLocation_folder = trim(str_replace("/mnt/", "", $usbMountLocation));
             // Device strings (vendor, model, label, the names of open files) come
             // from whatever is plugged in, so everything below is escaped.
@@ -409,7 +419,7 @@ if (!empty($systems_UsbDevices)) {
             $usbNameHtml = htmlspecialchars($usbName, ENT_QUOTES, 'UTF-8');
 
             //Find what files are open for the mount
-            $openFiles = trim(shell_exec("sudo lsof +f -- /dev/$usbName"));
+            $openFiles = trim(shell_exec("sudo lsof +f -- " . $usbDevArg));
             ?>
             <div id="unmount_<?php echo $usbNameHtml; ?>" class="row">
                 <div id="mounted-usb-info" class="row">

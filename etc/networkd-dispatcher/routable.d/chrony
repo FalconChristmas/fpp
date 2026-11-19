@@ -1,5 +1,6 @@
 #!/bin/sh
-# Runs when an interface becomes routable. Two jobs:
+# Runs when an interface becomes routable (networkd-dispatcher passes no
+# arguments). Two jobs:
 #   1. Reconcile DHCP-provided NTP servers with the UseNTPFromDHCP setting.
 #   2. On a runtime network reconnect, nudge chrony to re-measure (and step if
 #      the clock is off by more than a second).
@@ -30,6 +31,10 @@ else
     rm -f /run/chrony-dhcp/dhcp.sources
 fi
 /usr/bin/chronyc reload sources > /dev/null 2>&1 || true
+
+# fppinit applyNTPFromDHCP runs this copy for part 1 alone when the setting
+# changes.
+[ "$1" = "--sources-only" ] && exit 0
 
 # --- 2. Runtime reconnect resync -------------------------------------------
 UPTIME=$(awk '{print int($1)}' /proc/uptime 2>/dev/null)

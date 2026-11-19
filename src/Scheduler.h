@@ -133,6 +133,8 @@ private:
     void SetItemRan(ScheduledItem& item, bool ran);
 
     ScheduledItem* GetNextScheduledPlaylist();
+    std::string NextPlaylistNameFor(ScheduledItem* item);
+    std::string NextPlaylistStartStrFor(ScheduledItem* item, const std::string& timeFmt);
     void LoadScheduleFromFile(void);
     void SchedulePrint(void);
     std::string GetDayTextFromDayIndex(const int index);

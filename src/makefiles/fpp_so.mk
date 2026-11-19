@@ -78,6 +78,7 @@ OBJECTS_fpp_so += \
 	mediaoutput/PipeWireGraphConfig.o \
 	mediaoutput/PipeWireOutputStream.o \
 	mediaoutput/DrmCards.o \
+	mediaoutput/VideoDisplay.o \
 	mediaoutput/GStreamerOut.o \
 	mediaoutput/StreamSlotManager.o \
 	mediaoutput/V4L2Device.o \
@@ -176,7 +177,7 @@ LIBS_fpp_so += \
 # the PCH and the mediaoutput/ class layouts diverge (see the note there).
 # Only the core links them, so the libraries are picked up here.  Both
 # variables are empty when the library is absent, so no guard is needed.
-LIBS_fpp_so += $(GSTREAMER_LIBS) $(LIBDRM_LIBS) $(SAMPLERATE_LIBS)
+LIBS_fpp_so += $(GSTREAMER_LIBS) $(LIBDRM_LIBS) $(SAMPLERATE_LIBS) $(PIPEWIRE_LIBS)
 
 
 util/tinyexpr.o: util/tinyexpr.c fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk $(PCH_FILE)

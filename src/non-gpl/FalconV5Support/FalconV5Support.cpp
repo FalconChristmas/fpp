@@ -22,6 +22,7 @@
 #include "OutputMonitor.h"
 #include "Warnings.h"
 #include "common.h"
+#include "settings.h"
 #include "channeloutput/PixelString.h"
 #include "channeloutput/serialutil.h"
 #include "util/GPIOUtils.h"
@@ -111,7 +112,20 @@ public:
     uint8_t* data = nullptr;
 };
 
+// a round of queries starts at least this often when the spacing is
+// automatic: every receiver is still polled about twice a second
+static constexpr float MAX_QUERY_ROUND_US = 500000.0f;
+// the automatic spacing keeps the average query cost below this share of the
+// period's slack
+static constexpr float QUERY_SLACK_MARGIN = 0.8f;
+
 FalconV5Support::FalconV5Support() {
+    // one object per output init, so a config reload re-reads the override
+    queryRestOverride = std::clamp(getSettingInt("FalconV5QueryRestFrames", -1), -1, 10000);
+    if (queryRestOverride >= 0) {
+        queryRestFrames = queryRestOverride;
+        LogInfo(VB_CHANNELOUT, "FalconV5: FalconV5QueryRestFrames = %d (test override of the automatic query spacing)\n", queryRestOverride);
+    }
     OutputMonitor::INSTANCE.setSmartReceiverEventCallback([this](int port, int index, const std::string& cmd) {
         PendingToggle pt;
         pt.port = (int16_t)port;
@@ -122,6 +136,13 @@ FalconV5Support::FalconV5Support() {
             pt.cmd = ToggleCommand::Reset;
         } else {
             return;
+        }
+        {
+            std::unique_lock<std::mutex> lock(queriedPortsLock);
+            if (port < 0 || port >= (int)queriedPorts.size() || !queriedPorts[port]) {
+                LogDebug(VB_CHANNELOUT, "FalconV5: %s for port %d dropped, no queried V5 chain covers it\n", cmd.c_str(), port);
+                return;
+            }
         }
         pendingToggle.store(pt);
     });
@@ -223,17 +244,73 @@ static uint8_t readByte(uint8_t* data, int& pos) {
 }
 
 float FalconV5Support::queryFrameShare() const {
-    if (!pru) {
-        return 0.0f;
-    }
+    return queryFrameShare(queryRestFrames);
+}
+
+int FalconV5Support::queriedReceivers() const {
     int receivers = 0;
     for (auto c : maxCount) {
         receivers += c;
     }
+    return receivers;
+}
+
+int FalconV5Support::queriedMuxes() const {
+    int muxes = 0;
+    for (auto c : maxCount) {
+        if (c > 0) {
+            muxes++;
+        }
+    }
+    return muxes;
+}
+
+float FalconV5Support::queryFrameShare(int restFrames) const {
+    if (!pru) {
+        return 0.0f;
+    }
+    int receivers = queriedReceivers();
     if (receivers == 0) {
         return 0.0f;
     }
-    return (float)receivers / (float)(receivers + maxCount.size());
+    return (float)receivers / (float)(receivers + queriedMuxes() * (1 + restFrames));
+}
+
+bool FalconV5Support::setFrameBudget(float frameRate, int frameTimeWithoutQueriesUs, int queryFrameCostUs) {
+    int rest = queryRestFrames;
+    if (queryRestOverride >= 0) {
+        rest = queryRestOverride;
+    } else if (frameRate > 0.0f && frameTimeWithoutQueriesUs > 0 && queryFrameCostUs > 0 && queryFrameShare(0) > 0.0f) {
+        const int receivers = queriedReceivers();
+        const float muxes = (float)queriedMuxes();
+        const float periodUs = 1000000.0f / frameRate;
+        const float slackUs = periodUs - (float)frameTimeWithoutQueriesUs;
+        // a round is one frame per query plus (1 + rest) rest frames per mux;
+        // the cap keeps a round within MAX_QUERY_ROUND_US
+        int maxRest = (int)((MAX_QUERY_ROUND_US / periodUs - (float)receivers) / muxes) - 1;
+        maxRest = std::max(0, maxRest);
+        if (slackUs >= (float)queryFrameCostUs) {
+            // a query frame fits as it is: keep the fast status updates
+            rest = 0;
+        } else if (slackUs <= 0.0f) {
+            // over budget without any queries: poll as rarely as the cap
+            // allows and leave the rest to the over-budget warning
+            rest = maxRest;
+        } else {
+            // the smallest rest whose average query cost fits the slack:
+            // share(rest) * cost <= target  <=>  muxes * (1 + rest) >= receivers * (cost - target) / target
+            const float targetUs = slackUs * QUERY_SLACK_MARGIN;
+            const float need = (float)receivers * ((float)queryFrameCostUs - targetUs) / (targetUs * muxes) - 1.0f;
+            rest = std::clamp((int)std::ceil(need), 0, maxRest);
+        }
+    }
+    if (rest == queryRestFrames) {
+        return false;
+    }
+    queryRestFrames = rest;
+    LogInfo(VB_CHANNELOUT, "FalconV5: %d extra rest frame(s) per query round at %.4g fps -> queries on %.1f%% of frames\n",
+            queryRestFrames, frameRate, queryFrameShare() * 100.0f);
+    return true;
 }
 
 void FalconV5Support::stageListenerData() {
@@ -386,6 +463,18 @@ FalconV5Support::ReceiverChain* FalconV5Support::addReceiverChain(PixelString* p
         }
     }
     queryData[m][group].push_back(rc);
+    if (p1 && p1->m_portNumber >= 0) {
+        // generateDynamicPacket() hands a toggle to the chain whose first
+        // port is within 4 below it
+        std::unique_lock<std::mutex> lock(queriedPortsLock);
+        size_t end = (size_t)p1->m_portNumber + 4;
+        if (queriedPorts.size() < end) {
+            queriedPorts.resize(end, false);
+        }
+        for (size_t p = p1->m_portNumber; p < end; p++) {
+            queriedPorts[p] = true;
+        }
+    }
 
     // A round of queries needs as many frames as the receivers of ONE listener
     // group, not of all groups together: every group's front chain is queried
@@ -523,17 +612,30 @@ bool FalconV5Support::generateDynamicPacket(std::vector<std::array<uint8_t, 64>>
     if (maxCount.empty()) {
         return false;
     }
-    if (curCount == maxCount[curMux]) {
-        // finished this mux, but we need to wait a frame before changing muxes
-        ++curCount;
-        return false;
-    } else if (curCount > maxCount[curMux]) {
-        curCount = 0;
-        int newMux = curMux + 1;
-        if (newMux >= maxCount.size()) {
-            newMux = 0;
-            triggerPixelCount = false;
+    const int rest = queryRestFrames;
+    if (curCount >= maxCount[curMux] && curCount <= maxCount[curMux] + rest) {
+        // finished this mux: one frame to wait before changing muxes, then
+        // 'rest' more to space the rounds out.  A pending eFuse toggle/reset
+        // ends the extra rest so it goes out on the next frame instead of
+        // waiting for the next round.
+        if (curCount > maxCount[curMux] && pendingToggle.load().cmd != ToggleCommand::None) {
+            curCount = maxCount[curMux] + rest + 1;
+        } else {
+            ++curCount;
+            return false;
         }
+    }
+    if (curCount > maxCount[curMux] + rest) {
+        curCount = 0;
+        // skip muxes without receivers: switching to one only spent a frame
+        // (and 'rest' more) on a position nothing answers on
+        int newMux = curMux;
+        do {
+            if (++newMux >= (int)maxCount.size()) {
+                newMux = 0;
+                triggerPixelCount = false;
+            }
+        } while (maxCount[newMux] == 0 && newMux != curMux);
         if (newMux != curMux) {
             setCurrentMux(newMux);
         }

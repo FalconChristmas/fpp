@@ -21,6 +21,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <ctime>
 #include <iomanip>
 
@@ -33,6 +34,10 @@
 
 #include "Plugin.h"
 #include "../SysSocket.h"
+
+// RGB666 components and pixel locations travel as these characters, since
+// SSE carries text.  The page decodes with the same table.
+static const char SSE_BASE64[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
 
 class HTTPVirtualDisplayPlugin : public FPPPlugins::Plugin, public FPPPlugins::ChannelOutputPlugin {
 public:
@@ -170,6 +175,38 @@ int HTTPVirtualDisplayOutput::Init(Json::Value config) {
     // Worst case a frame touches every pixel; size this once so the hot loop
     // never reallocates
     m_cacheRollback.reserve(m_pixels.size() * 3);
+    m_changedColor.reserve(m_pixels.size());
+    m_changedIndex.reserve(m_pixels.size());
+    m_sortColor.reserve(m_pixels.size());
+    m_sortIndex.reserve(m_pixels.size());
+
+    // Each pixel's location key never changes, so spell it once here.  It
+    // must take the same form as the page's scaleMap keys
+    // (virtualdisplaybody.php), or the browser finds no entry for the pixel
+    // and drops the rest of the frame.
+    m_pixelLocs.clear();
+    m_pixelLocs.reserve(m_pixels.size());
+    for (const auto& px : m_pixels) {
+        PixelLoc loc;
+        int x = px.x;
+        int y = m_previewHeight - px.y;
+        if ((x >= 4096) || (y >= 4096)) {
+            loc.s[0] = SSE_BASE64[(x >> 12) & 0x3f];
+            loc.s[1] = SSE_BASE64[(x >> 6) & 0x3f];
+            loc.s[2] = SSE_BASE64[x & 0x3f];
+            loc.s[3] = SSE_BASE64[(y >> 12) & 0x3f];
+            loc.s[4] = SSE_BASE64[(y >> 6) & 0x3f];
+            loc.s[5] = SSE_BASE64[y & 0x3f];
+            loc.len = 6;
+        } else {
+            loc.s[0] = SSE_BASE64[(x >> 6) & 0x3f];
+            loc.s[1] = SSE_BASE64[x & 0x3f];
+            loc.s[2] = SSE_BASE64[(y >> 6) & 0x3f];
+            loc.s[3] = SSE_BASE64[y & 0x3f];
+            loc.len = 4;
+        }
+        m_pixelLocs.push_back(loc);
+    }
 
     bzero(m_virtualDisplay, m_screenSize);
 
@@ -451,9 +488,6 @@ int HTTPVirtualDisplayOutput::WriteSSEPacket(int fd, const std::string& data, ui
  *
  */
 void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
-    static int id = 0;
-    static bool lastFrameWasBlack = false;
-
     LogExcess(VB_CHANNELOUT, "HTTPVirtualDisplayOutput::PrepData(%p)\n",
               channelData);
 
@@ -501,14 +535,13 @@ void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
 
     // Fast black detection - check if all channel data is zero (sequence ended/stopped)
     // Only do this check occasionally to reduce CPU overhead
-    static int blackCheckCounter = 0;
     bool allBlack = false;
     bool forceBlackUpdate = false;
     
     // Check for black every 10th frame to reduce CPU, but always check if last frame was black
     // to catch the transition back to color quickly
-    if (lastFrameWasBlack || (++blackCheckCounter >= 10)) {
-        blackCheckCounter = 0;
+    if (m_lastFrameWasBlack || (++m_blackCheckCounter >= 10)) {
+        m_blackCheckCounter = 0;
         allBlack = true;
         for (int i = 0; i < m_pixels.size() && allBlack; i++) {
             unsigned char r, g, b;
@@ -519,22 +552,17 @@ void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
         }
         
         // If transitioning to black, force update of all pixels
-        forceBlackUpdate = (allBlack && !lastFrameWasBlack);
-        lastFrameWasBlack = allBlack;
+        forceBlackUpdate = (allBlack && !m_lastFrameWasBlack);
+        m_lastFrameWasBlack = allBlack;
     }
 
-    std::string data;
-    int pixelsChanged = 0;
+    // Collect the changed pixels, then group them by colour by sorting: the
+    // payload is "RGB:loc;loc|RGB:loc..." and the page does not care in which
+    // order the colours come.  This runs on the channel output thread for
+    // every changed pixel, so nothing here formats or allocates per pixel.
+    m_changedColor.clear();
+    m_changedIndex.clear();
     unsigned char r, g, b;
-    std::map<std::string, std::string> colors;
-    std::map<std::string, std::string>::iterator colorIt;
-    char color[4];
-    std::string colorStr;
-    char loc[7];
-    int y;
-    VirtualDisplayPixel pixel;
-    static const char* const base64 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
-
     for (int i = 0; i < m_pixels.size(); i++) {
         GetPixelRGB(m_pixels[i], channelData, r, g, b);
 
@@ -559,73 +587,80 @@ void HTTPVirtualDisplayOutput::PrepData(unsigned char* channelData) {
             m_virtualDisplay[m_pixels[i].g] = g;
             m_virtualDisplay[m_pixels[i].b] = b;
 
-            snprintf(color, sizeof(color), "%c%c%c", base64[r], base64[g], base64[b]);
-            colorStr = color;
-
-            y = m_previewHeight - m_pixels[i].y;
-            // must pick the same form as the page's scaleMap keys
-            // (virtualdisplaybody.php), or the browser finds no entry for the
-            // pixel and drops the rest of the frame
-            if ((m_pixels[i].x >= 4096) || (y >= 4096))
-                snprintf(loc, sizeof(loc), "%c%c%c%c%c%c",
-                         base64[(m_pixels[i].x >> 12) & 0x3f],
-                         base64[(m_pixels[i].x >> 6) & 0x3f],
-                         base64[(m_pixels[i].x) & 0x3f],
-                         base64[(y >> 12) & 0x3f],
-                         base64[(y >> 6) & 0x3f],
-                         base64[(y)&0x3f]);
-            else
-                snprintf(loc, sizeof(loc), "%c%c%c%c",
-                         base64[(m_pixels[i].x >> 6) & 0x3f],
-                         base64[(m_pixels[i].x) & 0x3f],
-                         base64[(y >> 6) & 0x3f],
-                         base64[(y)&0x3f]);
-
-            colorIt = colors.find(colorStr);
-            if (colorIt != colors.end())
-                colorIt->second += std::string(";") + loc;
-            else
-                colors[colorStr] = colorStr + ":" + loc;
-
-            pixelsChanged++;
+            m_changedColor.push_back(((uint32_t)r << 12) | ((uint32_t)g << 6) | b);
+            m_changedIndex.push_back((uint32_t)i);
         }
     }
 
-    if (colors.size()) {
-        // Pre-allocate to avoid reallocations during string building
-        m_sseData.clear();
-        m_sseData.reserve(128 + colors.size() * 16); // Estimate: header + avg color data
-        
-        m_sseData = "id: ";
-        m_sseData += std::to_string(id) + "\r\n";
-        m_sseData += "event: message\r\n";
-        m_sseData += "data: ";
-
-        std::string data2;
-        data2.reserve(colors.size() * 16); // Pre-allocate for color data
-        
-        bool first = true;
-        for (const auto& pair : colors) {
-            if (!first)
-                data2 += "|";
-            else
-                first = false;
-
-            data2 += pair.second;
+    m_sseData.clear();
+    m_sseData += "id: ";
+    m_sseData += std::to_string(m_sseId);
+    m_sseData += "\r\n";
+    const size_t changed = m_changedColor.size();
+    if (changed) {
+        // LSD radix sort on the 18-bit colour, two 9-bit digits.  Stable, so
+        // each colour's pixels stay in map order.
+        m_sortColor.resize(changed);
+        m_sortIndex.resize(changed);
+        for (int shift = 0; shift < 18; shift += 9) {
+            uint32_t start[513] = { 0 };
+            for (uint32_t c : m_changedColor) {
+                start[((c >> shift) & 511) + 1]++;
+            }
+            for (int d = 0; d < 512; d++) {
+                start[d + 1] += start[d];
+            }
+            for (size_t k = 0; k < changed; k++) {
+                uint32_t at = start[(m_changedColor[k] >> shift) & 511]++;
+                m_sortColor[at] = m_changedColor[k];
+                m_sortIndex[at] = m_changedIndex[k];
+            }
+            m_changedColor.swap(m_sortColor);
+            m_changedIndex.swap(m_sortIndex);
         }
-        m_sseData += data2 + "\r\n\r\n";
+
+        static const char header[] = "event: message\r\ndata: ";
+        // Worst case: every pixel a new colour ("|RGB:", 5) with a 6-byte
+        // location, plus the closing "\r\n\r\n".  Written through a pointer
+        // and trimmed after: per-character appends were most of the cost.
+        const size_t prefix = m_sseData.size();
+        m_sseData.resize(prefix + sizeof(header) - 1 + changed * 11 + 4);
+        char* out = m_sseData.data() + prefix;
+        memcpy(out, header, sizeof(header) - 1);
+        out += sizeof(header) - 1;
+
+        uint32_t lastColor = UINT32_MAX;
+        int colorCount = 0;
+        for (size_t k = 0; k < changed; k++) {
+            uint32_t color = m_changedColor[k];
+            const PixelLoc& loc = m_pixelLocs[m_changedIndex[k]];
+            if (color != lastColor) {
+                if (colorCount++)
+                    *out++ = '|';
+                out[0] = SSE_BASE64[(color >> 12) & 0x3f];
+                out[1] = SSE_BASE64[(color >> 6) & 0x3f];
+                out[2] = SSE_BASE64[color & 0x3f];
+                out[3] = ':';
+                out += 4;
+                lastColor = color;
+            } else {
+                *out++ = ';';
+            }
+            memcpy(out, loc.s, loc.len);
+            out += loc.len;
+        }
+        memcpy(out, "\r\n\r\n", 4);
+        out += 4;
+        m_sseData.resize(out - m_sseData.data());
 
         LogExcess(VB_CHANNELOUT, "PixelsChanged: %d, Colors: %d, Data Size: %d\n",
-                  pixelsChanged, colors.size(), m_sseData.size());
+                  (int)changed, colorCount, (int)m_sseData.size());
     } else {
         // Send empty update to keep connection alive and maintain frame timing
-        m_sseData = "id: ";
-        m_sseData += std::to_string(id) + "\r\n";
-        m_sseData += "event: ping\r\n";
-        m_sseData += "data: \r\n\r\n";
+        m_sseData += "event: ping\r\ndata: \r\n\r\n";
     }
 
-    id++;
+    m_sseId++;
 }
 
 /*

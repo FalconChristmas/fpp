@@ -114,6 +114,10 @@ private:
 
     std::string m_autoCreatedModelName;
 
+    // The firmware has pin definitions for 8 outputs, and every per-output
+    // table here is sized for that; a panel on a later output is refused.
+    static constexpr int MAX_OUTPUTS = 8;
+
     class GPIOPinInfo {
     public:
         class Pins {
@@ -126,7 +130,7 @@ private:
             uint8_t g_gpio = 0;
             uint8_t b_gpio = 0;
         } row[2];
-    } m_pinInfo[8];
+    } m_pinInfo[MAX_OUTPUTS];
 
     uint8_t* m_frames[8];
     int m_curFrame;
@@ -135,7 +139,7 @@ private:
 
     // Precomputed acceleration structures for PrepData (see buildPrepTables):
     // per output, the 4 GPIO bank words for each combination of the 6 pins
-    uint32_t m_pinLUT[8][64][4];
+    uint32_t m_pinLUT[MAX_OUTPUTS][64][4];
     // bit-spread gamma: bit b of gammaCurve[v] lands in byte b (low 8 bits)
     // or byte b-8 (bits 8-11) so all bit-plane indexes compute per pixel
     uint64_t m_gammaSpreadLo[256];

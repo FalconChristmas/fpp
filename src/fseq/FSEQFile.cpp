@@ -806,22 +806,81 @@ V1FSEQFile::V1FSEQFile(const std::string& fn, FILE* file, const std::vector<uint
 V1FSEQFile::~V1FSEQFile() {
 }
 
+// What every frame read between two prepareRead() calls shares: the ranges
+// read and a pool of channel buffers of the size they add up to.  Playback
+// reads frames ahead on one thread and frees them on the channel output
+// thread, a frame each 10-50 ms.  Allocating each buffer fresh put a free() on
+// the output thread for every frame, and a 32-bit glibc serves a block over
+// 512 KB with mmap, so that free was an munmap -- measured at 0.5 ms a frame,
+// 2.6 ms at worst, for 600 KB frames on an AM335x -- and the next frame's read
+// page-faulted its buffer back in.  A frame hands its buffer back here instead.
+// The frames hold the context, so a frame may outlive its file or a later
+// prepareRead() on it.
+class FrameReadContext {
+public:
+    FrameReadContext(const std::vector<std::pair<uint32_t, uint32_t>>& r, uint32_t sz) :
+        ranges(r),
+        size(sz) {}
+    ~FrameReadContext() {
+        for (auto* b : m_free) {
+            free(b);
+        }
+    }
+    // A zeroed buffer of size bytes, or nullptr if none could be allocated.
+    uint8_t* take() {
+        {
+            std::lock_guard<std::mutex> lk(m_lock);
+            if (!m_free.empty()) {
+                uint8_t* b = m_free.back();
+                m_free.pop_back();
+                memset(b, 0, size);
+                return b;
+            }
+        }
+        return (uint8_t*)calloc(1, size);
+    }
+    void give(uint8_t* b) {
+        {
+            std::lock_guard<std::mutex> lk(m_lock);
+            // Enough for the read-ahead to keep pace with playback; a skip
+            // that drops the whole cache at once frees the rest.
+            if (m_free.size() < 8) {
+                m_free.push_back(b);
+                return;
+            }
+        }
+        free(b);
+    }
+
+    const std::vector<std::pair<uint32_t, uint32_t>> ranges;
+    const uint32_t size;
+
+private:
+    std::mutex m_lock;
+    std::vector<uint8_t*> m_free;
+};
+
 class UncompressedFrameData : public FSEQFile::FrameData {
 public:
+    UncompressedFrameData(uint32_t frame, std::shared_ptr<FrameReadContext> ctx) :
+        FrameData(frame),
+        m_size(ctx->size),
+        // Zeroed: every reader returns the frame even when a seek or read
+        // failed part-way (a truncated file), and an unzeroed buffer put
+        // whatever the heap held -- or the previous frame -- on the lights.
+        m_data(ctx->take()),
+        m_ranges(ctx->ranges),
+        m_ctx(std::move(ctx)) {
+    }
+    // A frame with no context to share (V1 files): one of its own.
     UncompressedFrameData(uint32_t frame,
                           uint32_t sz,
                           const std::vector<std::pair<uint32_t, uint32_t>>& ranges) :
-        FrameData(frame),
-        m_ranges(ranges) {
-        m_size = sz;
-        // Zeroed: every reader returns the frame even when a seek or read
-        // failed part-way (a truncated file), and an unzeroed buffer put
-        // whatever the heap held on the lights.
-        m_data = (uint8_t*)calloc(1, sz);
+        UncompressedFrameData(frame, std::make_shared<FrameReadContext>(ranges, sz)) {
     }
     virtual ~UncompressedFrameData() {
         if (m_data != nullptr) {
-            free(m_data);
+            m_ctx->give(m_data);
         }
     }
 
@@ -851,7 +910,10 @@ public:
 
     uint32_t m_size;
     uint8_t* m_data;
-    std::vector<std::pair<uint32_t, uint32_t>> m_ranges;
+    const std::vector<std::pair<uint32_t, uint32_t>>& m_ranges;
+
+private:
+    std::shared_ptr<FrameReadContext> m_ctx;
 };
 
 // A frame whose channel buffer could not be allocated is handed back untouched:
@@ -1006,6 +1068,15 @@ public:
 
     virtual void prepareRead(uint32_t frame) {}
 
+    // Shared by the frames read until the next prepareRead().
+    std::shared_ptr<FrameReadContext> readContext() {
+        if (!m_readContext || m_readContext->size != m_file->m_dataBlockSize) {
+            m_readContext = std::make_shared<FrameReadContext>(m_file->m_rangesToRead, m_file->m_dataBlockSize);
+        }
+        return m_readContext;
+    }
+    std::shared_ptr<FrameReadContext> m_readContext;
+
     virtual void finalize() {
         if (!m_file->getVariableHeaders().empty()) {
             for (int x = 0; x < m_variableHeaderOffsets.size(); x++) {
@@ -1047,7 +1118,7 @@ public:
         }
     }
     virtual FrameData* getFrame(uint32_t frame) override {
-        UncompressedFrameData* data = new UncompressedFrameData(frame, m_file->m_dataBlockSize, m_file->m_rangesToRead);
+        UncompressedFrameData* data = new UncompressedFrameData(frame, readContext());
         if (!frameBufferAllocated(data, frame, m_file->m_dataBlockSize)) {
             return data;
         }
@@ -1718,7 +1789,7 @@ public:
             block++;
         }
         BulkSlot* b = bulkGetBlock(block);
-        UncompressedFrameData* data = new UncompressedFrameData(frame, m_file->m_dataBlockSize, m_file->m_rangesToRead);
+        UncompressedFrameData* data = new UncompressedFrameData(frame, readContext());
         if (!frameBufferAllocated(data, frame, m_file->m_dataBlockSize)) {
             return data;
         }
@@ -1785,7 +1856,7 @@ public:
             m_outBuffer.pos = 0;
             m_curFrameInBlock = 0;
         }
-        UncompressedFrameData* data = new UncompressedFrameData(frame, m_file->m_dataBlockSize, m_file->m_rangesToRead);
+        UncompressedFrameData* data = new UncompressedFrameData(frame, readContext());
         if (!frameBufferAllocated(data, frame, m_file->m_dataBlockSize)) {
             return data;
         }
@@ -2056,7 +2127,7 @@ public:
             free(m_stream);
             m_stream = nullptr;
         }
-        UncompressedFrameData* data = new UncompressedFrameData(frame, m_file->m_dataBlockSize, m_file->m_rangesToRead);
+        UncompressedFrameData* data = new UncompressedFrameData(frame, readContext());
         if (!frameBufferAllocated(data, frame, m_file->m_dataBlockSize)) {
             return data;
         }
@@ -2792,6 +2863,7 @@ void V2FSEQFile::prepareRead(const std::vector<std::pair<uint32_t, uint32_t>>& r
             LogErr(VB_SEQUENCE, "Requested output range outside read ranges. Requested %d channels starting at %d\n", cnt, st);
         }
     }
+    m_handler->m_readContext.reset();
     m_handler->prepareRead(startFrame);
 }
 FrameData* V2FSEQFile::getFrame(uint32_t frame) {

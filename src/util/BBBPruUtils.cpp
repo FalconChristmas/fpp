@@ -284,7 +284,30 @@ static int initPrus() {
     if (ddr_mem_loc == nullptr && !FAKE_PRU) {
         ddr_phy_mem_loc = ddr_addr;
         ddr_filelen = ddr_sizeb;
-        ddr_mem_loc = mapOrNull(ddr_filelen, MAP_SHARED, mem_fd, ddr_addr, err);
+        // The reserved region is still System RAM to the kernel (it is not
+        // no-map), so a plain /dev/mem mapping of it is write-back
+        // cacheable, and the PRUs snoop neither the Cortex-A8 nor the A53
+        // caches.  On the A8 a line an output ever read stays cached and its
+        // next writes sit dirty there instead of reaching DDR (GH #3200:
+        // three pixels of every BBB48String port showing a stale colour at
+        // each change); the A53 allocates on write as well, so there even
+        // write-only code left stale bytes.  User space cannot clean a line
+        // to DDR on ARMv7 - msync and __builtin___clear_cache do not - so map
+        // the region write-combined instead (O_SYNC on RAM): no cache to go
+        // stale, and writes that reach DDR measured as fast as through the
+        // cached mapping on both.  Reads through it are slow, so outputs keep
+        // their frames in ordinary memory and only ever write this region.
+        // Write-combined is Normal memory, so glibc's memcpy/memset are fine
+        // on it (unlike the PRU memories, which map as Device memory).
+        int ddr_fd = open("/dev/mem", O_RDWR | O_CLOEXEC | O_SYNC);
+        if (ddr_fd < 0) {
+            if (!err) {
+                err = errno;
+            }
+        } else {
+            ddr_mem_loc = mapOrNull(ddr_filelen, MAP_SHARED, ddr_fd, ddr_addr, err);
+            close(ddr_fd);
+        }
         if (ddr_mem_loc) {
             madvise(ddr_mem_loc, ddr_filelen, MADV_HUGEPAGE);
         }

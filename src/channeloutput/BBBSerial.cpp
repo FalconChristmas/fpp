@@ -406,9 +406,8 @@ int BBBSerialOutput::RawSendData(unsigned char* channelData) {
         m_curData = tmp;
     }
 
-    // make sure memory is flushed before command is set to 1
-    __asm__ __volatile__("" ::
-                             : "memory");
+    // the frame data must reach DDR before the command reaches the PRU
+    BBBPru::frameDataBarrier();
 
     // Send the start command
     m_serialData->command = 1;

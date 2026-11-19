@@ -37,6 +37,7 @@
 
 class PixelOverlayModel;
 class PipeWireOutputStream;
+class VideoDisplay;
 
 class GStreamerOutput : public MediaOutputBase {
 public:
@@ -44,6 +45,14 @@ public:
     virtual ~GStreamerOutput();
 
     virtual int Start(int msTime = 0) override;
+    /// Build the pipeline and decode up to its first frame now, ahead of the
+    /// Start() that plays it, so that Start() only has to set it going.
+    /// Nothing the playing output owns is touched meanwhile: not the slot's
+    /// status, not the output stream's feed, not the display's.  False where
+    /// this kind of output isn't prepared (anything but a video to the
+    /// persistent display, or with AES67 sending); Start() then builds it as
+    /// usual.  An output prepared and never started is simply deleted.
+    bool Prepare();
     virtual int Stop(void) override;
     virtual int Process(void) override;
     virtual int Close(void) override;
@@ -52,6 +61,7 @@ public:
     // True once the reported position -- already backed up to what is leaving
     // the card -- has moved past the start of the media.
     virtual bool IsAudible(void) override { return m_audible; }
+    virtual uint64_t SoundEndMS(void) override { return m_soundEndMs.load(); }
 
     /// Flush-seek to an absolute position in seconds.  Audible/visible glitch,
     /// so this is for repairing a stream that has genuinely left the show
@@ -118,6 +128,11 @@ public:
     };
     static DrmConnectorInfo ResolveDrmConnector(const std::string& connectorName);
 
+    // What went wrong, from a GStreamer error message: the last line of its
+    // debug text, which names the cause ("drmModeSetPlane failed: No space
+    // left on device (28)"), where the message itself is generic.
+    static std::string ErrorReason(const GError* err, const gchar* debug);
+
 
     // GStreamer-specific
     void SetLoopCount(int loops) { m_loopCount = loops; }
@@ -149,6 +164,40 @@ private:
     // StreamSlotManager's lock, never the other way round.
     std::recursive_mutex m_opMutex;
     std::atomic<bool> m_stopRequested{false};
+
+    // Prepare(): Start() building without the side effects of playing,
+    // which StartPrepared() applies later, and what it set aside for them.
+    bool m_preparing = false;
+    // Read on streaming threads: a prepared output's errors are its own
+    // business until it plays (BusSyncHandler()).
+    std::atomic<bool> m_prepared{false};
+    std::atomic<bool> m_pipelineFailed{false};  // the bus reported a fatal error
+    // Started playing on its slot (ClaimSlot()).  A prepared output thrown
+    // away unplayed never did: the slot's status, and the audio group delay
+    // lines and AES67 sends, belong to the track that is playing.
+    std::atomic<bool> m_claimedSlot{false};
+    bool OwnsSlotStatus();
+    // The delay-line and AES67 flushes a start makes between drained tracks,
+    // held back because this one will most likely carry on the output
+    // stream's timeline; made by the start thread if it doesn't after all.
+    bool m_flushesDeferred = false;
+    static void StartFlushes();
+    // When the end of the media's sound is heard (set at its end of stream).
+    std::atomic<uint64_t> m_soundEndMs{0};
+    std::atomic<bool> m_feedsStream{false};  // Go() attached m_pwFeed to m_pwStream
+    // OnNoMorePads() found no picture: the display is given back on the
+    // main loop (Process(), StartPrepared()), which owns m_display, not on
+    // the streaming thread that found out.
+    std::atomic<bool> m_releaseDisplayPending{false};
+    // Prepared with its sound sent to the output stream before its channel
+    // count was known; OnPadAdded() checks it (see Start()).
+    std::atomic<bool> m_prepareCheckChannels{false};
+    int m_preparedTotalSecs = -1;
+    std::string m_preparedSinkName;
+    double m_preparedTargetVolume = 1.0;
+    int StartPrepared();
+    // The part of Start() that sets a built pipeline playing.
+    int Go(int msTime, const std::string& pipelineSinkName, double targetVolume);
 
     // An optional video branch -- a secondary display's kmssink, or the
     // PipeWire video tap -- whose sink failed.  Its GST_FLOW_ERROR would
@@ -287,6 +336,11 @@ private:
 
     // Latest video frame buffer — written by OnNewVideoSample, read by ProcessVideoOverlay
     std::vector<uint8_t> m_videoFrameData;
+    // The channel output thread's side of the handoff: PushVideoOverlayFrame()
+    // swaps it with m_videoFrameData under m_videoFrameMutex instead of copying
+    // the frame, and the sample callback then refills the other one.  Only the
+    // overlay push touches it (serialized by m_overlayOutputsLock).
+    std::vector<uint8_t> m_videoOverlayFrame;
     int m_videoFrameWidth = 0;    // dimensions of m_videoFrameData (packed RGB)
     int m_videoFrameHeight = 0;
     std::mutex m_videoFrameMutex;
@@ -312,6 +366,15 @@ private:
     std::vector<int> m_mediaConnectors;
     int m_hdmiDisplayWidth = 0;            // display resolution
     int m_hdmiDisplayHeight = 0;
+    // The primary display, when it runs on its own pipeline (VideoDisplay.h)
+    // rather than as a kmssink here.  m_kmssink is then the appsink feeding
+    // it, and this pipeline holds no DRM resources of its own.
+    std::shared_ptr<VideoDisplay> m_display;
+    uint64_t m_displayFeedToken = 0;
+    // Stop feeding the display and give it back.  It keeps showing the last
+    // frame while the next video (prepared ahead) holds it, and closes once
+    // nothing does.
+    void ReleaseDisplay();
 
     // PipeWire video routing — when PipeWireVideoSinkName is set, video is
     // tee'd to both kmssink (HDMI) and pipewiresink (PipeWire graph node).
@@ -441,10 +504,33 @@ private:
     std::string m_pwSinkStreamId;
 
     // A video whose sound feeds the output stream: its picture is held back by
-    // the card's queue (AlignPictureToSound()), and a video that turns out to
-    // have no sound hands the stream back from the main loop.
+    // as long as its sound takes to be heard (AlignPictureToSound(), given
+    // that whole delay), and a video that turns out to have no sound hands
+    // the stream back from the main loop.
     void AlignPictureToSound(int64_t latNs);
     int64_t m_pictureDelayNs = 0;
+    // A track that carried on the output stream's timeline
+    // (PipeWireOutputStream::ContinueTimeline()) runs on a base time a feed
+    // lead earlier than its sound, with its feed's ts-offset at 0 rather than
+    // minus that lead: a sink can't render a buffer before its base time, so a
+    // negative ts-offset can't hand the first buffers over early, and the
+    // first of them would come only as the stream ran out.  This is that lead
+    // while it applies, 0 otherwise: added to the picture's delay and taken off
+    // the position, so both still meet the sound.  Shared with the start
+    // thread, which sets it.
+    std::shared_ptr<std::atomic<int64_t>> m_timelineShiftNs;
+    // The start thread's carrying on the timeline and a flushing seek's
+    // EndTimelineShift() take turns under `lock`; a seek that comes first
+    // marks it `ended`, and the start thread then starts the track drained
+    // rather than put the timeline's base time back after the seek.
+    struct TimelineHandover {
+        std::mutex lock;
+        bool ended = false;
+    };
+    std::shared_ptr<TimelineHandover> m_timelineHandover;
+    // Back to the usual feed offset, before a flushing seek starts the
+    // pipeline's running time again.
+    void EndTimelineShift();
     std::atomic<bool> m_pwFeedOrphaned{ false };
 
     // A MultiSync remote's media through the persistent output stream: held to
@@ -474,6 +560,9 @@ private:
     // PipeWireOutputStream.h).  Both null on every other path.
     PipeWireOutputStream* m_pwStream = nullptr;
     GstElement* m_pwFeed = nullptr;
+    // Go() acquired m_pwStream.  A prepared output that never played must
+    // not give back a use of the stream it never took.
+    bool m_pwStreamAcquired = false;
     void ReleasePipeWireStream();
 
     std::atomic<bool> m_audible{false};

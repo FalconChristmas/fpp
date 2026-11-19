@@ -22,11 +22,17 @@
 #include "PlaylistEntryBoth.h"
 #include "mediadetails.h"
 #include "../MultiSync.h"
+#include "../Sequence.h"
 
 // Longest the sequence waits for the media to become audible.  Covers a cold
 // audio output (~0.6 s on an AM335x, a PipeWire output stream gives up at 3 s)
 // with margin; past it the sequence starts and the sync servo takes over.
 static constexpr long long AUDIO_START_HOLD_MS = 4000;
+// Most a song's lights go on past the end of its media for the sound still on
+// its way to the speaker (the output stream's queue and the card's).  Any
+// more than this and the media didn't reach its end: it failed or was
+// stopped, and its lights stop with it.
+static constexpr uint64_t MAX_SOUND_TAIL_MS = 500;
 
 PlaylistEntryBoth::PlaylistEntryBoth(Playlist* playlist, PlaylistEntryBase* parent) :
     PlaylistEntryBase(playlist, parent),
@@ -79,6 +85,13 @@ int PlaylistEntryBoth::Init(Json::Value& config) {
     return PlaylistEntryBase::Init(config);
 }
 
+void PlaylistEntryBoth::PrepareAhead() {
+    std::unique_lock<std::recursive_mutex> seqLock(m_mutex);
+    if (CanPlay() && m_mediaOwned) {
+        m_mediaOwned->PrepareAhead();
+    }
+}
+
 /*
  *
  */
@@ -110,8 +123,21 @@ int PlaylistEntryBoth::StartPlaying(void) {
     // The media drives the timing when there is media; without it this pass,
     // the sequence has to keep its own time.
     m_sequenceEntry->setAdjustTiming(m_mediaEntry == nullptr);
-    if (!m_sequenceEntry->PreparePlay()) {
+    // A sequence held until its media is audible (below) is opened only then,
+    // by its StartPlaying().  Opening it shows its first frame at once, and
+    // takes over from the sequence before it -- which is still playing the
+    // end of its own song's sound (see Process()) while this song's sound,
+    // carried on right behind it in the output stream, comes up.
+    bool openLater = m_mediaEntry && m_mediaEntry->GetMediaOffsetMS() <= 0;
+    if (!openLater && !m_sequenceEntry->PreparePlay()) {
         LogDebug(VB_PLAYLIST, "Problems starting sequence: %s\n", m_sequenceEntry->GetSequenceName().c_str());
+    }
+    if (openLater && !sequence->IsSequenceRunning() && multiSync->isMultiSyncEnabled()) {
+        // With nothing running, the remotes have no tail to finish either:
+        // tell them now, so they read the file ahead of its start rather
+        // than at it.  Our own open sends it again at the start, which a
+        // remote with the file open and not yet started takes as a no-op.
+        multiSync->SendSeqOpenPacket(m_sequenceEntry->GetSequenceName());
     }
 
     if (multiSync->isMultiSyncEnabled() && m_mediaEntry && m_mediaEntry->m_openTime) {
@@ -194,7 +220,30 @@ int PlaylistEntryBoth::Process(void) {
     if (m_mediaEntry && m_mediaEntry->IsFinished()) {
         FinishPlay();
         if (!m_sequenceEntry->IsFinished()) {
-            m_sequenceEntry->Stop();
+            // The media ends as its last sound is handed to the output, and
+            // that sound is then still to play: the stream's queue and the
+            // card's, as far as the lights following it are behind the end.
+            // They play to the end of it; the next song's sequence takes over
+            // when its own sound starts.
+            // As measured where the output knows (the sound still queued for
+            // the card when the media ended); else the media's length less
+            // how far the sequence has got, which is only as good as the
+            // length (a VBR mp3's can be off).
+            uint64_t tail;
+            uint64_t soundEnd = m_mediaEntry->SoundEndMS();
+            if (soundEnd) {
+                uint64_t now = GetMonotonicTimeMS();
+                tail = soundEnd > now ? soundEnd - now : 0;
+            } else {
+                uint64_t length = m_mediaEntry->GetLengthInMS();
+                uint64_t at = m_sequenceEntry->GetElapsedMS();
+                tail = length > at ? length - at : 0;
+            }
+            if (m_sequenceEntry->IsStarted() && tail > 0 && tail <= MAX_SOUND_TAIL_MS) {
+                m_sequenceEntry->StopAfter((int)tail);
+            } else {
+                m_sequenceEntry->Stop();
+            }
         }
     }
 

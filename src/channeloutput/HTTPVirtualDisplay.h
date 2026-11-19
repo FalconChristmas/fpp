@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <cstdint>
 #include <map>
 /*
  * This file is part of the Falcon Player (FPP) and is Copyright (C)
@@ -63,6 +64,28 @@ private:
     int m_socket;
 
     std::string m_sseData;
+
+    // Per-frame encoder state, per instance (these were function statics,
+    // shared between every display).
+    int m_sseId = 0;
+    bool m_lastFrameWasBlack = false;
+    int m_blackCheckCounter = 0;
+
+    // Each pixel's location key ("xxyy", or "xxxyyy" past 4095) as the page's
+    // scaleMap spells it.  Fixed once the layout is loaded, so built in Init()
+    // rather than formatted for every changed pixel of every frame.
+    struct PixelLoc {
+        char s[6];
+        uint8_t len;
+    };
+    std::vector<PixelLoc> m_pixelLocs;
+    // Changed pixels of the frame being encoded: their RGB666 colour and pixel
+    // index, radix sorted by colour to group them (the tmp pair is the sort's
+    // other buffer).  Reused so a frame allocates nothing.
+    std::vector<uint32_t> m_changedColor;
+    std::vector<uint32_t> m_changedIndex;
+    std::vector<uint32_t> m_sortColor;
+    std::vector<uint32_t> m_sortIndex;
 
     std::atomic<bool> m_running;
     std::atomic<bool> m_connListChanged;

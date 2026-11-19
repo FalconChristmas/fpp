@@ -26,6 +26,7 @@
 #include "PlaylistEntrySequence.h"
 
 #include "Events.h"
+#include "Timers.h"
 
 #include <chrono>
 
@@ -138,6 +139,21 @@ int PlaylistEntrySequence::Process(void) {
 /*
  *
  */
+int PlaylistEntrySequence::StopAfter(int ms) {
+    LogDebug(VB_PLAYLIST, "PlaylistEntrySequence::StopAfter(%d)\n", ms);
+    uint64_t generation = sequence->OpenGeneration();
+    // Named for its generation: a timer of the same name replaces the last
+    // (Timers::addTimer()), and two tails within one would lose the first.
+    Timers::INSTANCE.addTimer("SequenceSoundTail" + std::to_string(generation), GetTimeMS() + ms, [generation]() {
+        sequence->CloseSequenceFileIfStill(generation);
+    });
+    m_prepared = false;
+    Events::Publish("playlist/sequence/status", "");
+    Events::Publish("playlist/sequence/secondsTotal", "");
+
+    return PlaylistEntryBase::Stop();
+}
+
 int PlaylistEntrySequence::Stop(void) {
     LogDebug(VB_PLAYLIST, "PlaylistEntrySequence::Stop()\n");
 

@@ -29,6 +29,7 @@
 #include <Magick++/Image.h>
 #include <curl/curl.h>
 #include <magick/magick.h>
+#include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <atomic>
@@ -691,6 +692,22 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
     // crash: fppd carries on afterwards, so they get the gdb stack and the
     // context files but no ring freeze, crash report or upload.
     const bool requestedDump = (s == SIGQUIT || s == SIGUSR1);
+    // Everything this handler records goes through a new file: the /tmp stack,
+    // context and ring files, gdb's own output, the report script.  An fppd
+    // that has leaked descriptors up to its soft limit -- itself a common way
+    // to crash, as a library asserting on EMFILE -- would fail every one of
+    // those open()s silently and send a report with no stack in it.  Lift the
+    // soft limit to the hard one (a plain syscall, so signal-safe, and it
+    // can't race the other threads for a freed slot the way a reserved
+    // descriptor would); the children it starts inherit the room.  A dump
+    // that carries on puts the limit back when it returns.
+    struct rlimit prevNoFile;
+    bool noFileRaised = false;
+    if (getrlimit(RLIMIT_NOFILE, &prevNoFile) == 0 && prevNoFile.rlim_cur < prevNoFile.rlim_max) {
+        struct rlimit raised = prevNoFile;
+        raised.rlim_cur = raised.rlim_max;
+        noFileRaised = setrlimit(RLIMIT_NOFILE, &raised) == 0;
+    }
     if (!requestedDump) {
         // Everything this handler logs from here on -- the signal line, the gdb
         // stack -- would otherwise push the pre-crash history out of the ring.
@@ -910,6 +927,8 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
             if (FileExists("/usr/bin/timeout")) {
                 scriptCmd = "/usr/bin/timeout -k 10 " + std::to_string(kReportScriptSec) + " " + scriptCmd;
             }
+            // The script lists this process's open descriptors by kind.
+            scriptCmd = "FPPD_PID=" + std::to_string(getpid()) + " " + scriptCmd;
             system(scriptCmd.c_str());
             SetFilePerms(zfName);
 
@@ -929,6 +948,9 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
         // loop watchdog's own exit timer) back as they were.
         sigaction(SIGALRM, &prevAlmAct, nullptr);
         alarm(prevAlarm);
+        if (noFileRaised) {
+            setrlimit(RLIMIT_NOFILE, &prevNoFile);
+        }
         inCrashHandler = false;
     } else {
         // For SIGBUS in non-main threads, terminate only the faulting thread
@@ -1031,6 +1053,8 @@ static std::string ManualCrashReportCallback(std::string& error) {
     if (FileExists("/usr/bin/timeout")) {
         cmd = "/usr/bin/timeout -k 10 240 " + cmd;
     }
+    // The script lists this process's open descriptors by kind.
+    cmd = "FPPD_PID=" + std::to_string(getpid()) + " " + cmd;
     system(cmd.c_str());
 
     struct stat st;

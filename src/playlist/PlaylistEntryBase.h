@@ -61,6 +61,10 @@ public:
     virtual uint64_t GetLengthInMS() { return 0; }
     virtual uint64_t GetElapsedMS() { return 0; }
 
+    // This entry plays next: get its media ready now, as far as that can be
+    // done without playing it (Playlist::PrepareNextIfDue()).
+    virtual void PrepareAhead() {}
+
     std::string GetType(void) { return m_type; }
     int IsPrepped(void) { return m_isPrepped; }
 

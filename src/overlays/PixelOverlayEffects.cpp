@@ -1216,19 +1216,31 @@ public:
          * only has to repaint the glyph buffer first.  colorMask is empty for
          * Single (and for a still colour mode), in which case imageData is what
          * doText() painted once and nothing here touches it.
+         *
+         * Only the part of the message on the model is repainted: the strip
+         * is as wide as the whole message, and this runs on every scroll
+         * step.  The base update() below moves the text one pixel before it
+         * copies, so the window is widened by a pixel each way.  Text off the
+         * model keeps stale colours, and is repainted here before it scrolls
+         * on.
          */
         virtual int32_t update() override {
             if (imageData && !colorMask.empty() && colorSpec.animated()) {
-                TextColor::Colorize(colorMask.data(), imageDataCols, imageDataRows, colorLayout,
-                                    colorSpec.mode, colorSpec.palette,
-                                    textColorPhase(colorSpec, colorStartMS), true,
-                                    colorSpec.seed, imageData);
+                int w, h;
+                model->getSize(w, h);
+                TextColor::ColorizeRegion(colorMask.data(), imageDataCols, imageDataRows, colorLayout,
+                                          colorSpec.mode, colorSpec.palette,
+                                          textColorPhase(colorSpec, colorStartMS), true,
+                                          colorSpec.seed, imageData,
+                                          -x - 1, -y - 1, w - x + 1, h - y + 1,
+                                          colorSpanScratch);
             }
             return ImageMovementEffect::update();
         }
 
         std::vector<uint8_t> colorMask;
         TextColor::Layout colorLayout;
+        std::vector<int32_t> colorSpanScratch;
         TextColorSpec colorSpec;
         long long colorStartMS = 0;
     };

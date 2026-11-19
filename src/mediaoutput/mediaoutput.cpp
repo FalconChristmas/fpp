@@ -46,6 +46,7 @@
 #include "OpusRTPManager.h"
 #include "PipeWireOutputStream.h"
 #include "StreamSlotManager.h"
+#include "VideoDisplay.h"
 #include "VideoOutputManager.h"
 #include "mediadetails.h"
 #include "settings.h"
@@ -244,10 +245,16 @@ void InitMediaOutput(void) {
 /*
  *
  */
+void ShutdownPreparedMediaOutput();
+
 void CleanupMediaOutput(void) {
     CloseMediaOutput();
+    ShutdownPreparedMediaOutput();
 #ifdef HAS_GSTREAMER
     PipeWireOutputStream::ShutdownAll();
+#endif
+#ifdef HAS_VIDEO_DISPLAY
+    VideoDisplay::ShutdownAll();
 #endif
 }
 
@@ -889,7 +896,270 @@ MediaOutputBase* CreateMediaOutput(const std::string& mediaFilename, const std::
     return nullptr;
 }
 
+namespace {
+struct PreparedMedia {
+    std::string file;
+    std::string videoOut;
+    MediaOutputBase* out = nullptr;
+    bool building = false;
+    uint64_t gen = 0;
+};
+std::mutex s_preparedLock;
+std::condition_variable s_preparedDone;
+std::map<int, PreparedMedia> s_prepared;
+uint64_t s_preparedGen = 0;
+// Threads building a prepare or deleting one never played, under
+// s_preparedLock (s_preparedDone when it drops): fppd's shutdown waits for
+// them, as a prepared video holds the display's lease until it is deleted.
+int s_preparedThreads = 0;
+
+void PreparedThreadDone() {
+    std::lock_guard<std::mutex> lock(s_preparedLock);
+    s_preparedThreads--;
+    s_preparedDone.notify_all();
+}
+// How long a claim waits for a prepare still under way: about what building
+// the output cold would take anyway.
+constexpr int PREPARED_CLAIM_WAIT_MS = 2000;
+// How long a prepare waits to be claimed before it is thrown away.  A
+// playlist that stops discards its own, but a MultiSync remote can't tell
+// the master's last Stop from the one between two tracks, and an unclaimed
+// prepare holds a decoder and keeps the display up.  Prepares are made about
+// 1.5 s before they are needed.
+constexpr int PREPARED_EXPIRY_MS = 6000;
+// How soon an expiry that found its prepare still building looks again.
+constexpr int PREPARED_EXPIRY_RECHECK_MS = 1000;
+
+// Off the caller's thread: deleting an output takes its pipeline down.
+void DeleteUnplayed(MediaOutputBase* out) {
+    if (out) {
+        {
+            std::lock_guard<std::mutex> lock(s_preparedLock);
+            s_preparedThreads++;
+        }
+        std::thread([out]() {
+            SetThreadName("FPP-MediaUnprep");
+            delete out;
+            PreparedThreadDone();
+        }).detach();
+    }
+}
+
+// Throw away slot's prepare `gen` if it is still unclaimed in `inMs`.  Each
+// prepare has a timer of its own: a timer of the same name replaces the last
+// (Timers::addTimer()), and one slot's prepare cancelled another's expiry.
+// One still building then looks again a little later.
+void SchedulePreparedExpiry(int streamSlot, uint64_t gen, int inMs) {
+    std::string name = "PreparedMediaExpiry" + std::to_string(streamSlot) + "_" + std::to_string(gen);
+    Timers::INSTANCE.addTimer(name, GetTimeMS() + inMs, [streamSlot, gen]() {
+        MediaOutputBase* expired = nullptr;
+        bool building = false;
+        {
+            std::lock_guard<std::mutex> lock(s_preparedLock);
+            auto it = s_prepared.find(streamSlot);
+            if (it == s_prepared.end() || it->second.gen != gen) {
+                return;
+            }
+            building = it->second.building;
+        }
+        if (building) {
+            SchedulePreparedExpiry(streamSlot, gen, PREPARED_EXPIRY_RECHECK_MS);
+            return;
+        }
+        {
+            std::lock_guard<std::mutex> lock(s_preparedLock);
+            auto it = s_prepared.find(streamSlot);
+            if (it == s_prepared.end() || it->second.gen != gen || it->second.building) {
+                return;
+            }
+            LogDebug(VB_MEDIAOUT, "Discarding %s prepared for slot %d: not played\n", it->second.file.c_str(), streamSlot);
+            expired = it->second.out;
+            s_prepared.erase(it);
+        }
+        DeleteUnplayed(expired);
+    });
+}
+} // namespace
+
+void PrepareMediaOutput(const std::string& mediaFilename, const std::string& videoOut, int streamSlot) {
+#ifdef HAS_GSTREAMER
+    std::string ext;
+    std::size_t dot = mediaFilename.find_last_of(".");
+    if (dot != std::string::npos) {
+        ext = toLowerCopy(mediaFilename.substr(dot + 1));
+    }
+    std::string vo = videoOut;
+    // A video to a display, or (on PipeWire) anything whose sound plays
+    // through the slot's output stream, where the next track then carries on
+    // the stream's timeline (PipeWireOutputStream::ContinueTimeline()).  What
+    // can't be prepared after all, GStreamerOutput::Prepare() turns down.
+    bool displayVideo = IsExtensionVideo(ext) && IsHDMIOut(vo);
+    bool streamed = isPipeWireBackend() && (IsExtensionAudio(ext) || IsExtensionVideo(ext));
+    if (!displayVideo && !streamed) {
+        return;
+    }
+    MediaOutputBase* old = nullptr;
+    uint64_t gen;
+    {
+        std::lock_guard<std::mutex> lock(s_preparedLock);
+        PreparedMedia& p = s_prepared[streamSlot];
+        if (p.file == mediaFilename && p.videoOut == videoOut && (p.out || p.building)) {
+            return;
+        }
+        old = p.out;
+        if (!p.file.empty() && (p.out || p.building)) {
+            LogDebug(VB_MEDIAOUT, "Discarding %s prepared for slot %d: %s prepared instead\n",
+                     p.file.c_str(), streamSlot, mediaFilename.c_str());
+        }
+        p = PreparedMedia{ mediaFilename, videoOut, nullptr, true, ++s_preparedGen };
+        gen = p.gen;
+    }
+    DeleteUnplayed(old);
+    LogDebug(VB_MEDIAOUT, "Preparing %s for slot %d\n", mediaFilename.c_str(), streamSlot);
+    SchedulePreparedExpiry(streamSlot, gen, PREPARED_EXPIRY_MS);
+    // What CreateMediaOutput() would build it with: sound alone for an audio file.
+    std::string outVideoOut = displayVideo ? videoOut : (IsExtensionAudio(ext) ? std::string("--Disabled--") : videoOut);
+    {
+        std::lock_guard<std::mutex> lock(s_preparedLock);
+        s_preparedThreads++;
+    }
+    std::thread([mediaFilename, outVideoOut, streamSlot, gen]() {
+        SetThreadName("FPP-MediaPrep");
+        // Not CreateMediaOutput(): that writes the slot's status, which is
+        // the playing track's until this one starts.
+        GStreamerOutput* out = new GStreamerOutput(mediaFilename, StreamSlotManager::Instance().GetStatus(streamSlot),
+                                                   outVideoOut, streamSlot);
+        bool ok = out->Prepare();
+        {
+            std::lock_guard<std::mutex> lock(s_preparedLock);
+            auto it = s_prepared.find(streamSlot);
+            if (it != s_prepared.end() && it->second.gen == gen) {
+                it->second.building = false;
+                if (ok) {
+                    it->second.out = out;
+                    out = nullptr;
+                }
+            }
+            s_preparedDone.notify_all();
+        }
+        // Not prepared, or no longer wanted.
+        delete out;
+        PreparedThreadDone();
+    }).detach();
+#endif
+}
+
+MediaOutputBase* ClaimPreparedMediaOutput(const std::string& mediaFilename, const std::string& videoOut, int streamSlot) {
+    MediaOutputBase* out = nullptr;
+    MediaOutputBase* unwanted = nullptr;
+    {
+        std::unique_lock<std::mutex> lock(s_preparedLock);
+        auto it = s_prepared.find(streamSlot);
+        if (it == s_prepared.end()) {
+            return nullptr;
+        }
+        if (it->second.file == mediaFilename && it->second.videoOut == videoOut) {
+            uint64_t gen = it->second.gen;
+            s_preparedDone.wait_for(lock, std::chrono::milliseconds(PREPARED_CLAIM_WAIT_MS), [&]() {
+                auto cur = s_prepared.find(streamSlot);
+                return cur == s_prepared.end() || cur->second.gen != gen || !cur->second.building;
+            });
+            it = s_prepared.find(streamSlot);
+            if (it != s_prepared.end() && it->second.gen == gen) {
+                out = it->second.out;
+                s_prepared.erase(it);
+            }
+        } else {
+            LogDebug(VB_MEDIAOUT, "Discarding %s prepared for slot %d: %s plays instead\n",
+                     it->second.file.c_str(), streamSlot, mediaFilename.c_str());
+            unwanted = it->second.out;
+            s_prepared.erase(it);
+        }
+    }
+    DeleteUnplayed(unwanted);
+    if (out) {
+        // What CreateMediaOutput() would have set: the display, for a video to it.
+        std::string ext;
+        std::size_t dot = mediaFilename.find_last_of(".");
+        if (dot != std::string::npos) {
+            ext = toLowerCopy(mediaFilename.substr(dot + 1));
+        }
+        std::string vo = videoOut;
+        StreamSlotManager::Instance().GetStatus(streamSlot)->output =
+            (IsExtensionVideo(ext) && IsHDMIOut(vo)) ? videoOut : std::string();
+        LogDebug(VB_MEDIAOUT, "Using %s prepared for slot %d\n", mediaFilename.c_str(), streamSlot);
+    }
+    return out;
+}
+
+// fppd's shutdown: every prepare deleted here, and any still building or
+// being deleted on its own thread waited for (bounded), so that nothing holds
+// a display's lease once VideoDisplay::ShutdownAll() returns.
+void ShutdownPreparedMediaOutput() {
+    std::vector<MediaOutputBase*> unwanted;
+    {
+        std::lock_guard<std::mutex> lock(s_preparedLock);
+        for (auto& [slot, p] : s_prepared) {
+            unwanted.push_back(p.out);
+        }
+        s_prepared.clear();
+    }
+    for (MediaOutputBase* out : unwanted) {
+        delete out;
+    }
+    std::unique_lock<std::mutex> lock(s_preparedLock);
+    if (!s_preparedDone.wait_for(lock, std::chrono::seconds(15), [] { return s_preparedThreads == 0; })) {
+        LogWarn(VB_MEDIAOUT, "%d prepared media still building or closing at shutdown\n", s_preparedThreads);
+    }
+}
+
+void DiscardPreparedMediaOutput(int streamSlot) {
+    std::vector<MediaOutputBase*> unwanted;
+    {
+        std::lock_guard<std::mutex> lock(s_preparedLock);
+        for (auto it = s_prepared.begin(); it != s_prepared.end();) {
+            if (streamSlot == 0 || it->first == streamSlot) {
+                LogDebug(VB_MEDIAOUT, "Discarding %s prepared for slot %d\n", it->second.file.c_str(), it->first);
+                unwanted.push_back(it->second.out);
+                it = s_prepared.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+    for (MediaOutputBase* out : unwanted) {
+        DeleteUnplayed(out);
+    }
+}
+
 static std::set<std::string> alreadyWarned;
+
+// What a remote plays for the master's `filename`: the video of that name if
+// there is one, else the file itself if it has sound; "" if neither.
+static std::string RemoteMediaFor(const std::string& filename) {
+    std::size_t found = filename.find_last_of(".");
+    if (found == std::string::npos) {
+        return "";
+    }
+    std::string ext = toLowerCopy(filename.substr(found + 1));
+    std::string tmpFile = GetVideoFilenameForMedia(filename, ext);
+    std::string audio = filename;  // HasAudioForMedia() may rewrite it to the file found
+    if (tmpFile == "" && HasAudioForMedia(audio)) {
+        tmpFile = audio;
+    }
+    return tmpFile;
+}
+
+void PrepareRemoteMediaOutput(const std::string& filename) {
+    if (getFPPmode() != REMOTE_MODE) {
+        return;
+    }
+    std::string tmpFile = RemoteMediaFor(filename);
+    if (!tmpFile.empty()) {
+        PrepareMediaOutput(tmpFile, ResolveVideoOutput("--Default--"), 1);
+    }
+}
+
 /*
  *
  */
@@ -921,11 +1191,7 @@ int OpenMediaOutput(const std::string& filename) {
         std::string ext = toLowerCopy(tmpFile.substr(found + 1));
 
         if (getFPPmode() == REMOTE_MODE) {
-            std::string orgTmp = tmpFile;
-            tmpFile = GetVideoFilenameForMedia(tmpFile, ext);
-            if (tmpFile == "" && HasAudioForMedia(orgTmp)) {
-                tmpFile = orgTmp;
-            }
+            tmpFile = RemoteMediaFor(tmpFile);
 
             if (tmpFile == "") {
                 // For v1.0 MultiSync, we can't sync audio to audio, so check for
@@ -952,7 +1218,13 @@ int OpenMediaOutput(const std::string& filename) {
 
         std::string vOut = ResolveVideoOutput("--Default--");
         LogDebug(VB_MEDIAOUT, "OpenMediaOutput: Creating media output for '%s' vOut='%s'\n", tmpFile.c_str(), vOut.c_str());
-        MediaOutputBase* out = CreateMediaOutput(tmpFile, vOut);
+        // A remote may have it ready (the master's SYNC_PKT_PREPARE).  Only
+        // a remote: elsewhere this is Play Media and the like, which must not
+        // discard what a playlist prepared.
+        MediaOutputBase* out = getFPPmode() == REMOTE_MODE ? ClaimPreparedMediaOutput(tmpFile, vOut, 1) : nullptr;
+        if (!out) {
+            out = CreateMediaOutput(tmpFile, vOut);
+        }
         LogDebug(VB_MEDIAOUT, "OpenMediaOutput: CreateMediaOutput returned %p\n", out);
         if (!out) {
             LogErr(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile.c_str());

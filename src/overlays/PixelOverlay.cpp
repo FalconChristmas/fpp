@@ -1348,6 +1348,45 @@ static HttpResponsePtr bulkPixelDataPut(const HttpRequestPtr& req, PixelOverlayM
     return makeStringResponse(SaveJsonToString(r, ""), 200, "application/json");
 }
 
+// GET .../model/<name>/data[/rle] from a copy of the model's pixels
+// (PixelOverlayModel::getData()), so it is built with no lock held.  Produces
+// exactly what PixelOverlayModel::getDataJson() does: a value per channel, or
+// for rle runs of [count, ch0..chN-1] per run of identical pixels.
+static void modelDataToJson(const std::vector<uint8_t>& buf, int bpp, bool rle, Json::Value& v) {
+    if (!rle) {
+        for (uint8_t b : buf) {
+            v.append(b);
+        }
+        return;
+    }
+    if (bpp <= 0) {
+        return;
+    }
+    const size_t n = buf.size() - (buf.size() % bpp);
+    std::vector<uint8_t> last(bpp, 0);
+    int count = 0;
+    for (size_t c = 0; c < n; c += bpp) {
+        if (memcmp(&buf[c], last.data(), bpp) == 0) {
+            count++;
+        } else {
+            if (count) {
+                v.append(count);
+                for (int ch = 0; ch < bpp; ch++) {
+                    v.append(last[ch]);
+                }
+            }
+            count = 1;
+            memcpy(last.data(), &buf[c], bpp);
+        }
+    }
+    if (count) {
+        v.append(count);
+        for (int ch = 0; ch < bpp; ch++) {
+            v.append(last[ch]);
+        }
+    }
+}
+
 HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
     auto parts = getPathPieces(req->path());
     std::string p1 = parts[0];
@@ -1499,27 +1538,40 @@ HttpResponsePtr PixelOverlayManager::render_GET(const HttpRequestPtr& req) {
                 collectModelPreviewPixels(modelName, pixels);
                 result["pixels"] = pixels;
             } else if (m) {
-                std::unique_lock<std::recursive_mutex> lock(m->getRunningEffectMutex());
+                std::unique_lock<std::recursive_mutex> effectLock(m->getRunningEffectMutex());
                 if (p4 == "data") {
+                    // Copy the pixels out under the locks, then let go of both
+                    // before building the response.  The JSON is a value per
+                    // channel -- hundreds of thousands for a large matrix --
+                    // and while effectLock is held the overlay effect thread
+                    // waits, and with it the channel output thread when an
+                    // effect updates after output.
+                    std::vector<uint8_t> buf;
+                    m->getData(buf);
+                    const int width = m->getWidth();
+                    const int height = m->getHeight();
+                    const int bpp = m->getBytesPerPixel();
+                    const bool effectRunning = m->getRunningEffect() != nullptr;
+                    effectLock.unlock();
+                    lock.unlock();
+
                     if (p5 == "raw") {
                         // Binary read-back: width*height*bytesPerPixel bytes,
                         // the exact layout PUT .../data takes. The JSON form
                         // below spends 4-6 wire bytes per payload byte.
-                        std::vector<uint8_t> buf;
-                        m->getData(buf);
                         auto resp = makeStringResponse(std::string((const char*)buf.data(), buf.size()),
                                                        200, "application/octet-stream");
-                        resp->addHeader("X-FPP-Model-Width", std::to_string(m->getWidth()));
-                        resp->addHeader("X-FPP-Model-Height", std::to_string(m->getHeight()));
-                        resp->addHeader("X-FPP-Model-BytesPerPixel", std::to_string(m->getBytesPerPixel()));
+                        resp->addHeader("X-FPP-Model-Width", std::to_string(width));
+                        resp->addHeader("X-FPP-Model-Height", std::to_string(height));
+                        resp->addHeader("X-FPP-Model-BytesPerPixel", std::to_string(bpp));
                         return resp;
                     }
-                    Json::Value data;
-                    m->getDataJson(data, p5 == "rle");
-                    result["data"] = data;
+                    Json::Value data; // stays null for an empty model, as before
+                    modelDataToJson(buf, bpp, p5 == "rle", data);
+                    result["data"] = std::move(data);
                     result["rle"] = p5 == "rle";
-                    result["isLocked"] = m->getRunningEffect() != nullptr; // compatibility
-                    result["effectRunning"] = m->getRunningEffect() != nullptr;
+                    result["isLocked"] = effectRunning; // compatibility
+                    result["effectRunning"] = effectRunning;
                 } else if (p4 == "clear") {
                     retireEffectFor(m, false);
                     m->clear();
