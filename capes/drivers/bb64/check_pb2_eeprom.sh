@@ -262,12 +262,31 @@ if [ "${INDUSTRIAL}" = "false" ] && [ -n "${BOARDID}" ] && emmc_present; then
   Rewriting it needs a deliberate, destructive write; refusing to guess here."
 fi
 
+# Bytes 0..0x3d are the whole identity blob u-boot parses -- header, board-info
+# record, DDR record, 0xFE end marker -- and a factory board has no 0xFF anywhere
+# in it.  The serial-number write is a separate step from the template write, so
+# it can succeed after the template stopped part way: magic and unit number
+# fine, board ID or date still blank.  Checking only those two fields called
+# that board healthy, and it then had no usable board serial (scripts/get_uuid
+# fell back to the image's shared machine-id).  The merge fills exactly the bytes
+# that are still 0xFF, so this is precisely what it can repair.
+#
+# Keep this in step with pb2EepromValid() in src/boot/FPPINIT_Config.cpp, which
+# decides at boot whether to run this script at all.
+IDENTITY_LEN=62
+identity_complete() {
+    ! read_field 0 "${IDENTITY_LEN}" | xxd -p -c1 | grep -qx ff
+}
+
 NEEDS_FIX=false
 if [ "${MAGIC}" != "aa55" ]; then
     info "EEPROM: header invalid (expected aa55, got ${MAGIC:-empty})"
     NEEDS_FIX=true
 elif ! [[ "${UNIT}" =~ ^[0-9]{6}$ ]]; then
     info "EEPROM: header valid but the unit number is blank or malformed"
+    NEEDS_FIX=true
+elif ! identity_complete; then
+    info "EEPROM: header valid but part of the board identity was never written"
     NEEDS_FIX=true
 fi
 
@@ -297,6 +316,8 @@ BOARDID=$(read_field 46 4)
 [ "${MAGIC}" = "aa55" ] || fatal "still no valid header after the repair (magic=${MAGIC:-empty}).
   The EEPROM did not accept the write.  This board must not be flashed."
 [[ "${UNIT}" =~ ^[0-9]{6}$ ]] || fatal "unit number is still blank or malformed after the repair (unit=${UNIT}).
+  The EEPROM did not accept the write.  This board must not be flashed."
+identity_complete || fatal "part of the board identity (bytes 0-61) is still unprogrammed after the repair.
   The EEPROM did not accept the write.  This board must not be flashed."
 
 if [ "${INDUSTRIAL}" = "true" ]; then

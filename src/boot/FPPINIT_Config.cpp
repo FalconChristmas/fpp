@@ -333,23 +333,43 @@ static void setBBBLed(int index, int offset, const std::string& def) {
 // there to stop a misidentified board being FLASHED, which is not what is
 // happening here -- by the time we boot, u-boot has already sized the RAM.  So
 // read the two fields that decide whether anything needs doing, and only fork
-// the script when they say it does.  A healthy board costs one 56-byte read.
+// the script when they say it does.  A healthy board costs one 62-byte read.
 //
+// These must stay exactly the conditions check_pb2_eeprom.sh decides NEEDS_FIX
+// from.  Anything flagged here that the script calls healthy is forked again on
+// every boot and never fixed; anything the script would repair that is not
+// flagged here is never repaired at boot.
+//
+// Bytes 0..0x3d are the whole identity blob u-boot parses: the AA55 33EE
+// header, the board-info record (name, version, serial), the DDR record and
+// the 0xFE end marker.  A factory board has no 0xFF anywhere in it.  The
+// template write can stop part way, and the serial-number write is a separate
+// step that can still succeed afterwards -- leaving a valid magic and unit
+// number in front of a blank board ID.  That board boots without a usable
+// identity and gives scripts/get_uuid no board serial, so any 0xFF in the blob
+// counts as unprogrammed.  The repair only fills bytes that are still 0xFF, so
+// this flags exactly what it can fix.
+//
+static constexpr int PB2_IDENTITY_LEN = 0x3e;
 static bool pb2EepromValid(const std::string& path) {
     std::ifstream in(path, std::ios::binary);
     if (!in.good()) {
         return false;
     }
-    unsigned char buf[56];
+    unsigned char buf[PB2_IDENTITY_LEN];
     in.read((char*)buf, sizeof(buf));
     if (in.gcount() != (std::streamsize)sizeof(buf)) {
         return false;
     }
-    // Magic header, then the six ASCII digits of the unit number at 50..55.
-    // These are exactly the fields check_pb2_eeprom.sh decides NEEDS_FIX from.
     if (buf[0] != 0xAA || buf[1] != 0x55) {
         return false;
     }
+    for (int i = 2; i < PB2_IDENTITY_LEN; i++) {
+        if (buf[i] == 0xFF) {
+            return false;
+        }
+    }
+    // The six ASCII digits of the unit number at 50..55.
     for (int i = 50; i < 56; i++) {
         if (buf[i] < '0' || buf[i] > '9') {
             return false;
