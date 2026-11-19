@@ -4794,6 +4794,28 @@ function isValidSystemUUID($uuid)
         'notspecified', 'not', 'specified', 'none', 'null', 'nil',
         'unknown', 'default', 'defaultstring', 'tobefilledbyoem',
         'n/a', 'na', 'invalid', 'failed', 'notset',
+        // machine-ids baked into the 5.x-9.x images, shared by every board
+        // flashed from them -- IMAGE_MACHINE_IDS in scripts/get_uuid.  Keeps a
+        // cached value from before an upgrade, or a peer still advertising
+        // one, from passing as an identity.
+        '01a0a538be9b47be9d5638e6d00daf2e', '03007e869d6beb307f201b8061088531',
+        '185a1ae688fd4351bd11c1db52690254', '19a333fb867369ebc668eae860b11acd',
+        '21ecd3da1e3d488fa2cb9b97ad82f323', '23b0e1ebda504d6282a9fbd802e9a204',
+        '25070aeb79f44c94a7f7bcc85e4ba968', '36ada70ec58041668b619d879911ec93',
+        '36b3e747f4fc43b3a2a312607e3397bd', '3ab99712efeb471da8f498f71d1eefc8',
+        '4251f1519ea543afba9be37ae75f5cac', '42da650cb1c54c77b5a59355cb934b4f',
+        '4e8334d8fc4047e1bf37acb31f989ef3', '5436a1d97ac646fe91d742fc5430cb34',
+        '7b0f27d0716340ec9f2e10a99ea4cbc1', '8d7f5d2091f9401cb2259853f1ac652b',
+        '941e84aaaa5243b78352e939b8955ce7', '9688dc3dbdc2476c9f6b01479a0a86c3',
+        '9e39b0882a754663be87535d6add8a09', 'a196c2c082e749ad899d8e84ab4892c5',
+        'a213dd1b2336427390e9cc16a387fe43', 'abdea6810c944f079e0bf519c85c9302',
+        'adae2febbc504075937aeb5fd143dbaf', 'bf280226c88e40968a420980d21f11d5',
+        'c498144e0ab2484f89f6a030f4d7a779', 'c9b002cc34754ead924041a9a7542893',
+        'cb105871dd634de3b7503d174305fa13', 'cf3c32b6687f4effbd9612a0d41f2350',
+        'cf649eaef2764aa0aa30e46a71d90be8', 'd0eb735e4c934e72a0b64dd42d3d09ee',
+        'dcd74b19836c4636906ce757a5ffa87c', 'e57d4fef493e467f871ac79e853d9c5e',
+        'ea45528ac75e48f9aae46f8f107f84a1', 'ed3d5482fce649fe95a3228161f9ca11',
+        'f0c1a59e83f24f68b8240949d0f81780', 'f5911c20d78c4ec990ff80752c7fea20',
     );
     if (in_array(strtolower($bare), $denylist)) {
         return false;

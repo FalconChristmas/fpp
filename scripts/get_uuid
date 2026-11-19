@@ -71,6 +71,83 @@ ffffffff-ffff-ffff-ffff-ffffffffffff
 "
 
 #
+# machine-ids that shipped inside released images, and so are shared by every
+# board flashed from them.  The 5.x-8.3 images baked /etc/machine-id itself.
+# The 8.4-9.x images reset it to "uninitialized" but left a real
+# /var/lib/dbus/machine-id behind, and systemd seeds a missing machine-id from
+# that dbus file on first boot -- so every card still got the builder's value.
+# An OS upgrade then carries it forward on purpose, which is why boards still
+# report it on 10.x.  The 10.0+ images are clean.
+#
+# Found by reading etc/machine-id and var/lib/dbus/machine-id out of every
+# .fppos from 5.0 to 10.4, cross-checked against the 8.x-9.x images.  Each
+# value is denylisted (so it is never emitted, and a peer advertising it is not
+# trusted either) and, on a board that still has it, replaced with a fresh one
+# -- see the machine-id branch.
+#
+IMAGE_MACHINE_IDS="
+01a0a538be9b47be9d5638e6d00daf2e
+03007e869d6beb307f201b8061088531
+185a1ae688fd4351bd11c1db52690254
+19a333fb867369ebc668eae860b11acd
+21ecd3da1e3d488fa2cb9b97ad82f323
+23b0e1ebda504d6282a9fbd802e9a204
+25070aeb79f44c94a7f7bcc85e4ba968
+36ada70ec58041668b619d879911ec93
+36b3e747f4fc43b3a2a312607e3397bd
+3ab99712efeb471da8f498f71d1eefc8
+4251f1519ea543afba9be37ae75f5cac
+42da650cb1c54c77b5a59355cb934b4f
+4e8334d8fc4047e1bf37acb31f989ef3
+5436a1d97ac646fe91d742fc5430cb34
+7b0f27d0716340ec9f2e10a99ea4cbc1
+8d7f5d2091f9401cb2259853f1ac652b
+941e84aaaa5243b78352e939b8955ce7
+9688dc3dbdc2476c9f6b01479a0a86c3
+9e39b0882a754663be87535d6add8a09
+a196c2c082e749ad899d8e84ab4892c5
+a213dd1b2336427390e9cc16a387fe43
+abdea6810c944f079e0bf519c85c9302
+adae2febbc504075937aeb5fd143dbaf
+bf280226c88e40968a420980d21f11d5
+c498144e0ab2484f89f6a030f4d7a779
+c9b002cc34754ead924041a9a7542893
+cb105871dd634de3b7503d174305fa13
+cf3c32b6687f4effbd9612a0d41f2350
+cf649eaef2764aa0aa30e46a71d90be8
+d0eb735e4c934e72a0b64dd42d3d09ee
+dcd74b19836c4636906ce757a5ffa87c
+e57d4fef493e467f871ac79e853d9c5e
+ea45528ac75e48f9aae46f8f107f84a1
+ed3d5482fce649fe95a3228161f9ca11
+f0c1a59e83f24f68b8240949d0f81780
+f5911c20d78c4ec990ff80752c7fea20
+"
+UUID_DENYLIST="${UUID_DENYLIST} ${IMAGE_MACHINE_IDS}"
+
+is_image_machine_id() {
+    local v bad
+    v=$(echo "$1" | tr 'A-Z' 'a-z')
+    for bad in $IMAGE_MACHINE_IDS; do
+        [ "$v" = "$bad" ] && return 0
+    done
+    return 1
+}
+
+#
+# Runs a root shell snippet under a lock, so that two callers racing to repair
+# the same thing (fppd and the web UI both ask for the UUID at boot) do it once.
+# flock is util-linux and always there on FPP OS; without it, run unlocked.
+#
+locked_root() {
+    if command -v flock >/dev/null 2>&1; then
+        sudo flock /run/lock/fpp-get-uuid.lock /bin/bash -c "$@"
+    else
+        sudo /bin/bash -c "$@"
+    fi
+}
+
+#
 # A candidate is usable only if it is a single whitespace-free token of at
 # least 6 characters that is not all zeros/f's and is not denylisted.
 # The whitespace test is what rejects "Not Specified" as a whole rather than
@@ -210,9 +287,48 @@ fi
 # EEPROM lives at 0x50 on bus 1 or 2 instead -- so this serial belongs to the
 # board and stays with it when a cape is swapped.
 #
-if [ -f "/sys/bus/i2c/devices/0-0050/eeprom" ]; then
-    sn=$(dd if=/sys/bus/i2c/devices/0-0050/eeprom count=16 skip=40 bs=1 2>/dev/null || true)
-    if [[ "$sn" =~ ^[0-9]*PB[0-9A-FI]*$ ]] && uuid_valid "$sn"; then
+# On a PocketBeagle2 a serial that does not parse is almost always a blank or
+# half-programmed EEPROM, which check_pb2_eeprom.sh knows how to repair.  Left
+# alone, the board falls through to machine-id -- shared by every card flashed
+# from the same 9.x image -- so repair it and read again.  fppinit already
+# repairs at boot, but only what its own looser check catches; this is the
+# backstop for anything that check misses.  Only the PocketBeagle2 has this
+# EEPROM layout (the script would exit without touching any other board).
+#
+# Tried once per boot, whatever the outcome: a board the script cannot repair
+# (write-protected, or an MSPM0 that is not serving 0x50) would otherwise pay
+# its eMMC/i2c timeouts on every call.  The paths are overridable for testing
+# against fixtures, and the overrides are passed on to the script, which
+# honours the same PB2_* names.  Nothing in FPP sets them.
+#
+BOARD_EEPROM=${FPP_PB2_EEPROM:-/sys/bus/i2c/devices/0-0050/eeprom}
+BOARD_MODEL=${FPP_PB2_MODEL:-/proc/device-tree/model}
+PB2_CHECKED=${FPP_PB2_CHECKED:-/run/fpp-pb2-eeprom-checked}
+board_serial() {
+    [ -f "$BOARD_EEPROM" ] && dd if="$BOARD_EEPROM" count=16 skip=40 bs=1 2>/dev/null
+}
+board_serial_valid() {
+    [[ "$1" =~ ^[0-9]*PB[0-9A-FI]*$ ]] && uuid_valid "$1"
+}
+if [ -f "$BOARD_EEPROM" ]; then
+    sn=$(board_serial)
+    if ! board_serial_valid "$sn" && [ ! -e "$PB2_CHECKED" ] \
+        && tr -d '\0' <"$BOARD_MODEL" 2>/dev/null | grep -q PocketBeagle2; then
+        CHECK="$(dirname "$(readlink -f "$0")")/../capes/drivers/bb64/check_pb2_eeprom.sh"
+        if [ -f "$CHECK" ]; then
+            FIXTURES=()
+            [ -n "$FPP_PB2_EEPROM" ] && FIXTURES+=("PB2_EEPROM=$FPP_PB2_EEPROM")
+            [ -n "$FPP_PB2_MODEL" ] && FIXTURES+=("PB2_MODEL=$FPP_PB2_MODEL")
+            [ -n "$FPP_PB2_EMMC_TYPE" ] && FIXTURES+=("PB2_EMMC_TYPE=$FPP_PB2_EMMC_TYPE")
+            # Re-test the latch under the lock: whoever got there first has
+            # already repaired it, and a second run would only repeat the waits.
+            # The script's output goes to stderr -- stdout is the UUID.
+            locked_root '[ -e "$1" ] && exit 0; env "${@:3}" /bin/bash "$2" --quiet; touch "$1"' \
+                _ "$PB2_CHECKED" "$CHECK" "${FIXTURES[@]}" >&2
+            sn=$(board_serial)
+        fi
+    fi
+    if board_serial_valid "$sn"; then
         emit "M5-$sn" "board-eeprom"
     fi
 fi
@@ -242,12 +358,33 @@ fi
 #
 # "uninitialized" must never be emitted: it is what every image ships and what
 # the file briefly contains after an upgrade, before systemd regenerates it.
-# Older images did bake a real value in, so a board upgraded from one of those
-# can still carry an identity shared with its image siblings -- the uuidSource
-# field reports "machine-id" so those records stay distinguishable.
+# Older images did bake a real value in (IMAGE_MACHINE_IDS above), and an OS
+# upgrade preserves it, so boards upgraded from one of those still carry an
+# identity shared with every sibling of that image.  That value is replaced
+# here, once, with a fresh random one -- which is also what fixes the other
+# things keyed off machine-id, such as the DHCP client ID two such boards would
+# otherwise fight over.  The running system picks it up fully at the next boot.
 #
-if [ -f "/etc/machine-id" ]; then
-    UUID=$(tr -d '\0' </etc/machine-id | head -1)
+# The dbus copy is turned into the symlink the current images ship, since it is
+# where the shared value came from: systemd seeds a missing machine-id from it.
+#
+MACHINEID=${FPP_MACHINEID:-/etc/machine-id}
+DBUSMACHINEID=${FPP_DBUSMACHINEID:-/var/lib/dbus/machine-id}
+if [ -f "$MACHINEID" ]; then
+    UUID=$(tr -d '\0' <"$MACHINEID" | head -1)
+    if is_image_machine_id "$UUID"; then
+        # Under the lock, and only if the file still holds the value we read:
+        # a concurrent caller may already have replaced it.
+        locked_root '
+            [ "$(tr -d "\0" <"$1" | head -1)" = "$3" ] || exit 0
+            if [ -f "$2" ] && [ ! -L "$2" ]; then
+                rm -f "$2" && ln -sf "$1" "$2"
+            fi
+            tr -d -- "-" </proc/sys/kernel/random/uuid >"$1.new" &&
+                chmod 444 "$1.new" && mv -f "$1.new" "$1"
+        ' _ "$MACHINEID" "$DBUSMACHINEID" "$UUID" >&2
+        UUID=$(tr -d '\0' <"$MACHINEID" | head -1)
+    fi
     if [ "$UUID" != "uninitialized" ] && uuid_valid "$UUID"; then
         emit "M4-$UUID" "machine-id"
     fi
