@@ -866,8 +866,12 @@ bool PipeWireOutputStream::OpenLocked(std::unique_lock<std::mutex>& lock) {
     }
     if (!ok) {
         LogErr(VB_MEDIAOUT, "PipeWire output stream %d: could not connect to '%s'\n", m_slot, target.c_str());
+        // Once the stream exists, m_pwLoop owns the loop and CloseLocked()
+        // destroys it (and clears m_pwLoop, so it can't be asked afterwards).
+        // Only a loop that never got that far is still ours to destroy.
+        bool loopHandedOver = m_pwLoop == loop;
         CloseLocked("could not connect");
-        if (!m_pwLoop) {
+        if (!loopHandedOver) {
             pw_thread_loop_destroy(loop);
         }
         return false;
