@@ -927,6 +927,8 @@ static void handleCrash(int s, siginfo_t* si, void* ctx) {
             if (FileExists("/usr/bin/timeout")) {
                 scriptCmd = "/usr/bin/timeout -k 10 " + std::to_string(kReportScriptSec) + " " + scriptCmd;
             }
+            // The script lists this process's open descriptors by kind.
+            scriptCmd = "FPPD_PID=" + std::to_string(getpid()) + " " + scriptCmd;
             system(scriptCmd.c_str());
             SetFilePerms(zfName);
 
@@ -1051,6 +1053,8 @@ static std::string ManualCrashReportCallback(std::string& error) {
     if (FileExists("/usr/bin/timeout")) {
         cmd = "/usr/bin/timeout -k 10 240 " + cmd;
     }
+    // The script lists this process's open descriptors by kind.
+    cmd = "FPPD_PID=" + std::to_string(getpid()) + " " + cmd;
     system(cmd.c_str());
 
     struct stat st;
