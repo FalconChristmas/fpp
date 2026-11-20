@@ -10113,7 +10113,7 @@
           "system"
         ],
         "summary": "Get system status",
-        "description": "Returns `fppd`, network, current playlist, schedule, utilization, host, version, and MQTT status. Pass an optional array of IP addresses (e.g. `&ip[]=192.168.0.1&ip[]=192.168.0.2`) to query remote instances instead.",
+        "description": "Returns `fppd`, network, current playlist, schedule, utilization, host, version, and MQTT status. Pass an optional array of IP addresses (e.g. `&ip[]=192.168.0.1&ip[]=192.168.0.2`) to query remote instances instead. Status includes a top-level `internetState` object mapping interface names to `true` when fppd has verified internet connectivity through them; it is absent or empty when internet probing is disabled globally or per-interface.",
         "responses": {
           "200": {
             "description": "System status",

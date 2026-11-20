@@ -763,6 +763,8 @@
                 } else {
                     data.PROTO = 'dhcp';
                 }
+                // A Basic setting, saved for every interface at every UI level.
+                data.INTERNETSTATUS = $('#internetStatus_' + safeName).is(':checked');
                 <? if ($settings['uiLevel'] >= 1) { ?>
                     data.ROUTEMETRIC = $('#eth_route_metric_' + safeName).val();
                     data.DHCPSERVER = $('#dhcpServer_' + safeName).is(':checked');
@@ -807,6 +809,13 @@
                 $.get("api/network/interface/" + iface, function (currentData) {
                     var hasChanged = false;
 
+                    // INTERNETSTATUS is ON by default. The saved value is a
+                    // string ("1"/"") from parse_ini_file, or absent, while the
+                    // form sends a boolean, so compare both as booleans.
+                    var currentInternetStatus = currentData.INTERNETSTATUS === undefined
+                        ? true
+                        : (currentData.INTERNETSTATUS == "1");
+
                     // Compare all relevant fields
                     if (currentData.PROTO !== data.PROTO ||
                         currentData.ADDRESS !== data.ADDRESS ||
@@ -823,7 +832,8 @@
                         currentData.BACKUPSSID !== data.BACKUPSSID ||
                         (data.BACKUPPSK !== undefined && (data.BACKUPPSK !== '' || currentData.BACKUPPSKSet)) ||
                         currentData.BACKUPHIDDEN !== data.BACKUPHIDDEN ||
-                        currentData.BACKUPWPA3 !== data.BACKUPWPA3) {
+                        currentData.BACKUPWPA3 !== data.BACKUPWPA3 ||
+                        currentInternetStatus !== data.INTERNETSTATUS) {
                         hasChanged = true;
                     }
 
@@ -1266,6 +1276,13 @@
             }
             if (data.WPA3) {
                 contentDiv.find('#eth_wpa3_' + safeName).prop('checked', data.WPA3 == "1");
+            }
+
+            // Display Internet Indicator defaults to ON when absent/empty.
+            if (data.INTERNETSTATUS === undefined) {
+                contentDiv.find('#internetStatus_' + safeName).prop('checked', true);
+            } else {
+                contentDiv.find('#internetStatus_' + safeName).prop('checked', data.INTERNETSTATUS == "1");
             }
 
             // Populate backup wireless settings if available
@@ -2079,6 +2096,15 @@
                                             </div>
                                             <div class="printSettingFieldCol col-md"><input type="text"
                                                     name="eth_netmask" id="eth_netmask" size="15" maxlength="15"></div>
+                                        </div>
+                                        <div class="row" id="internetStatusRow">
+                                            <div class="printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2">
+                                                <div class="description">Display Internet Indicator</div>
+                                            </div>
+                                            <div class="printSettingFieldCol col-md">
+                                                <input type="checkbox" id="internetStatus" value="1" checked>
+                                                <span data-bs-title="Show a green dot on the header network icon when FPP has verified internet access through this interface. Unchecking also stops the outbound connectivity probe for this interface. On by default." data-bs-toggle="tooltip" data-bs-placement="auto" data-bs-html="true"><img src="images/redesign/help-icon.svg" class="icon-help" alt="Help"></span>
+                                            </div>
                                         </div>
 
                                         <div class="row">

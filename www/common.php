@@ -4374,12 +4374,14 @@ function ConfigPathIsCredential($path)
     return false;
 }
 
+/**
+ * Interface details for the web UI and API.
+ */
 function network_list_interfaces_obj()
 {
     global $settings;
 
     $output = array();
-    global $settings;
     $rc = array();
 
     $wifiObj = network_wifi_strength_obj();
@@ -4458,6 +4460,7 @@ function network_list_interfaces_obj()
                 $rec["config"] = network_redact_interface_config($result);
             }
         }
+        unset($rec);
     }
     return array_values($rc);
 }
