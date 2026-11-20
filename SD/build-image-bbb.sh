@@ -14,7 +14,8 @@
 #
 # Prereqs (Debian/Ubuntu):
 #   apt-get install qemu-user-static binfmt-support parted dosfstools \
-#       zerofree squashfs-tools zip xz-utils wget ca-certificates e2fsprogs
+#       zerofree squashfs-tools zip xz-utils wget ca-certificates e2fsprogs \
+#       gpgv u-boot-tools device-tree-compiler
 #
 # IMPORTANT: qemu-arm-static binfmt must be registered. On arm64/x86_64 hosts
 # where the qemu-user-static package skips registering qemu-arm, run:
@@ -60,6 +61,11 @@ IMG_SIZE_MB="${IMG_SIZE_MB:-7000}"
 FPP_KERNEL_VER="${FPP_KERNEL_VER:-7.1.6-fpp17_1}"
 FPP_KERNEL_URL="${FPP_KERNEL_URL:-https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-image-${FPP_KERNEL_VER}_armhf.deb}"
 SKIP_KERNEL_UPDATE="${SKIP_KERNEL_UPDATE:-0}"
+
+# PocketBeagle 2 bootloader, put on the FAT partition so a PB2 booted from this
+# (wrong) image flashes its LEDs instead of looking dead. See step 6.
+PB2_UBOOT_REPO="${PB2_UBOOT_REPO:-https://rcn-ee.com/repos/debian-trixie-arm64}"
+PB2_UBOOT_PKG="${PB2_UBOOT_PKG:-bb-u-boot-pocketbeagle2}"
 
 WORK_DIR="${WORK_DIR:-$(pwd)/build}"
 OUTPUT_DIR="${OUTPUT_DIR:-$(pwd)/output}"
@@ -259,7 +265,7 @@ if [ "$USE_LOCAL_SRC" = "1" ] && [ "$FPPBRANCH" = "master" ]; then
 fi
 
 REQUIRED_CMDS=(wget xz parted losetup e2fsck e2label resize2fs fatlabel
-               zerofree zip sha256sum mksquashfs rsync "$QEMU_BIN")
+               zerofree zip sha256sum mksquashfs rsync gpgv dpkg-deb mkimage dtc "$QEMU_BIN")
 for cmd in "${REQUIRED_CMDS[@]}"; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
         echo "Missing required command: $cmd" >&2
@@ -821,6 +827,101 @@ rm -f "$ROOT_MNT/usr/bin/$QEMU_BIN"
 # stamp it next to /etc/fpp/rfs_version for traceability on the device.
 mkdir -p "$ROOT_MNT/etc/fpp"
 echo "$BASE_XZ" > "$ROOT_MNT/etc/fpp/base_image_name"
+
+# A common support case is the BBB image written to a card and put in a
+# PocketBeagle 2, which then does nothing at all and looks dead. Give the PB2
+# something to boot: its bootloader on the FAT partition, plus a boot.scr that
+# makes its u-boot flash the four user LEDs forever and print a message on the
+# serial console.
+#
+# The BBB is not disturbed. Its ROM finds MLO in the raw area before the first
+# partition and never reads the FAT files. Its u-boot's distro boot does run
+# boot.scr from the bootable p1, so the script is gated on the PB2's
+# board_name; on a BBB it falls through and the legacy /boot/uEnv.txt boot
+# carries on as before.
+#
+# Do NOT use a uEnv.txt here, though both u-boots would read it: FPP finds its
+# boot config by probing /boot/firmware/uEnv.txt before /boot/uEnv.txt
+# (FPPBOOTDIR in scripts/common, findBootConfigFile() in CapeUtils), so a
+# BBB would edit the decoy. Nor extlinux/: the BBB u-boot would try to boot it.
+#
+# The bootloader comes from rcn-ee's arm64 repo. Its InRelease is verified
+# against the rcn-ee keyring shipped in the base image, then the Packages
+# index and the .deb against the hashes it signs.
+echo "      Adding PocketBeagle 2 wrong-image indicator to the FAT partition"
+PB2_DIR="$WORK_DIR/pb2-uboot"
+rm -rf "$PB2_DIR"
+mkdir -p "$PB2_DIR"
+PB2_KEYRINGS=()
+for k in "$ROOT_MNT"/usr/share/keyrings/rcn-ee-*-archive-keyring.gpg; do
+    [ -f "$k" ] && PB2_KEYRINGS+=(--keyring "$k")
+done
+[ ${#PB2_KEYRINGS[@]} -gt 0 ] || { echo "ERROR: no rcn-ee archive keyring in the base image" >&2; exit 1; }
+wget -q -O "$PB2_DIR/InRelease" "$PB2_UBOOT_REPO/dists/trixie/InRelease"
+gpgv "${PB2_KEYRINGS[@]}" --output "$PB2_DIR/Release" "$PB2_DIR/InRelease" 2>/dev/null \
+    || { echo "ERROR: $PB2_UBOOT_REPO InRelease signature did not verify" >&2; exit 1; }
+PB2_PKGS_SHA="$(awk '/^SHA256:/{f=1;next} /^[^ ]/{f=0} f && $3=="main/binary-arm64/Packages.gz"{print $1}' "$PB2_DIR/Release")"
+wget -q -O "$PB2_DIR/Packages.gz" "$PB2_UBOOT_REPO/dists/trixie/main/binary-arm64/Packages.gz"
+echo "$PB2_PKGS_SHA  $PB2_DIR/Packages.gz" | sha256sum -c --quiet
+PB2_DEB_PATH="" PB2_DEB_SHA=""
+read -r PB2_DEB_PATH PB2_DEB_SHA < <(zcat "$PB2_DIR/Packages.gz" | awk -v p="$PB2_UBOOT_PKG" '
+    /^Package: /{f=($2==p)} f&&/^Filename: /{fn=$2} f&&/^SHA256: /{s=$2}
+    /^$/{if(fn!=""&&s!=""){print fn, s; exit} f=0}
+    END{if(fn!=""&&s!="")print fn, s}') || true
+[ -n "$PB2_DEB_PATH" ] || { echo "ERROR: $PB2_UBOOT_PKG not found in $PB2_UBOOT_REPO" >&2; exit 1; }
+wget -q -O "$PB2_DIR/pkg.deb" "$PB2_UBOOT_REPO/$PB2_DEB_PATH"
+echo "$PB2_DEB_SHA  $PB2_DIR/pkg.deb" | sha256sum -c --quiet
+dpkg-deb -x "$PB2_DIR/pkg.deb" "$PB2_DIR/x"
+for f in tiboot3.bin tispl.bin u-boot.img; do
+    install -m 0644 "$PB2_DIR/x/opt/u-boot/$PB2_UBOOT_PKG/$f" "$ROOT_MNT/boot/firmware/$f"
+done
+cat > "$PB2_DIR/boot.cmd" <<'PB2_SCR_EOF'
+if test "${board_name}" = "pocketbeagle2"; then
+    echo
+    echo "*** This SD card holds the FPP BeagleBone Black (32-bit) image. ***"
+    echo "*** PocketBeagle 2 needs the FPP BB64 image. ***"
+    while true; do
+        led led-1 on; led led-2 off; led led-3 on; led led-4 off; sleep 0.2
+        led led-1 off; led led-2 on; led led-3 off; led led-4 on; sleep 0.2
+    done
+fi
+PB2_SCR_EOF
+# A FIT, not a legacy (mkimage -T script) image: the PB2's u-boot is built
+# without legacy image support and rejects one with "Wrong image format for
+# source command". The BBB's u-boot takes the FIT as well.
+cat > "$PB2_DIR/boot.its" <<'PB2_ITS_EOF'
+/dts-v1/;
+
+/ {
+	description = "PB2 wrong-image indicator";
+	#address-cells = <1>;
+
+	images {
+		default = "pb2";
+		pb2 {
+			description = "PB2 wrong-image indicator";
+			data = /incbin/("boot.cmd");
+			type = "script";
+			arch = "arm";
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+	};
+
+	configurations {
+		default = "conf";
+		conf {
+			description = "PB2 wrong-image indicator";
+			script = "pb2";
+		};
+	};
+};
+PB2_ITS_EOF
+( cd "$PB2_DIR" && mkimage -f boot.its boot.scr >/dev/null )
+install -m 0644 "$PB2_DIR/boot.scr" "$ROOT_MNT/boot/firmware/boot.scr"
+echo "      PB2 bootloader: $PB2_DEB_PATH"
 # Restore the /etc/resolv.conf -> systemd-resolved symlink for the booted
 # image. Leaving it as a static (empty) file means anything that reads
 # /etc/resolv.conf directly gets no nameservers; getaddrinfo() still works via
@@ -842,7 +943,12 @@ if [ "$SKIP_FPPOS" != "1" ]; then
     echo "[7b/8] Building .fppos squashfs (this takes a LONG time)..."
     FPPOS="$OUTPUT_DIR/${PLATFORM_SUFFIX}-${VERSION}_${OSVERSION}.fppos"
     rm -f "$FPPOS"
-    mksquashfs "$ROOT_MNT" "$FPPOS" -b 512K -comp xz -noappend
+    # The PocketBeagle 2 indicator (step 6) is only for a fresh card put in the
+    # wrong board; keep it out of the .fppos so an OS upgrade doesn't copy it
+    # onto every BBB. -e must be last: it takes the rest of the arguments.
+    mksquashfs "$ROOT_MNT" "$FPPOS" -b 512K -comp xz -noappend \
+        -e boot/firmware/tiboot3.bin boot/firmware/tispl.bin \
+           boot/firmware/u-boot.img boot/firmware/boot.scr
 else
     echo "[7b/8] Skipping .fppos generation (SKIP_FPPOS=1)"
     FPPOS=""

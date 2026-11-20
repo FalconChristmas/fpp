@@ -330,7 +330,7 @@ jobs:
             qemu-user-static binfmt-support \
             parted dosfstools e2fsprogs \
             zerofree squashfs-tools zip xz-utils \
-            wget ca-certificates rsync
+            wget ca-certificates rsync gpgv u-boot-tools device-tree-compiler
 
       - name: Register qemu-arm binfmt
         # qemu-user-static on arm64 Ubuntu doesn't register qemu-arm because
