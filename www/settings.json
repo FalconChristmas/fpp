@@ -346,6 +346,7 @@
 			"settings": [
 				"EnableTethering",
 				"TetherInterface",
+				"TetherUseHostname",
 				"TetherSSID",
 				"TetherPSK"
 			]
@@ -3341,6 +3342,13 @@
 			"size": 32,
 			"maxlength": 32,
 			"default": "FPP"
+		},
+		"TetherUseHostname": {
+			"name": "TetherUseHostname",
+			"description": "Use hostname as tether SSID",
+			"tip": "On by default for new installs and installs still using FPP or the hostname as their tether SSID; off when a custom SSID is already set. When enabled, the SSID follows this FPP's hostname, with any .local suffix removed, and cannot be edited here. Uncheck to use a custom SSID.",
+			"type": "checkbox",
+			"default": 1
 		},
 		"themeOverride": {
 			"name": "themeOverride",

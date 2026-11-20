@@ -664,6 +664,14 @@ $settings['outputProcessorsFile'] = $outputProcessorsFile;
  */
 LoadSettingInfos();
 
+// The checkbox defaults to on for new installs, but an existing install with
+// a custom tether SSID must keep that name: turning it on would let the next
+// hostname change overwrite it. Decide before settings.json defaults are
+// applied so an explicit choice saved in the settings file always wins.
+if (!isset($settings['TetherUseHostname'])) {
+    $settings['TetherUseHostname'] = TetherUseHostnameDefault();
+}
+
 foreach ($settingInfos as $key => $obj) {
     if (isset($obj['default'])) {
         if (!isset($settings[$key])) {

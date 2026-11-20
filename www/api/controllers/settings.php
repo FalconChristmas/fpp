@@ -13,6 +13,14 @@ function ReadSettingsJSON()
     return json_decode($json, true);
 }
 
+function TetherUseHostnameEnabled()
+{
+    global $settings;
+    return isset($settings['TetherUseHostname']) &&
+        $settings['TetherUseHostname'] != '0' &&
+        $settings['TetherUseHostname'] != '';
+}
+
 /**
  * Get value of setting
  *
@@ -166,6 +174,19 @@ function PutSetting()
             "status" => "ERROR",
             "message" => "Unable to save the '" . $setting . "' setting.  The settings file is not writable - check the FPP logs."
         ));
+    }
+
+    if ($setting == "HostName" && TetherUseHostnameEnabled()) {
+        // Keep the tether SSID in lockstep with the host name from every
+        // entry point (this page, the setup wizard, a direct API PUT). The
+        // page also mirrors the change in its greyed-out field, but the
+        // value that reaches hostapd is the one written here. Never write
+        // an empty SSID: on a fresh install the host name may not be in the
+        // settings file yet, and fppinit's "FPP" fallback must survive.
+        $ssid = TetherSSIDFromHostname($value);
+        if ($ssid !== '') {
+            WriteSettingToFile("TetherSSID", $ssid);
+        }
     }
 
     // Callers can pass ?skipApply=1 to persist the value WITHOUT running the
@@ -331,6 +352,16 @@ function PutSetting()
         $bgScript =
             $SUDO . " " . escapeshellarg($fppDir . "/src/fppinit") . " setupAudio\n";
         exec("nohup bash -c " . escapeshellarg($bgScript) . " < /dev/null > /dev/null 2>&1 &");
+    } else if ($setting == "TetherUseHostname") {
+        // Enabling the option adopts the current host name at once. Turning
+        // it off leaves the SSID untouched so it becomes editable in the UI
+        // without silently replacing the name that was just in use.
+        if ($value != "0" && $value != "") {
+            $ssid = TetherSSIDFromHostname(isset($settings['HostName']) ? $settings['HostName'] : '');
+            if ($ssid !== '') {
+                WriteSettingToFile("TetherSSID", $ssid);
+            }
+        }
     } else if ($setting == "EnableTethering") {
         $ssid = ReadSettingFromFile("TetherSSID");
         $psk = ReadSettingFromFile("TetherPSK");
