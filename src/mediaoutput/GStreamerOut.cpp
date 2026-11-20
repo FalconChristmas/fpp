@@ -23,6 +23,7 @@
 
 #include <gst/gst.h>
 #include <gst/app/gstappsink.h>
+#include <climits>
 #include <cstdlib>
 #include <cctype>
 #include <cstring>
@@ -3372,7 +3373,7 @@ int GStreamerOutput::Go(int msTime, const std::string& pipelineSinkName, double 
     }
 
     Starting();
-    LogInfo(VB_MEDIAOUT, "GStreamer started playing: %s\n", m_mediaFilename.c_str());
+    LogDebug(VB_MEDIAOUT, "GStreamer started playing: %s\n", m_mediaFilename.c_str());
     return 1;
 }
 
@@ -4082,15 +4083,26 @@ static int ReadIntField(const std::string& text, const char* key) {
     return std::atoi(text.c_str() + c + 1);
 }
 
-// Say once, per media, that the position is going out uncorrected and why.
-// Deliberately not a WarningHolder banner: on a board with no usable sink this
-// would fire on every track forever, and the condition is a tuning shortfall
-// rather than a fault the user must act on immediately.
+// Say once that the position is going out uncorrected and why: once per
+// media at most, and once per reason for the whole run -- each pass of a
+// looping clip is a new media output, and a board with no usable sink would
+// otherwise log it at every pass.  Deliberately not a WarningHolder banner:
+// the condition is a tuning shortfall rather than a fault the user must act
+// on immediately.
 void GStreamerOutput::NoteNoSinkLatency(const std::string& why) {
     if (m_warnedNoSinkLatency) {
         return;
     }
     m_warnedNoSinkLatency = true;
+    static std::mutex saidLock;
+    static std::set<std::string> said;
+    {
+        std::lock_guard<std::mutex> lock(saidLock);
+        if (!said.insert(why).second) {
+            LogDebug(VB_MEDIAOUT, "GStreamer: no audio sink latency available (%s)\n", why.c_str());
+            return;
+        }
+    }
     LogWarn(VB_MEDIAOUT,
             "GStreamer: no audio sink latency available (%s) — reported position is not "
             "corrected for the card's queue, so the sequence may lead the audio by tens of ms\n",
@@ -4811,7 +4823,7 @@ GstBusSyncReply GStreamerOutput::BusSyncHandler(GstBus* bus, GstMessage* msg, gp
 
     switch (GST_MESSAGE_TYPE(msg)) {
     case GST_MESSAGE_EOS:
-        LogInfo(VB_MEDIAOUT, "GStreamer sync: End of stream\n");
+        LogDebug(VB_MEDIAOUT, "GStreamer sync: End of stream\n");
         if (self->m_loopCount > 0 || self->m_loopCount == -1) {
             if (self->m_loopCount > 0)
                 self->m_loopCount--;
@@ -5204,14 +5216,22 @@ int GStreamerOutput::Close(void) {
     // see ClearSlot()'s ownership check).
     StreamSlotManager::Instance().ClearSlot(m_streamSlot, this);
 
-    // Per-track CMA trend line — logged unconditionally (not just when
-    // m_pipeline was set) so 24h soak-test logs show CMA after every Close(),
-    // including failed-Start cycles, letting a slow leak be correlated with
-    // build/teardown count instead of only track count.
+    // Per-track CMA trend line -- after every Close() (not just when
+    // m_pipeline was set), including failed-Start cycles, so a slow leak can
+    // be correlated with build/teardown count instead of only track count.
+    // At info only when free CMA reaches a new low by a MB or more: a leak
+    // still shows as a run of those, and a show looping one clip all night
+    // doesn't write a line to the SD card at every pass.
     {
+        static std::atomic<long> lowestFreeKB{ LONG_MAX };
         long cmaFreeKB = ReadMeminfoKB("CmaFree");
         long cmaTotalKB = ReadMeminfoKB("CmaTotal");
-        LogInfo(VB_MEDIAOUT, "GStreamer: post-close CmaFree=%ld kB / CmaTotal=%ld kB\n", cmaFreeKB, cmaTotalKB);
+        long lowest = lowestFreeKB.load();
+        if (cmaFreeKB >= 0 && cmaFreeKB + 1024 <= lowest && lowestFreeKB.compare_exchange_strong(lowest, cmaFreeKB)) {
+            LogInfo(VB_MEDIAOUT, "GStreamer: post-close CmaFree=%ld kB / CmaTotal=%ld kB (lowest yet)\n", cmaFreeKB, cmaTotalKB);
+        } else {
+            LogDebug(VB_MEDIAOUT, "GStreamer: post-close CmaFree=%ld kB / CmaTotal=%ld kB\n", cmaFreeKB, cmaTotalKB);
+        }
     }
 
     return 1;

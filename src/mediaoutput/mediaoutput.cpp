@@ -1340,7 +1340,7 @@ int StartMediaOutput(const std::string& filename, int msTime) {
         mediaOutputStatus.subSecondsRemaining = 0;
     }
 
-    LogWarn(VB_MEDIAOUT, "StartMediaOutput: Calling Start(%d) on mediaOutput=%p\n", msTime, out);
+    LogDebug(VB_MEDIAOUT, "StartMediaOutput: Calling Start(%d) on mediaOutput=%p\n", msTime, out);
     if (!out->Start(msTime)) {
         LogErr(VB_MEDIAOUT, "Could not start media %s\n", out->m_mediaFilename.c_str());
         WarningHolder::AddWarningTimeout(60, 30, "Could not start media " + out->m_mediaFilename);
