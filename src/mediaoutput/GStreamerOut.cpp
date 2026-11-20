@@ -24,11 +24,15 @@
 #include <gst/gst.h>
 #include <gst/app/gstappsink.h>
 #include <climits>
+#include <condition_variable>
 #include <cstdlib>
 #include <cctype>
 #include <cstring>
 #include <dirent.h>
 #include <fcntl.h>
+#ifdef __GLIBC__
+#include <malloc.h>
+#endif
 #include <algorithm>
 #include <fstream>
 #include <map>
@@ -403,6 +407,52 @@ static std::array<std::atomic<int64_t>, StreamSlotManager::MAX_SLOTS + 1> s_pict
 // difference is the two boxes' output delays, the same from track to track.
 static std::array<std::atomic<int>, StreamSlotManager::MAX_SLOTS + 1> s_remoteStartAdjustMs{};
 static constexpr int kMaxRemoteStartAdjustMs = 250;
+
+// Hand the memory a finished track freed back to the system, a few seconds
+// after it closes.  Each track starts streaming threads of its own, and on a
+// 64-bit board glibc gives them arenas of up to 64 MB each, which keep what
+// those threads freed for reuse: a remote looping a 15 s video grew from 128
+// to 157 MB over five hours, all of it given back by a malloc_trim().  Done
+// on a thread of its own once the next track is playing (each close pushes
+// it back), so nothing on the way from one track to the next waits for it.
+static void TrimHeapSoon() {
+#ifdef __GLIBC__
+    struct Trimmer {
+        std::mutex lock;
+        std::condition_variable cv;
+        uint64_t dueMs = 0;
+    };
+    // Never freed: its thread waits on it for the life of the process.
+    static Trimmer* trimmer = [] {
+        Trimmer* t = new Trimmer();
+        std::thread([t]() {
+            SetThreadName("FPP-HeapTrim");
+            std::unique_lock<std::mutex> lock(t->lock);
+            while (true) {
+                t->cv.wait(lock, [t] { return t->dueMs != 0; });
+                uint64_t now = GetMonotonicTimeMS();
+                if (now < t->dueMs) {
+                    t->cv.wait_for(lock, std::chrono::milliseconds(t->dueMs - now));
+                    continue;
+                }
+                t->dueMs = 0;
+                lock.unlock();
+                auto t0 = std::chrono::steady_clock::now();
+                malloc_trim(0);
+                double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+                LogDebug(VB_MEDIAOUT, "GStreamer: returned freed memory to the system in %.1f ms\n", ms);
+                lock.lock();
+            }
+        }).detach();
+        return t;
+    }();
+    {
+        std::lock_guard<std::mutex> lock(trimmer->lock);
+        trimmer->dueMs = GetMonotonicTimeMS() + 3000;
+    }
+    trimmer->cv.notify_one();
+#endif
+}
 
 // `ifLate` runs on the teardown thread if the pipeline does reach NULL after
 // all, once the caller has given up on it (returned false).
@@ -5233,6 +5283,7 @@ int GStreamerOutput::Close(void) {
             LogDebug(VB_MEDIAOUT, "GStreamer: post-close CmaFree=%ld kB / CmaTotal=%ld kB\n", cmaFreeKB, cmaTotalKB);
         }
     }
+    TrimHeapSoon();
 
     return 1;
 }
