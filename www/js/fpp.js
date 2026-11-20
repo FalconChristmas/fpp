@@ -4909,6 +4909,58 @@ function PingE131IP (id) {
 	PingIP(ip, 3);
 }
 
+// Opens the controller's web page in a new tab: through this FPP's /proxy/
+// when the controller is on the proxy list, otherwise directly (the same
+// choice MultiSync makes). Reads the address from the button's own row, so
+// it stays right when rows are added, cloned or deleted.
+function OpenE131IP (btn) {
+	var addr = String($(btn).closest('tr').find('input.txtIP').val() || '')
+		.trim()
+		.replace(/^https?:\/\//i, '')
+		.replace(/\/.*$/, '');
+	if (addr === '') {
+		$.jGrowl('No unicast address set for this output', {
+			themeState: 'danger'
+		});
+		return;
+	}
+	var host = addr.replace(/:\d+$/, '');
+	if (!/^[a-zA-Z0-9.-]+(:\d+)?$/.test(addr)) {
+		$.jGrowl('Not a valid IP address or hostname: ' + addr, {
+			themeState: 'danger'
+		});
+		return;
+	}
+	var direct = 'http://' + addr + '/';
+
+	// Open the tab now, while still handling the click, so popup blockers
+	// allow it; point it at the right URL once the proxy list is back.
+	var win = window.open('', '_blank');
+	function go (url) {
+		if (win) {
+			win.opener = null;
+			win.location.href = url;
+		} else {
+			window.open(url, '_blank', 'noopener');
+		}
+	}
+
+	$.get('api/proxies')
+		.done(function (list) {
+			var proxied = (list || []).some(function (p) {
+				return p.host === host;
+			});
+			go(
+				proxied ?
+					new URL('proxy/' + addr + '/', document.baseURI).href
+				:	direct
+			);
+		})
+		.fail(function () {
+			go(direct);
+		});
+}
+
 function ViewReleaseNotes (version) {
 	var opts = {
 		id: 'releaseNotesDialog',
@@ -5270,7 +5322,7 @@ function IPOutputTypeChanged (item, input) {
 		$(item).parent().parent().find('input.txtIP').prop('hidden', false);
 
 		if (!input) {
-			$(item).parent().parent().find('input.pingButton').prop('hidden', false);
+			$(item).parent().parent().find('input.pingButton, input.openButton').prop('hidden', false);
 		}
 	} else {
 		// 0,1 = E1.31, 2,3,9 = Artnet, 6,7 = KiNet
@@ -5295,13 +5347,13 @@ function IPOutputTypeChanged (item, input) {
 			if (type == 0 || type == 2) {
 				$(item).parent().parent().find('input.txtIP').val('');
 				$(item).parent().parent().find('input.txtIP').prop('hidden', true);
-				$(item).parent().parent().find('input.pingButton').prop('hidden', true);
+				$(item).parent().parent().find('input.pingButton, input.openButton').prop('hidden', true);
 			} else {
 				$(item).parent().parent().find('input.txtIP').prop('hidden', false);
 				$(item)
 					.parent()
 					.parent()
-					.find('input.pingButton')
+					.find('input.pingButton, input.openButton')
 					.prop('hidden', false);
 			}
 
@@ -5610,6 +5662,10 @@ function populateUniverseData (data, reload, input) {
 			"><input type=button class='pingButton buttons' onClick='PingE131IP(" +
 			i.toString() +
 			");' value='Ping' " +
+			ipDisabled +
+			"> <input type=button class='openButton buttons' " +
+			"onClick='OpenE131IP(this);' value='Open' " +
+			"title='Open the controller web page (through the FPP proxy if it is proxied)' " +
 			ipDisabled +
 			'></td>' +
 			'</tr>';
