@@ -374,6 +374,16 @@ bool LoadJsonFromFile(const std::string& filename, Json::Value& root) {
 
     std::string jsonStr = GetFileContents(filename);
 
+    // An empty file holds nothing, not bad JSON: some config files exist
+    // empty (an old install's pipewire-audio-groups.json, for one), and their
+    // readers run at every song, each logging a parse error.  The result is
+    // the same as a parse failure; a caller that needs the file says so.
+    if (jsonStr.find_first_not_of(" \t\r\n") == std::string::npos) {
+        LogDebug(VB_GENERAL, "JSON File %s is empty\n", filename.c_str());
+        root = Json::Value();
+        return false;
+    }
+
     return LoadJsonFromString(jsonStr, root);
 }
 
