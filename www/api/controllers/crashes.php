@@ -257,10 +257,15 @@ function CrashReportError($code, $message)
  * fppd builds a Diagnostic Report (settings, configuration and logs, level 3,
  * plus the Troubleshooting page's output and the health check) named like a
  * crash report with a -manual suffix, and keeps it in the crashes folder.
- * When fppd is not running the API builds it instead and the reply adds
- * `"Fppd":"not-running"`
- * (two manual reports at most). Nothing is sent. `client` names the calling
- * app in fppd.log.
+ * A report is usually asked for because something is already broken, so fppd
+ * is a preferred builder, not a dependency: whenever it is stopped, hung or
+ * cannot build, the API builds the report here instead and the reply adds
+ * `"Fppd":"not-running"` (or `"unavailable"` when fppd answered but failed).
+ * If the full local build fails too, a minimal report
+ * is still produced and the reply adds `"Minimal":true`, because a Diagnostic
+ * Report must not fail because a service is unavailable. Two manual reports
+ * at most, on either path. Nothing is sent. `client` names the calling app in
+ * fppd.log.
  *
  * Any API client may build a report, but what happens to it next is the
  * user's: they download it in a browser from File Manager > Crash Reports to see
@@ -274,8 +279,10 @@ function CrashReportError($code, $message)
  * A build takes seconds on a fast player and can take a few minutes on a Pi
  * Zero or BeagleBone. One build at a time, and none for 10s after one finishes.
  *
- * Error `Code`s: bad-request, busy, rate-limited, build-failed, unavailable
- * (fppd is running but did not answer).
+ * Error `Code`s: bad-request, busy, rate-limited (a healthy fppd is already
+ * building one or just built one). An unresponsive or failing fppd falls back
+ * to the local builder instead of failing the request; build-failed is only
+ * possible when even the minimal report cannot be written.
  *
  * @route POST /api/crashes/report
  * @body {"client":"My App"}
@@ -299,61 +306,104 @@ function PostCrashReport()
 
     set_time_limit(0);
     ignore_user_abort(true);
-    // fppd gives up on the build after 250s; Apache's own limit is 300s
-    $ctx = stream_context_create(array('http' => array('method' => 'POST', 'header' => "Content-Length: 0\r\n",
-        'timeout' => 270, 'ignore_errors' => true)));
-    error_clear_last();
-    $reply = @file_get_contents('http://127.0.0.1:32322/internal/crashReport', false, $ctx);
-    $built = $reply === false ? null : json_decode($reply, true);
+
+    // A Diagnostic Report is most often wanted because something is already
+    // broken.  Ask fppd to build it when its API answers, but never let a
+    // stopped, hung or failing fppd fail the request: build it here instead.
+    $built = null;
+    if (FppdAnswering()) {
+        // fppd gives up on the build after 250s; Apache's own limit is 300s
+        $ctx = stream_context_create(array('http' => array('method' => 'POST', 'header' => "Content-Length: 0\r\n",
+            'timeout' => 270, 'ignore_errors' => true)));
+        error_clear_last();
+        $reply = @file_get_contents('http://127.0.0.1:32322/internal/crashReport', false, $ctx);
+        $built = $reply === false ? null : json_decode($reply, true);
+        // A healthy fppd that is already building a report, or that just
+        // built one, is the one case where starting a competing build here
+        // would be wrong.  Leave those two answers alone.
+        if (is_array($built) && isset($built['Code']) &&
+            in_array($built['Code'], array('busy', 'rate-limited'), true)) {
+            $code = $built['Code'];
+            FppdLogLine('crashes.php', 'General', "crash report on request not built ($code)$by");
+            return CrashReportError($code, 'The crash report could not be built: ' . $code);
+        }
+    }
+
     $withoutFppd = false;
-    if ($reply === false && !FppdListening()) {
-        // fppd is not running (stopped, or failing to start): build it here.
-        // A hung fppd still accepts the connection, so it never lands here.
+    $minimal = false;
+    $fppdState = 'not-running';
+    if (!is_array($built) || !isset($built['File'])) {
+        if (is_array($built)) {
+            $fppdState = 'unavailable';
+        }
+        error_clear_last();
+        $why = '';
+        if (is_array($built) && isset($built['Code'])) {
+            $why = $built['Code'];
+        } else {
+            $err = error_get_last();
+            $why = $err ? $err['message'] : 'fppd did not respond';
+            // PHP 8.5 deprecated $http_response_header in favour of this.
+            // On older PHPs the error message above is enough for the log.
+            if (function_exists('http_get_last_response_headers')) {
+                $headers = http_get_last_response_headers();
+                if (is_array($headers) && isset($headers[0])) {
+                    $why = $headers[0];
+                }
+            }
+        }
         $error = '';
         $file = BuildManualCrashReportWithoutFppd($error);
+        if ($file === '' && !in_array($error, array('busy', 'rate-limited'), true)) {
+            // The full build needs a shell, zip and readable config.  A
+            // player missing even those still gets something inspectable.
+            // busy/rate-limited are deliberate concurrency guards, not an
+            // unavailable service: those must still be answered as such.
+            $file = BuildMinimalCrashReportWithoutFppd($error);
+            $minimal = $file !== '';
+        }
+        FppdLogLine('crashes.php', 'General', "fppd gave no report ($why), building locally$by");
         $built = $file !== '' ? array('File' => $file) : array('Code' => $error);
         $withoutFppd = true;
     }
     if (!is_array($built) || !isset($built['File'])) {
-        if (is_array($built) && isset($built['Code'])) {
-            $code = $built['Code'];
-            $message = 'The crash report could not be built: ' . $code;
-        } else {
-            $err = error_get_last();
-            $code = 'unavailable';
-            $message = isset($http_response_header[0]) ? 'fppd returned: ' . $http_response_header[0]
-                : 'fppd did not respond' . ($err ? ': ' . $err['message'] : '');
-        }
+        $code = isset($built['Code']) ? $built['Code'] : 'build-failed';
         FppdLogLine('crashes.php', 'General', "crash report on request not built ($code)$by");
-        return CrashReportError($code, $message);
+        return CrashReportError($code, 'The crash report could not be built: ' . $code);
     }
 
     $file = basename($built['File']);
     clearstatcache();
-    $how = $withoutFppd ? ' without fppd (not running)' : '';
-    FppdLogLine('crashes.php', 'General', "crash report on request $file (level 3) built$how, kept in crashes/$by");
+    $level = $minimal ? 'minimal' : 'level 3';
+    $state = $fppdState === 'not-running' ? 'not running' : $fppdState;
+    $how = $withoutFppd ? ($minimal ? ', without fppd' : ' without fppd (' . $state . ')') : '';
+    FppdLogLine('crashes.php', 'General', "crash report on request $file ($level) built$how, kept in crashes/$by");
     $result = array('Status' => 'OK', 'File' => $file,
         'Size' => (int)@filesize($settings['mediaDirectory'] . '/crashes/' . $file));
     if ($withoutFppd) {
-        $result['Fppd'] = 'not-running';
+        $result['Fppd'] = $fppdState;
+    }
+    if ($minimal) {
+        $result['Minimal'] = true;
     }
     return json($result);
 }
 
-// True when something accepts connections on fppd's port
-function FppdListening()
+// True when fppd's HTTP API is up and answering.  A bare port probe used to
+// let a hung fppd (socket open, no replies) into the 270s build call and then
+// fail the whole report.  A cheap status GET settles "stopped" and "wedged"
+// in a second, so the local build starts without holding the user up.
+function FppdAnswering()
 {
-    $sock = @fsockopen('127.0.0.1', 32322, $errno, $errstr, 1);
-    if ($sock === false) {
-        return false;
-    }
-    fclose($sock);
-    return true;
+    $ctx = stream_context_create(array('http' => array('method' => 'GET',
+        'timeout' => 2, 'ignore_errors' => true)));
+    $reply = @file_get_contents('http://127.0.0.1:32322/fppd/status', false, $ctx);
+    return $reply !== false && $reply !== '';
 }
 
-// ManualCrashReportCallback (fppd.cpp) for when fppd is not running: same
-// name (keep in step with CrashReportName), one build at a time, none for 10s
-// after one, two manual reports kept.  Runs as the web user, which can read
+// ManualCrashReportCallback (fppd.cpp) for when fppd cannot build: same name
+// (keep in step with CrashReportName), one build at a time, none for 10s after
+// one, two manual reports kept.  Runs as the web user, which can read
 // everything the report needs.  Returns the file name, or '' with $error set.
 function BuildManualCrashReportWithoutFppd(&$error)
 {
@@ -374,22 +424,15 @@ function BuildManualCrashReportWithoutFppd(&$error)
         return filemtime($b) - filemtime($a);
     });
     if (count($manual) > 0 && time() - filemtime($manual[0]) < 10) {
+        flock($lock, LOCK_UN);
+        fclose($lock);
         $error = 'rate-limited';
         return '';
     }
-
-    // fppd's compile-time platform names
-    $platforms = array('Raspberry Pi' => 'Pi', 'BeagleBone Black' => 'BBB', 'BeagleBone 64' => 'BB64',
-        'Armbian' => 'Armbian', 'Debian' => 'Debian', 'Docker' => 'Docker', 'MacOS' => 'MacOS');
-    $platform = isset($platforms[$settings['Platform']]) ? $platforms[$settings['Platform']] : 'Unknown';
-    $uuid = substr(preg_replace('/[^A-Za-z0-9._-]/', '', getSystemUUID()), 0, 63);
-    // The system's local time, as fppd uses
-    $stamp = trim((string)shell_exec('date +%Y-%m-%d_%H-%M-%S'));
-    if ($stamp === '') {
-        $stamp = date('Y-m-d_H-i-s');
-    }
-    $base = 'fpp-' . $platform . '-' . getFPPVersion() . '-' . $uuid . '-' . $stamp . '-manual.zip';
-    if (!preg_match('/^fpp-[A-Za-z0-9._-]+-manual\.zip$/', $base)) {
+    $base = ManualCrashReportBaseName();
+    if ($base === '') {
+        flock($lock, LOCK_UN);
+        fclose($lock);
         $error = 'build-failed';
         return '';
     }
@@ -406,10 +449,43 @@ function BuildManualCrashReportWithoutFppd(&$error)
     clearstatcache();
     if (!is_file($tmpPath) || filesize($tmpPath) == 0) {
         @unlink($tmpPath);
+        flock($lock, LOCK_UN);
+        fclose($lock);
         $error = 'build-failed';
         return '';
     }
+    $installed = InstallManualCrashReport($tmpPath, $cdir, $base, $manual);
+    flock($lock, LOCK_UN);
+    fclose($lock);
+    if (!$installed) {
+        $error = 'build-failed';
+        return '';
+    }
+    return $base;
+}
 
+// The name both local builders use, in step with CrashReportName() in fppd.cpp.
+function ManualCrashReportBaseName()
+{
+    global $settings;
+
+    // fppd's compile-time platform names
+    $platforms = array('Raspberry Pi' => 'Pi', 'BeagleBone Black' => 'BBB', 'BeagleBone 64' => 'BB64',
+        'Armbian' => 'Armbian', 'Debian' => 'Debian', 'Docker' => 'Docker', 'MacOS' => 'MacOS');
+    $platform = isset($platforms[$settings['Platform']]) ? $platforms[$settings['Platform']] : 'Unknown';
+    $uuid = substr(preg_replace('/[^A-Za-z0-9._-]/', '', getSystemUUID()), 0, 63);
+    // The system's local time, as fppd uses
+    $stamp = trim((string)shell_exec('date +%Y-%m-%d_%H-%M-%S'));
+    if ($stamp === '') {
+        $stamp = date('Y-m-d_H-i-s');
+    }
+    $base = 'fpp-' . $platform . '-' . getFPPVersion() . '-' . $uuid . '-' . $stamp . '-manual.zip';
+    return preg_match('/^fpp-[A-Za-z0-9._-]+-manual\.zip$/', $base) ? $base : '';
+}
+
+// Move a freshly built zip into crashes/ and keep the two newest manual ones.
+function InstallManualCrashReport($tmpPath, $cdir, $base, $manual)
+{
     @mkdir($cdir, 0775, true);
     $path = $cdir . '/' . $base;
     // media/tmp may be on another filesystem
@@ -418,8 +494,7 @@ function BuildManualCrashReportWithoutFppd(&$error)
         @unlink($tmpPath);
         if (!$copied) {
             @unlink($path);
-            $error = 'build-failed';
-            return '';
+            return false;
         }
     }
     @chmod($path, 0664);
@@ -427,7 +502,70 @@ function BuildManualCrashReportWithoutFppd(&$error)
     foreach (array_slice(array_values(array_diff($manual, array($path))), 1) as $old) {
         @unlink($old);
     }
-    flock($lock, LOCK_UN);
-    fclose($lock);
+    return true;
+}
+
+// Last resort when even generate_crash_report cannot run (no shell, no zip,
+// unreadable config): a small report with enough facts to start triage.
+// The user still gets a file to inspect and send, which is the whole point
+// of asking for a Diagnostic Report on a player whose services are down.
+function BuildMinimalCrashReportWithoutFppd(&$error)
+{
+    global $settings;
+
+    $media = $settings['mediaDirectory'];
+    $cdir = $media . '/crashes';
+    // Per-process so two callers that both reached the last resort cannot
+    // overwrite each other's zip while it is being installed.
+    $tmpDir = $media . '/tmp/manual-crash-minimal-' . getmypid();
+    @mkdir($media . '/tmp', 0775, true);
+    @mkdir($tmpDir, 0775, true);
+    if (!is_dir($tmpDir) || !class_exists('ZipArchive')) {
+        $error = 'build-failed';
+        return '';
+    }
+    $base = ManualCrashReportBaseName();
+    if ($base === '') {
+        $error = 'build-failed';
+        return '';
+    }
+    $tmpPath = $tmpDir . '/' . $base;
+    $zip = new ZipArchive();
+    if ($zip->open($tmpPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+        $error = 'build-failed';
+        return '';
+    }
+    $zip->addFromString('README.txt',
+        "FPP Diagnostic Report (minimal)\n\n" .
+        "fppd could not build a report and the full local build also failed.\n" .
+        "This file holds only non-identifying facts about the player so there\n" .
+        "is still something to attach to a support request. For more detail,\n" .
+        "run the Troubleshooting page and the health check on the player, or\n" .
+        "try building the report again once the failed service is back.\n");
+    $zip->addFromString('system.json', json_encode(array(
+        'built' => date('c'),
+        'version' => getFPPVersion(),
+        'platform' => isset($settings['Platform']) ? $settings['Platform'] : 'Unknown',
+        'kernel' => php_uname('s') . ' ' . php_uname('r'),
+        'php' => PHP_VERSION,
+        'fppd' => FppdAnswering() ? 'answering' : 'not answering',
+        'mediaFreeBytes' => function_exists('disk_free_space') ? @disk_free_space($media) : null,
+    ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    $zip->close();
+    clearstatcache();
+    if (!is_file($tmpPath) || filesize($tmpPath) == 0) {
+        @unlink($tmpPath);
+        $error = 'build-failed';
+        return '';
+    }
+    $manual = glob($cdir . '/*-manual.zip') ?: array();
+    usort($manual, function ($a, $b) {
+        return filemtime($b) - filemtime($a);
+    });
+    if (!InstallManualCrashReport($tmpPath, $cdir, $base, $manual)) {
+        $error = 'build-failed';
+        return '';
+    }
+    @rmdir($tmpDir);
     return $base;
 }
