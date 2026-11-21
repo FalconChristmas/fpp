@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/common/virtualdisplay.inc.php';
+
 // Ensure $standalone is defined (default to false if not set)
 if (!isset($standalone)) {
     $standalone = false;
@@ -116,128 +118,189 @@ if (!isset($standalone)) {
     }
 
     $pixelSize = 1;
+    $previewFile = '';
     $configFile = $settings['configDirectory'] . "/co-other.json";
     if (file_exists($configFile)) {
         $content = file_get_contents($configFile);
         $json = json_decode($content, true);
-        if ($json && isset($json['channelOutputs'])) {
+        if ($json && isset($json['channelOutputs']) && is_array($json['channelOutputs'])) {
+            // Prefer an enabled 3D output, then an enabled 2D output, then
+            // the first configured output of either type.
+            $enabled3D = null;
+            $enabled2D = null;
+            $any3D = null;
+            $any2D = null;
+
             foreach ($json['channelOutputs'] as $output) {
-                if ($output['type'] == 'HTTPVirtualDisplay' || $output['type'] == 'HTTPVirtualDisplay3D') {
-                    $pixelSize = isset($output['pixelSize']) ? $output['pixelSize'] : 2;
-                    break;
+                if (!isset($output['type'])) {
+                    continue;
                 }
+
+                $is3D = ($output['type'] == 'HTTPVirtualDisplay3D');
+                $is2D = ($output['type'] == 'HTTPVirtualDisplay');
+                if (!$is3D && !$is2D) {
+                    continue;
+                }
+
+                if (!empty($output['enabled'])) {
+                    if ($is3D && $enabled3D === null) {
+                        $enabled3D = $output;
+                    } else if ($is2D && $enabled2D === null) {
+                        $enabled2D = $output;
+                    }
+                } else if ($is3D && $any3D === null) {
+                    $any3D = $output;
+                } else if ($is2D && $any2D === null) {
+                    $any2D = $output;
+                }
+            }
+
+            $selected = $enabled3D ?? $enabled2D ?? $any3D ?? $any2D;
+            if ($selected !== null) {
+                $pixelSize = isset($selected['pixelSize']) ? $selected['pixelSize'] : 2;
+                $previewFile = isset($selected['previewFile']) ? $selected['previewFile'] : '';
             }
         }
     }
-    echo "var pixelSize = " . $pixelSize . ";\n";
+    echo "var pixelSize = " . (int) $pixelSize . ";\n";
 
-    $mapFile = $settings['configDirectory'] . '/virtualdisplaymap';
-    if (!file_exists($mapFile)) {
-        echo "console.error('virtualdisplaymap file not found at: " . $mapFile . "');\n";
+    $previewInfo = GetVirtualDisplayPreviewInfo($previewFile);
+    $previewError = $previewInfo['error'];
+    $mapFile = $previewInfo['mapFile'];
+
+    $mapDimensions = $previewInfo['mapExists']
+        ? GetVirtualDisplayMapDimensions($mapFile)
+        : false;
+    if ($previewInfo['mapExists'] && $mapDimensions === false && $previewError === '') {
+        $previewError = "Virtual display preview '" . $previewInfo['mapName'] . "' has an invalid map header.";
+    }
+
+    $f = false;
+    if ($mapDimensions !== false) {
+        $f = @fopen($mapFile, "r");
+        if ($f === false) {
+            $previewError = "Virtual display preview '" . $previewInfo['mapName'] . "' could not be opened.";
+            $mapDimensions = false;
+        }
+    }
+
+    if ($mapDimensions === false) {
+        echo "console.error(" . json_encode($previewError, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) . ");\n";
         echo "var previewWidth = 1920;\n";
         echo "var previewHeight = 1080;\n";
         echo "var modelBounds = { minX: 0, maxX: 100, minY: 0, maxY: 100, minZ: 0, maxZ: 100 };\n";
         echo "var modelCenter = { x: 50, y: 50, z: 50 };\n";
+        $previewWidth = 1920;
+        $previewHeight = 1080;
+        $centerX = 50;
+        $centerY = 50;
+        $centerZ = 50;
     } else {
-        $f = fopen($mapFile, "r");
-        if ($f) {
+        // Skip any blank/comment lines and the header; the dimensions were
+        // validated above.
+        do {
             $line = fgets($f);
-            if (preg_match('/^#/', $line))
-                $line = fgets($f);
+        } while ($line !== false && (trim($line) === '' || $line[0] === '#'));
+
+        $previewWidth = $mapDimensions['width'];
+        $previewHeight = $mapDimensions['height'];
+
+        echo "var previewWidth = " . (int) $previewWidth . ";\n";
+        echo "var previewHeight = " . (int) $previewHeight . ";\n";
+
+        // Find min/max for Z axis to center the model
+        $minZ = PHP_INT_MAX;
+        $maxZ = PHP_INT_MIN;
+        $minX = PHP_INT_MAX;
+        $maxX = PHP_INT_MIN;
+        $minY = PHP_INT_MAX;
+        $maxY = PHP_INT_MIN;
+        $tempData = array();
+
+        while (!feof($f)) {
+            $line = fgets($f);
+            if (($line == "") || (preg_match('/^#/', $line)))
+                continue;
+
             $line = trim($line);
-            $parts = explode(',', $line);
-            $previewWidth = $parts[0];
-            $previewHeight = $parts[1];
+            $entry = explode(",", $line);
 
-            echo "var previewWidth = " . $previewWidth . ";\n";
-            echo "var previewHeight = " . $previewHeight . ";\n";
+            if (count($entry) < 5)
+                continue;
 
-            // Find min/max for Z axis to center the model
-            $minZ = PHP_INT_MAX;
-            $maxZ = PHP_INT_MIN;
-            $minX = PHP_INT_MAX;
-            $maxX = PHP_INT_MIN;
-            $minY = PHP_INT_MAX;
-            $maxY = PHP_INT_MIN;
-            $tempData = array();
+            $ox = (int) $entry[0];
+            $oy = (int) $entry[1];
+            $oz = (int) $entry[2];
 
-            while (!feof($f)) {
-                $line = fgets($f);
-                if (($line == "") || (preg_match('/^#/', $line)))
-                    continue;
+            $minX = min($minX, $ox);
+            $maxX = max($maxX, $ox);
+            $minY = min($minY, $oy);
+            $maxY = max($maxY, $oy);
+            $minZ = min($minZ, $oz);
+            $maxZ = max($maxZ, $oz);
 
-                $line = trim($line);
-                $entry = explode(",", $line);
-
-                if (count($entry) < 3)
-                    continue;
-
-                $ox = (int) $entry[0];
-                $oy = (int) $entry[1];
-                $oz = (int) $entry[2];
-
-                $minX = min($minX, $ox);
-                $maxX = max($maxX, $ox);
-                $minY = min($minY, $oy);
-                $maxY = max($maxY, $oy);
-                $minZ = min($minZ, $oz);
-                $maxZ = max($maxZ, $oz);
-
-                $tempData[] = $entry;
-            }
-
-            // Center coordinates horizontally, but align bottom to ground
-            $centerX = ($minX + $maxX) / 2;
-            $centerY = $minY;  // Align bottom to ground (Y=0)
-            $centerZ = ($minZ + $maxZ) / 2;
-
-            echo "var modelBounds = { minX: $minX, maxX: $maxX, minY: $minY, maxY: $maxY, minZ: $minZ, maxZ: $maxZ };\n";
-            echo "var modelCenter = { x: $centerX, y: $centerY, z: $centerZ };\n";
-            echo "console.log('Loaded " . count($tempData) . " pixels from virtualdisplaymap');\n";
-
-            // Now output pixel data with centered coordinates
-            $pixelIndex = 0;
-            foreach ($tempData as $entry) {
-                $ox = (int) $entry[0];
-                $rawY = (int) $entry[1];
-                // IMPORTANT: Must invert Y for key generation to match 2D version and SSE data
-                $oy = $previewHeight - $rawY;
-                $oz = (int) $entry[2];
-                $ch = isset($entry[3]) ? $entry[3] : 0;
-                $colors = isset($entry[4]) ? $entry[4] : '';
-
-                // Store raw coordinates - we'll center them in JavaScript using gridlines offset
-                $x = $ox;
-                $y = $rawY;
-                $z = $oz;
-
-                $ps = 1;
-                if (sizeof($entry) >= 7) {
-                    $ps = (int) $entry[6];
-                }
-                $ps *= $pixelSize;
-
-                // Generate key for SSE lookup (same as 2D version - must use inverted oy)
-                if (($ox >= 4096) || ($oy >= 4096))
-                    $key = substr($base64, ($ox >> 12) & 0x3f, 1) .
-                        substr($base64, ($ox >> 6) & 0x3f, 1) .
-                        substr($base64, $ox & 0x3f, 1) .
-                        substr($base64, ($oy >> 12) & 0x3f, 1) .
-                        substr($base64, ($oy >> 6) & 0x3f, 1) .
-                        substr($base64, $oy & 0x3f, 1);
-                else
-                    $key = substr($base64, ($ox >> 6) & 0x3f, 1) .
-                        substr($base64, $ox & 0x3f, 1) .
-                        substr($base64, ($oy >> 6) & 0x3f, 1) .
-                        substr($base64, $oy & 0x3f, 1);
-
-                echo "pixelData.push({ key: '" . $key . "', x: $x, y: $y, z: $z, ox: $ox, oy: $oy, oz: $oz, size: $ps });\n";
-                echo "pixelLookup[" . $pixelIndex . "] = " . $pixelIndex . ";\n";
-                $pixelIndex++;
-            }
-
-            fclose($f);
+            $tempData[] = $entry;
         }
+
+        if (empty($tempData)) {
+            // A map with a header but no pixels would leave the min/max
+            // sentinels in place and produce an unusable scene.
+            $previewError = "Virtual display preview '" . $previewInfo['mapName'] . "' contains no pixels.";
+            echo "console.error(" . json_encode($previewError, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) . ");\n";
+            $minX = $maxX = $minY = $maxY = $minZ = $maxZ = 0;
+        }
+
+        // Center coordinates horizontally, but align bottom to ground
+        $centerX = ($minX + $maxX) / 2;
+        $centerY = $minY;  // Align bottom to ground (Y=0)
+        $centerZ = ($minZ + $maxZ) / 2;
+
+        echo "var modelBounds = { minX: $minX, maxX: $maxX, minY: $minY, maxY: $maxY, minZ: $minZ, maxZ: $maxZ };\n";
+        echo "var modelCenter = { x: $centerX, y: $centerY, z: $centerZ };\n";
+        echo "console.log(" . json_encode("Loaded " . count($tempData) . " pixels from " . $previewInfo['mapName'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) . ");\n";
+
+        // Now output pixel data with centered coordinates
+        $pixelIndex = 0;
+        foreach ($tempData as $entry) {
+            $ox = (int) $entry[0];
+            $rawY = (int) $entry[1];
+            // IMPORTANT: Must invert Y for key generation to match 2D version and SSE data
+            $oy = $previewHeight - $rawY;
+            $oz = (int) $entry[2];
+            $ch = isset($entry[3]) ? $entry[3] : 0;
+            $colors = isset($entry[4]) ? $entry[4] : '';
+
+            // Store raw coordinates - we'll center them in JavaScript using gridlines offset
+            $x = $ox;
+            $y = $rawY;
+            $z = $oz;
+
+            $ps = 1;
+            if (sizeof($entry) >= 7) {
+                $ps = (int) $entry[6];
+            }
+            $ps *= $pixelSize;
+
+            // Generate key for SSE lookup (same as 2D version - must use inverted oy)
+            if (($ox >= 4096) || ($oy >= 4096))
+                $key = substr($base64, ($ox >> 12) & 0x3f, 1) .
+                    substr($base64, ($ox >> 6) & 0x3f, 1) .
+                    substr($base64, $ox & 0x3f, 1) .
+                    substr($base64, ($oy >> 12) & 0x3f, 1) .
+                    substr($base64, ($oy >> 6) & 0x3f, 1) .
+                    substr($base64, $oy & 0x3f, 1);
+            else
+                $key = substr($base64, ($ox >> 6) & 0x3f, 1) .
+                    substr($base64, $ox & 0x3f, 1) .
+                    substr($base64, ($oy >> 6) & 0x3f, 1) .
+                    substr($base64, $oy & 0x3f, 1);
+
+            echo "pixelData.push({ key: '" . $key . "', x: $x, y: $y, z: $z, ox: $ox, oy: $oy, oz: $oz, size: $ps });\n";
+            echo "pixelLookup[" . $pixelIndex . "] = " . $pixelIndex . ";\n";
+            $pixelIndex++;
+        }
+
+        fclose($f);
     }
 
     // Load 3D asset configuration
@@ -3536,6 +3599,11 @@ if (!isset($standalone)) {
                 </div>
             </div>
         </div>
+    </div>
+<?php endif; ?>
+<?php if (!empty($previewError)): ?>
+    <div style="color: #b00020; font-weight: bold; margin: 0.5em 0;">
+        <?php echo htmlspecialchars($previewError, ENT_QUOTES, 'UTF-8'); ?>
     </div>
 <?php endif; ?>
 <div id='canvas-container'></div>

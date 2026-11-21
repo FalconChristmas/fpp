@@ -32,9 +32,12 @@
         require_once('virtualdisplaybody.php');
         ?>
         <br>NOTE: If the Virtual Display is not working, you need to add the HTTP Virtual Display Channel Output on the
-        'Virtuals' tab of the Channel Outputs config page. Your background image must be uploaded as a file called
-        'virtualdisplaybackground.jpg' and your pixel map is uploaded from xLights via FPP Connect by ticking the
-        'Models' checkbox for this device (it is saved as 'virtualdisplaymap' in FPP's configuration directory).
+        'Virtuals' tab of the Channel Outputs config page. Your pixel map is uploaded from xLights via FPP Connect by
+        ticking the 'Models' checkbox for this device (it is saved as 'virtualdisplaymap' in FPP's configuration
+        directory). The output's 'Preview' dropdown can select another map: the Default preview uses 'default.vdm'
+        when present (otherwise 'virtualdisplaymap') and 'default-bg.jpg' when present (otherwise
+        'virtualdisplaybackground.jpg'). A named preview such as 'christmas.vdm' uses that file from the configuration
+        directory and 'christmas-bg.jpg' from the images directory when it exists.
       </div>
     </div>
 

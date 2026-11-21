@@ -33,6 +33,7 @@ $files['config'] = array(
     'config/instantCommand.json',
     'config/model-overlays.json',
     'config/virtualdisplaymap',
+    'config/*.vdm',
     'fpp-info.json',
     'exim4/*',
     'config/cape-eeprom.bin',

@@ -1,3 +1,4 @@
+<?php require_once __DIR__ . '/common/virtualdisplay.inc.php'; ?>
 <script>
     /*
     Quick instructions for adding new output types
@@ -8,6 +9,57 @@
     fixedStart = true when the output has a fixed start channel.
     fixedChans = true when the output has a fixed channel count.
     */
+
+    /////////////////////////////////////////////////////////////////////////////
+    // Virtual Display preview selection
+    //
+    // previewFile is the basename of a .vdm file in the config directory.
+    // An empty value is the Default preview.
+    <?
+    $previewJsonFlags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP;
+    if (defined('JSON_INVALID_UTF8_SUBSTITUTE')) {
+        $previewJsonFlags |= JSON_INVALID_UTF8_SUBSTITUTE;
+    }
+    $previewFilesJson = json_encode(GetVirtualDisplayPreviewFiles(), $previewJsonFlags);
+    if ($previewFilesJson === false) {
+        $previewFilesJson = '[]';
+    }
+    ?>
+    var VirtualDisplayPreviewFiles = <? echo $previewFilesJson; ?>;
+
+    function VirtualDisplayPreviewSelect(currentValue) {
+        var files = VirtualDisplayPreviewFiles || [];
+        var selected = (currentValue == null) ? '' : String(currentValue).trim();
+
+        // Hand-edited configs may name default.vdm directly; the Default
+        // entry is what that resolves to.
+        if (selected.toLowerCase() == 'default.vdm')
+            selected = '';
+
+        var result = "Preview: <select class='previewFile'>";
+        result += "<option value=''>Default</option>";
+
+        var found = false;
+        for (var i = 0; i < files.length; i++) {
+            result += "<option value='" + EscapeHtmlAttr(files[i]) + "'";
+            if (selected == files[i]) {
+                result += " selected";
+                found = true;
+            }
+            result += ">" + EscapeHtml(files[i]) + "</option>";
+        }
+
+        // Keep a saved value that no longer exists visible so a Save does not
+        // quietly rewrite it to Default.  The preview itself reports the
+        // missing file.
+        if (!found && selected != '') {
+            result += "<option value='" + EscapeHtmlAttr(selected) + "' selected>"
+                + EscapeHtml(selected) + " (missing)</option>";
+        }
+
+        result += "</select> ";
+        return result;
+    }
 
     /////////////////////////////////////////////////////////////////////////////
     //Base Class
@@ -120,6 +172,7 @@
             this._allowInvert = false;
             this._allowFlipHorizontal = false;
             this._allowPixelSize = false;
+            this._allowPreview = false;
             this._allowScaling = false;
             this._updateChannelCount = true;
             this._defaultWidth = 1920;
@@ -155,6 +208,10 @@
                     result += ">" + i + "</option>";
                 }
                 result += "</select>";
+            }
+
+            if (this._allowPreview) {
+                result += VirtualDisplayPreviewSelect(config.previewFile) + "&nbsp;";
             }
 
             if (this._allowInvert) {
@@ -222,6 +279,9 @@
 
             if (this._allowPixelSize)
                 result.pixelSize = parseInt(cell.find("select.pixelSize").val());
+
+            if (this._allowPreview)
+                result.previewFile = cell.find("select.previewFile").val() || "";
 
             return result;
         }
@@ -951,10 +1011,11 @@
     class VirtualDisplayDevice extends OtherAutoFBBaseDevice {
         constructor(name = "VirtualDisplay", friendlyName = "Virtual Display", maxChannels = FPPD_MAX_CHANNELS,
             fixedStart = true, fixedChans = true,
-            config = { modelName: '', pixelSize: 2 }) {
+            config = { modelName: '', pixelSize: 2, previewFile: '' }) {
             super(name, friendlyName, maxChannels, fixedStart, fixedChans, PixelOverlayModels, config);
 
             this._allowPixelSize = true;
+            this._allowPreview = true;
             this._updateChannelCount = false;
 
             if (Object.keys(PixelOverlayModels).length > 1)
@@ -968,7 +1029,7 @@
     class HTTPVirtualDisplay3D extends OtherBase {
         constructor(name = "HTTPVirtualDisplay3D", friendlyName = "HTTP Virtual Display 3D", maxChannels = FPPD_MAX_CHANNELS,
             fixedStart = true, fixedChans = true,
-            config = { updateInterval: 25 }) {
+            config = { updateInterval: 25, previewFile: '' }) {
             super(name, friendlyName, maxChannels, fixedStart, fixedChans);
             this._config = config;
         }
@@ -977,6 +1038,7 @@
             var results = "";
             results += "Update Interval (ms): <input class='updateInterval' type='number' min='10' max='100' value='" + (config.updateInterval || 25) + "' size='4'/>";
             results += " <span class='text-muted'>(25ms = 40fps)</span>";
+            results += "&nbsp;" + VirtualDisplayPreviewSelect(config.previewFile);
             return results;
         }
 
@@ -996,6 +1058,7 @@
             result = super.GetOutputConfig(result, cell);
             result["port"] = 32329; // Fixed port
             result["updateInterval"] = parseInt(cell.find("input.updateInterval").val()) || 25;
+            result["previewFile"] = cell.find("select.previewFile").val() || "";
             return result;
         }
     }

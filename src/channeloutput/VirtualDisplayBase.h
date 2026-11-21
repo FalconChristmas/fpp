@@ -73,6 +73,7 @@ public:
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)>& addRange) override;
 
     std::string m_backgroundFilename;
+    std::string m_mapFilename;
     float m_backgroundBrightness;
     int m_width;
     int m_height;
