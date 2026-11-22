@@ -2364,6 +2364,18 @@ int Playlist::PlayImpl(const std::string& filename, const int position, const in
         (m_status == FPP_STATUS_PLAYLIST_PAUSED) ||
         (m_status == FPP_STATUS_STOPPING_GRACEFULLY) ||
         (m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
+        // Running but not current: a playlist was inserted under us since
+        // Play() looked (or we were reached by the delegation below, after a
+        // stop).  Everything past here locks the current level while holding
+        // ours -- parent before child, the reverse of SetIdle() resuming its
+        // parent under the child's lock -- so hand the start to the current
+        // level, as Play() does.  Under our lock no child can be inserted, so
+        // once this check passes it holds.  A level SwitchToInsertedPlaylist()
+        // is starting is idle and never gets here.
+        if (std::shared_ptr<Playlist> cur = CurrentIfNotThis()) {
+            lck.unlock();
+            return cur->PlayImpl(filename, position, repeat, scheduleEntry, endPosition);
+        }
         std::string fullfilename = FPP_DIR_PLAYLIST("/" + filename + ".json");
 
         // Only a fully loaded copy can be jumped within: SetPosition() indexes
@@ -2415,7 +2427,10 @@ int Playlist::PlayImpl(const std::string& filename, const int position, const in
                 // Process() tick releases (the historical "started a playlist
                 // from inside nested playlists and it blipped and vanished
                 // while the outer playlist resumed" bug).  Delegate to the
-                // now-active level instead, which performs the load.
+                // now-active level instead, which performs the load.  Not
+                // under our lock: `this` is done with, and holding it while
+                // the next level locks itself would order the two locks.
+                lck.unlock();
                 return cur->PlayImpl(filename, position, repeat, scheduleEntry, endPosition);
             }
         }
