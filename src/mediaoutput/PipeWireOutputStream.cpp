@@ -760,7 +760,7 @@ void PipeWireOutputStream::Service(uint64_t now) {
     now = NowMs();
     if (ready) {
         m_state = State::Ready;
-        LogInfo(VB_MEDIAOUT, "PipeWire output stream %d ready on '%s' after %d ms\n",
+        LogDebug(VB_MEDIAOUT, "PipeWire output stream %d ready on '%s' after %d ms\n",
                 m_slot, m_target.c_str(), (int)(now - m_openStartedMs));
         m_stateChanged.notify_all();
     } else if (now - m_openStartedMs > (uint64_t)kOpenTimeoutMs) {
@@ -894,7 +894,7 @@ bool PipeWireOutputStream::OpenLocked(std::unique_lock<std::mutex>& lock) {
     m_linkedMs = 0;
     m_lastLinkCheckMs = 0;
     m_state = State::Opening;
-    LogInfo(VB_MEDIAOUT, "PipeWire output stream %d opening on '%s' (card status %s)\n", m_slot,
+    LogDebug(VB_MEDIAOUT, "PipeWire output stream %d opening on '%s' (card status %s)\n", m_slot,
             target.empty() ? "(default)" : target.c_str(), cardStatus.empty() ? "n/a" : cardStatus.c_str());
     return true;
 #else
@@ -1720,7 +1720,15 @@ void PipeWireOutputStream::CloseLocked(const char* why) {
 #ifdef FPP_NATIVE_PIPEWIRE
     if (m_pwLoop) {
         if (m_pwStream) {
-            LogInfo(VB_MEDIAOUT, "PipeWire output stream %d closing (%s)\n", m_slot, why);
+            // Closing when idle is routine -- a playlist that alternates
+            // clips with sound and without closes and reopens the stream
+            // at every pass -- so only another reason is worth a line at
+            // the default level.
+            if (strcmp(why, "idle") == 0) {
+                LogDebug(VB_MEDIAOUT, "PipeWire output stream %d closing (%s)\n", m_slot, why);
+            } else {
+                LogInfo(VB_MEDIAOUT, "PipeWire output stream %d closing (%s)\n", m_slot, why);
+            }
         }
         // Stopping the loop joins its thread, so OnProcess() is done with the
         // queue before anything below changes it.
