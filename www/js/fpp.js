@@ -13322,6 +13322,7 @@ function OnMultisyncChanged (mscheck, tblCommand) {
 		$('#' + tblCommand + '_multisyncHosts_row').hide();
 		// Clear the host list so a hidden, stale value isn't saved with the command.
 		SetMultisyncHosts(tblCommand, '');
+		OnMultisyncHostsChanged($('#' + tblCommand + '_multisyncHosts'), tblCommand);
 	}
 }
 // Repopulate one command argument's content list from the remote host(s).
@@ -13347,6 +13348,19 @@ function OnMultisyncHostsChanged (hosts, tblCommand) {
 	if (baseURL != '') {
 		for (var x = 1; x < 20; x++) {
 			ReloadArgContentList(tblCommand, x, baseURL);
+		}
+	} else {
+		// The command runs here: go back to this player's lists, and drop a reload
+		// still under way for hosts no longer picked.
+		for (var x = 1; x < 20; x++) {
+			var id = '#' + tblCommand + '_arg_' + x;
+			$(id + ', ' + id + '_list').each(function () {
+				if ($(this).data('filledbyhosts')) {
+					ReloadContentList('', this);
+				} else {
+					CancelContentListReload($(this));
+				}
+			});
 		}
 	}
 }
@@ -14699,19 +14713,36 @@ function SyncMultistringChecks (sel) {
 	});
 }
 
+// A list whose value the user picked, or a saved command set, keeps it whatever
+// the hosts offer.  One still on its default moves to what they have.
+$(document).on('change', 'select[data-contentlisturl]', function () {
+	$(this).data('chosen', true);
+});
+
+function CancelContentListReload (arg) {
+	var reload = arg.data('reload');
+	if (reload) {
+		// First, so that the aborted requests find themselves superseded.
+		arg.removeData('reload');
+		reload.forEach(function (xhr) {
+			xhr.abort();
+		});
+	}
+}
+
+// Asynchronous: a synchronous request can't be timed out, so one unreachable
+// host froze the page until the proxy gave up on it, once per list.
 function ReloadContentList (baseUrl, inp) {
 	var arg = $(inp);
 	if (typeof inp === 'string') {
 		arg = $('#' + inp);
 	}
 	var url = arg.data('contentlisturl');
-	var allowblank = arg.data('allowblanks');
 
-	// Remember the current selection so we can restore it after repopulating.
-	var selectedValue = arg.val();
-
-	// Get current browser IP (assumes http://IP/...)
-	var currentHost = window.location.hostname;
+	// Get current browser IP (assumes http://IP/...).  In a UI opened through
+	// another player's /proxy/<ip>/ that is the other player, not this one.
+	var viaProxy = /^\/proxy\//.test(window.location.pathname);
+	var currentHost = viaProxy ? null : window.location.hostname;
 
 	var hosts = baseUrl
 		.split(',')
@@ -14721,51 +14752,85 @@ function ReloadContentList (baseUrl, inp) {
 		.filter(function (h) {
 			return h != '';
 		});
+	// No hosts: this player's own list.
+	var local = hosts.length == 0;
+	if (local) {
+		hosts = [''];
+	}
 	var numHosts = hosts.length;
 
-	// Tally how many of the selected hosts have each value. Use a Map to keep
-	// first-seen order. An unreachable host simply contributes nothing, so its
-	// items end up with a lower count.
-	var items = new Map();
-	hosts.forEach(function (burl) {
-		let requestUrl;
-		// The page's own origin keeps its port (and scheme): buildHttpURL() builds
-		// http://host with no port, which is another origin when the UI is not on 80.
-		if (burl !== currentHost) {
-			// Rewrite to proxy path
-			requestUrl = window.location.origin + '/proxy/' + burl + '/' + url;
-		} else {
-			requestUrl = window.location.origin + '/' + url;
-		}
-		$.ajax({
-			dataType: 'json',
-			async: false,
-			timeout: 2000,
-			// An unreachable host, or an endpoint the host doesn't support
-			// (e.g. a 404 on older firmware), just contributes nothing.
-			error: function () {},
-			url: requestUrl,
-			success: function (data) {
-				var addItem = function (value, label) {
-					var existing = items.get(value);
-					if (existing) {
-						existing.count++;
-					} else {
-						items.set(value, { label: label, count: 1 });
+	CancelContentListReload(arg);
+	var reload = [];
+	arg.data('reload', reload);
+
+	// One entry per host, in order; a host that fails leaves its own out.
+	var answers = [];
+	var pending = numHosts;
+	hosts.forEach(function (burl, i) {
+		// Relative to the page: it keeps the origin (with its port and scheme), and
+		// a UI opened through another player's proxy asks through its own player,
+		// the one that sends the command.
+		var path = !local && burl !== currentHost ? 'proxy/' + encodeURIComponent(burl) + '/' : '';
+		var requestUrl = new URL(path + url, document.baseURI).href;
+		reload.push(
+			$.ajax({
+				dataType: 'json',
+				timeout: 5000,
+				url: requestUrl,
+				success: function (data) {
+					answers[i] = data;
+				},
+				complete: function () {
+					pending--;
+					// Not if superseded, or the form was re-rendered meanwhile, or
+					// nobody answered: then the list stays as it is.
+					if (
+						pending == 0 &&
+						answers.length > 0 &&
+						arg.data('reload') === reload &&
+						document.contains(arg[0])
+					) {
+						FillContentList(arg, answers, numHosts, local);
 					}
-				};
-				if (Array.isArray(data)) {
-					$.each(data, function (key, v) {
-						addItem(v, v);
-					});
-				} else {
-					$.each(data, function (key, v) {
-						addItem(key, v);
-					});
 				}
+			})
+		);
+	});
+}
+
+function FillContentList (arg, answers, numHosts, local) {
+	var allowblank = arg.data('allowblanks');
+
+	// Tally how many of the selected hosts have each value. Use a Map to keep
+	// first-seen order. An unreachable host, or one without this endpoint (e.g. a
+	// 404 on older firmware), simply contributes nothing, so its items end up with
+	// a lower count.
+	var items = new Map();
+	var answered = 0;
+	answers.forEach(function (data) {
+		answered++;
+		$.each(data, function (key, v) {
+			var value = String(Array.isArray(data) ? v : key);
+			var existing = items.get(value);
+			if (existing) {
+				existing.count++;
+			} else {
+				items.set(value, { label: v, count: 1 });
 			}
 		});
 	});
+
+	// The selection as it is now: it may have changed while waiting.
+	var val = arg.val();
+	var multiple = arg.prop('multiple');
+	var selected = val == null ? [] : [].concat(val);
+	var keep = multiple || arg.data('chosen');
+	// Nothing chosen must not become the first option, unless it was only
+	// because there was none.
+	var unset =
+		!multiple &&
+		arg.prop('selectedIndex') === -1 &&
+		(arg.data('chosen') || arg.find('option').length > 0);
 
 	arg.empty();
 	if (allowblank) {
@@ -14809,24 +14874,41 @@ function ReloadContentList (baseUrl, inp) {
 		);
 	});
 
-	// Restore the previous selection if it is still available. Compare option
-	// values directly rather than via a selector to stay safe with quotes.
-	if (selectedValue != null) {
-		var stillAvailable = false;
-		arg.find('option').each(function () {
-			if (this.value === selectedValue) {
-				stillAvailable = true;
+	// Restore the selection. Compare option values directly rather than via a
+	// selector to stay safe with quotes.
+	selected = selected.filter(function (value) {
+		var available = arg.find('option').filter(function () {
+			return this.value === value;
+		}).length > 0;
+		if (!available && value !== '' && keep) {
+			var note = '';
+			if (answered == numHosts) {
+				note = local ? ' (not on this player)' : ' (not on selected hosts)';
 			}
-		});
-		if (stillAvailable) {
-			arg.val(selectedValue);
+			arg.append($('<option>').val(value).text(value + note));
+			available = true;
 		}
+		return available;
+	});
+	if (selected.length) {
+		arg.val(multiple ? selected : selected[0]);
+	} else if (unset) {
+		arg.prop('selectedIndex', -1);
 	}
 
 	// Rebuild the checkbox overlay after the option list has been repopulated.
 	if (arg.attr('data-multistring')) {
 		SyncMultistringChecks(arg[0]);
 	}
+	arg.data('filledbyhosts', !local);
+	// For the pickers that filter the list.
+	arg.data(
+		'contentlist',
+		arg.find('option').map(function () {
+			return { value: this.value, label: this.text, title: this.title };
+		}).get()
+	);
+	arg.trigger('contentlistfilled');
 }
 
 function PopulateExistingCommand (
@@ -14869,10 +14951,6 @@ function PopulateExistingCommand (
 			var count = 1;
 			$.each(json['args'], function (key, v) {
 				var inp = $('#' + tblCommand + '_arg_' + count);
-				if (baseUrl != '') {
-					ReloadArgContentList(tblCommand, count, baseUrl);
-				}
-
 				var multattr = inp.attr('multiple');
 				if (inp.attr('type') == 'checkbox') {
 					var checked = false;
@@ -14888,9 +14966,20 @@ function PopulateExistingCommand (
 					$('#' + tblCommand + '_arg_' + count + ' option').prop(
 						'selected',
 						function () {
-							return ~$.inArray(this.text, split);
+							return split.includes(this.text) || split.includes(this.value);
 						}
 					);
+					// The local list lacks names only the remote hosts have.
+					if (baseUrl != '' && inp.data('contentlisturl') != null) {
+						split.forEach(function (value) {
+							var offered = inp.find('option').filter(function () {
+								return this.value === value || this.text === value;
+							}).length;
+							if (value !== '' && !offered) {
+								inp.append($('<option>').val(value).text(value).prop('selected', true));
+							}
+						});
+					}
 					// Reflect the loaded selection into the checkbox overlay.
 					SyncMultistringChecks(inp[0]);
 				} else {
@@ -14914,6 +15003,12 @@ function PopulateExistingCommand (
 							inp.val(v).change();
 						}
 					}
+				}
+
+				// Even if it is empty: a saved value is a choice.
+				inp.data('chosen', true);
+				if (baseUrl != '') {
+					ReloadArgContentList(tblCommand, count, baseUrl);
 				}
 
 				if (inp.data('url') != null) {

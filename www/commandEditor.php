@@ -223,7 +223,7 @@
         return 'model';
     }
 
-    function ldEsc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+    function ldEsc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
     // Enhance every api/models picker in the command editor table (idempotent).
     function ldEnhanceOverlayPickers(tblId) {
@@ -237,16 +237,9 @@
             ldLoadOverlayTypes(function (t) {
                 // No xLights submodels/groups on this system (files absent or
                 // empty) → leave the picker as the stock models-only list, with
-                // no URL rewrite and no Type filter bar.
+                // no Type filter bar.
                 if (Object.keys(t.sub).length === 0 && Object.keys(t.grp).length === 0) {
                     return;
-                }
-
-                // Include submodels + groups in the option list, then re-load it.
-                if (!/submodels=true/.test(String($sel.data('contentlisturl') || ''))) {
-                    var newUrl = url + '&submodels=true';
-                    $sel.attr('data-contentlisturl', newUrl).data('contentlisturl', newUrl);
-                    try { ReloadContentList(window.location.hostname, $sel); } catch (e) {}
                 }
 
                 // Build the master list from the content-list URL directly
@@ -278,6 +271,20 @@
                         });
                         $sel.data('ldAll', all);
                     }
+                });
+                // Filter the MultiSync hosts' list once there is one.
+                var useFilled = function () {
+                    if (!$sel.data('contentlist')) return;
+                    $sel.data('ldAll', $sel.data('contentlist').map(function (o) {
+                        var special = (o.value === '' || o.value === '--All Models--');
+                        return { value: o.value, label: o.label, title: o.title, special: special,
+                                 type: special ? 'model' : ldOverlayType(o.value) };
+                    }));
+                };
+                useFilled();
+                $sel.on('contentlistfilled', function () {
+                    useFilled();
+                    if ($sel.data('ldBar')) ldApplyOverlayFilter($sel);
                 });
                 if (!($sel.data('ldAll') || []).length) {
                     return;   // could not load the list; leave the stock picker alone
@@ -331,6 +338,12 @@
         var cur = $sel.val() || [];
         cur = Array.isArray(cur) ? cur : [cur];
         var selSet = {}; cur.forEach(function (v) { selSet[v] = 1; });
+        // Nothing chosen must not become the first option.
+        var unset = $sel[0].selectedIndex === -1 && !$sel.prop('multiple') && $sel[0].options.length > 0;
+        // A saved value the list does not have stays chosen.
+        var known = {}; all.forEach(function (o) { known[o.value] = 1; });
+        all = all.concat(cur.filter(function (v) { return v !== '' && !known[v]; })
+            .map(function (v) { return { value: v, label: v }; }));
 
         var html = '';
         all.forEach(function (o) {
@@ -340,9 +353,11 @@
                            || o.value.toLowerCase().indexOf(q) >= 0));
             if (!keep) return;
             html += "<option value='" + ldEsc(o.value) + "'"
+                 + (o.title ? " title='" + ldEsc(o.title) + "'" : '')
                  + (selSet[o.value] ? ' selected' : '') + '>' + ldEsc(o.label) + '</option>';
         });
         $sel.html(html);
+        if (unset) $sel[0].selectedIndex = -1;
 
         // A multistring picker is DISPLAYED as a checkbox list mirroring this
         // <select>, which is itself hidden (fpp.js SyncMultistringChecks, issue
