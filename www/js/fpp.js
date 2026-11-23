@@ -11219,12 +11219,21 @@ function RenderCommandListRows (id) {
 var commandListPendingOuterReopen = null;
 
 function CaptureOuterEditorAndOpenNested (nestedTarget, nestedData, title, saveButton) {
-	commandListPendingOuterReopen = {
-		target: commandEditorTarget,
-		data: CommandToJSON('editorCommand', 'tblCommandEditor', {}),
-		callback: commandEditorCallback,
-		cancelCallback: commandEditorCancelCallback
-	};
+	// Inline lists (#3209) have no outer editor, and commandEditor.php's
+	// globals may not even exist yet.
+	var listId = nestedTarget.split('||')[0];
+	if ($('#commandEditorPopup.show').find('#' + listId).length) {
+		commandListPendingOuterReopen = {
+			target: commandEditorTarget,
+			data: CommandToJSON('editorCommand', 'tblCommandEditor', {}),
+			callback: commandEditorCallback,
+			cancelCallback: commandEditorCancelCallback,
+			args: commandEditorArgs,
+			onReady: commandEditorOnReady
+		};
+	} else {
+		commandListPendingOuterReopen = null;
+	}
 	ShowCommandEditor(nestedTarget, nestedData, 'CommandListRowSavedThenReopen', 'CommandListRowCancelledThenReopen', {
 		title: title,
 		saveButton: saveButton,
@@ -11245,12 +11254,8 @@ function ReopenOuterCommandEditorAfterCommandListPick () {
 		// commandlist state was already accumulated in commandListState -
 		// InitCommandLists reads the (unchanged) hidden field value again,
 		// so rows added/edited before this nested pick are still there.
-		ShowCommandEditor(outer.target, outer.data, outer.callback, outer.cancelCallback, {
-			title: 'FPP Command Editor',
-			saveButton: 'Accept Changes',
-			cancelButton: 'Cancel Edit',
-			showPresetSelect: false
-		});
+		// Restore the outer editor's own args and onReady.
+		ShowCommandEditor(outer.target, outer.data, outer.callback, outer.cancelCallback, outer.args, outer.onReady);
 	}
 	// fppDialog (fpp.js ~line 705) is a Bootstrap-modal wrapper, not jQuery
 	// UI - "close" maps to .modal('hide'), an async CSS-transition teardown.
@@ -11304,6 +11309,8 @@ function CommandListRowSavedThenReopen (target, data) {
 				commandListPendingOuterReopen.data.args = commandListPendingOuterReopen.data.args || [];
 				commandListPendingOuterReopen.data.args[argIndex] = JSON.stringify(commandListState[id]);
 			}
+		} else {
+			RenderCommandListRows(id); // inline list: no outer editor to rebuild
 		}
 	}
 	ReopenOuterCommandEditorAfterCommandListPick();
@@ -15424,6 +15431,8 @@ function ShowRunCommandPopup () {
 	ShowCommandEditor(item, cmd, 'RunCommandSaved', '', args);
 }
 
+var commandEditorOnReady = null;
+
 function ShowCommandEditor (
 	target,
 	data,
@@ -15464,6 +15473,7 @@ function ShowCommandEditor (
 
 	$('#commandEditorDiv').load('commandEditor.php', function () {
 		CommandEditorSetup(target, data, callback, cancelCallback, args);
+		commandEditorOnReady = onReady;
 
 		//
 		// Add the colour picker to any color elements
