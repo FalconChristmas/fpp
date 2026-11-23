@@ -14122,16 +14122,14 @@ function PrintArgInputs (tblCommand, configAdjustable, args, startCount = 1) {
 				}
 
 				if (typeof val['children'] === 'object') {
-					if (
-						tblCommand == 'playlistEntryCommandOptions' ||
-						tblCommand == 'playlistEntryOptions'
-					) {
+					if (tblCommand == 'playlistEntryOptions') {
 						line += " onChange='UpdateChildVisibility();";
 					} else {
-						// Generic Command-args tables (commandEditor.php, GPIO's
-						// command picker, etc.) - not driven by the global
-						// playlistEntryTypes structure UpdateChildVisibility()
-						// reads, so ship the children map on the element itself.
+						// Command-args tables (commandEditor.php, GPIO's command
+						// picker, the Playlist Editor's FPP Command args) - not
+						// driven by the global playlistEntryTypes structure
+						// UpdateChildVisibility() reads, so ship the children
+						// map on the element itself.
 						line +=
 							" data-children='" +
 							JSON.stringify(val['children']).replace(/'/g, '&apos;') +
