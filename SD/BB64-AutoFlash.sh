@@ -64,6 +64,29 @@ fail() {
 
 echo "---------------------------------------"
 
+# RAM check, before anything is written to the board.  The flashEMMC stanza in
+# extlinux.conf boots with memtest=17: the kernel writes and reads back all 17 of its
+# patterns across every free page of DDR before it starts using it.  The kernel does
+# NOT stop on a bad cell -- it reserves the range and boots on -- so a board with bad
+# RAM boots, flashes and runs, and fails later in the field.  The result has to be read
+# here, from the EarlyMemtestBad line in /proc/meminfo (kernel 6.4+).
+#
+# The line exists only when the test ran, so a missing line is a failure too: it means
+# memtest= was lost from the command line, and an untested board is not a passed one.
+# Note the test cannot cover memory already in use that early -- the kernel image and
+# the device tree's reserved-memory carve-outs, CMA among them -- which is ~12% of a
+# 1GB board.
+MEMTEST_BAD=$(sed -n 's/^EarlyMemtestBad: *\([0-9][0-9]*\) kB$/\1/p' /proc/meminfo)
+if [ -z "${MEMTEST_BAD}" ]; then
+    fail "The RAM test did not run (no memtest= on the kernel command line)."
+elif [ "${MEMTEST_BAD}" != "0" ]; then
+    dmesg | grep "bad mem addr"
+    fail "The RAM test found ${MEMTEST_BAD} kB of bad memory."
+fi
+echo "RAM test passed: $(dmesg | grep -o 'early_memtest: # of tests: [0-9]*' | head -n 1)"
+
+echo "---------------------------------------"
+
 # Some PB2i boards ship with a blank or half-programmed EEPROM, which makes u-boot
 # configure the industrial board as the 512MB base one.  check_pb2_eeprom.sh works
 # out which variant this is, repairs what can be repaired, and verifies the result.
