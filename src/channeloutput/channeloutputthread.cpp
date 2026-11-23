@@ -467,17 +467,44 @@ void RunChannelOutputThread(void) {
                 // thread's timeout below cleared RunThread under it.
                 // Shutdown ends the wait too: left to time out, every fppd
                 // stop took the rest of the 2.5 s.
-                if (outputThreadSatusCond.wait_for(statusLock, std::chrono::milliseconds(2500),
-                                                   [startsSeen, forceSeen]() {
-                                                       return outputThreadShutDown ||
-                                                              outputStartRequests.load() != startsSeen ||
-                                                              outputForceRequests.load() != forceSeen;
-                                                   }) &&
-                    !outputThreadShutDown) {
+                //
+                // outputThreadLock is let go for the wait: nothing walks the
+                // output list or sends while idle, and an output reload
+                // (LockOutputThread() on the main loop) landing just after a
+                // test or sequence stopped otherwise held the main loop for
+                // the rest of the 2.5 s, so the UI's command-socket calls got
+                // no answer.  ThreadIsRunning stays set, so outputs added
+                // meanwhile get their StartingOutput() and the StoppingOutput()
+                // at exit still pairs with it.  Retaken below, after statusLock
+                // is let go: outputThreadLock is always taken first.
+                lock.unlock();
+                auto wanted = [startsSeen, forceSeen]() {
+                    return outputThreadShutDown ||
+                           outputStartRequests.load() != startsSeen ||
+                           outputForceRequests.load() != forceSeen;
+                };
+                bool keepGoing = outputThreadSatusCond.wait_for(statusLock, std::chrono::milliseconds(2500), wanted) &&
+                                 !outputThreadShutDown;
+                if (!keepGoing) {
+                    // Timed out.  Retake outputThreadLock before deciding to
+                    // exit, and count as running meanwhile: a start in this
+                    // gap then leaves its request to this thread rather than
+                    // spawning a replacement, which could take the lock first
+                    // and run while this one goes on to StoppingOutput().
+                    ThreadIsExiting = 0;
+                    statusLock.unlock();
+                    lock.lock();
+                    statusLock.lock();
+                    keepGoing = !outputThreadShutDown && wanted();
+                }
+                if (keepGoing) {
                     // signal to keep going
                     ThreadIsExiting = 0;
                     statusLock.unlock();
                     outputThreadSatusCond.notify_all();
+                    if (!lock.owns_lock()) {
+                        lock.lock();
+                    }
                     onceMore = 1;
                     // Back from idle: the cadence starts again at this wake.
                     // Left to the "more than a frame behind" test below, a
