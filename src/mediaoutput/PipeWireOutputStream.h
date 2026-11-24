@@ -152,6 +152,8 @@ public:
     //   1: *runningTime is set.
     //   0: none of `feed`'s sound has been heard yet.
     //  -1: not known (no timing from PipeWire, or `feed` isn't feeding).
+    //  -2: all `feed` gave has been heard and nothing more is queued (a seek
+    //      flushed it, or it ran dry): nothing of it is being heard now.
     int HeardRunningTime(GstElement* feed, GstClockTime* runningTime);
 
     // Route `appsink`'s samples into this stream, replacing any previous

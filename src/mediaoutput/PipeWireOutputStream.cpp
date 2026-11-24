@@ -1054,20 +1054,31 @@ int PipeWireOutputStream::HeardRunningTime(GstElement* feed, GstClockTime* runni
         m_feedSpans.pop_front();
     }
     const FeedSpan* last = nullptr;
+    bool inside = false;
     for (const FeedSpan& span : m_feedSpans) {
         if (span.feed != feed) {
             continue;
         }
         if (heard < span.queuePos) {
+            inside = true;  // between two of its spans: at the end of the first
             break;
         }
         last = &span;
         if (heard < span.queuePos + span.frames) {
+            inside = true;
             break;
         }
     }
     if (!last) {
         return 0;
+    }
+    if (!inside) {
+        // All of it heard and nothing more given: a seek flushed it and it
+        // hasn't resumed, or it ran dry.  The speaker isn't playing it, so
+        // its last sample's running time stays put while the pipeline's
+        // runs on (or, PAUSED, its clock does): the difference between them
+        // is no latency.
+        return -2;
     }
     uint64_t into = std::min<uint64_t>(heard - last->queuePos, last->frames);
     *runningTime = last->runningTime + (GstClockTime)(into * last->speed * GST_SECOND / m_rate);

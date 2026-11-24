@@ -4511,6 +4511,15 @@ int GStreamerOutput::Process(void) {
                         // track's tail) is still playing.  It is at its start.
                         latNs = pos;
                         measured = true;
+                    } else if (heard == -2 && m_pictureDelayNs > 0) {
+                        // Nothing of it in the stream (a seek flushed it and
+                        // the pipeline is prerolling again, or it ran dry):
+                        // what was last measured still holds.  Measured now,
+                        // it would grow by the wait, and the picture held
+                        // back by that much showed the seek's first frame
+                        // seconds late.
+                        latNs = m_pictureDelayNs;
+                        measured = true;
                     }
                 }
                 if (!measured) {
