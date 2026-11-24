@@ -85,11 +85,13 @@ struct FeedRef {
     uint64_t token;
 };
 
-// The display a probe's FeedRef names.  Its own function, never inlined, so
+// The display a feed's FeedRef names.  Its own function, never inlined, so
 // that a sanitizer can be told about this one read alone: the FeedRef is
-// handed to gst_pad_add_probe() (AttachFeed()) and first read here on the
-// decoder's streaming thread, ordered by the pad's lock, inside GStreamer
-// where TSan can't see it.  Nothing past it is excused.
+// handed to gst_pad_add_probe() and gst_app_sink_set_callbacks()
+// (AttachFeed()) and first read here on the feed's streaming thread, ordered
+// by the pad's or the appsink's lock, inside GStreamer where TSan can't see
+// it.  Nothing past it is excused: the acquire below orders everything
+// AttachFeed() did before publishing it, the rest of the FeedRef included.
 __attribute__((noinline)) VideoDisplay* FeedRefDisplay(gpointer data) {
     VideoDisplay* display = static_cast<FeedRef*>(data)->display.get();
     display->SyncWithAttach();
@@ -529,7 +531,10 @@ GstFlowReturn VideoDisplay::OnFeedSample(GstElement* appsink, gpointer userData)
         // release orders the push before the display's end where the
         // sanitizer can see it -- otherwise only the pipeline's teardown,
         // joining this thread inside GStreamer, does.
-        std::shared_ptr<VideoDisplay> display = ref->display;
+        // Taken through FeedRefDisplay(), as the probe does: a pooled
+        // streaming thread can run this callback with nothing TSan sees
+        // ordering it after AttachFeed() published the FeedRef.
+        std::shared_ptr<VideoDisplay> display = FeedRefDisplay(userData)->shared_from_this();
         display->Push(ref->token, sample);
         gst_sample_unref(sample);
     }
