@@ -2615,6 +2615,21 @@
 				"MultiSyncEnabled": 1
 			}
 		},
+		"MultiSyncUnicastSubnets": {
+			"name": "MultiSyncUnicastSubnets",
+			"description": "Limit ALL KNOWN Unicast to these subnets (CSV list)",
+			"tip": "Only used with \"Send MultiSync to ALL KNOWN remotes via Unicast\".  A comma separated list of subnets (A.B.C.D/X) or single IPs (A.B.C.D).  When set, MultiSync packets are only unicast to known remotes inside one of these subnets, so remotes discovered on other networks (via mDNS, for example) are left alone.  Remotes listed individually or in the Unicast Discovery IPs are not affected.  Leave blank to send to every known remote.  Example: 192.168.2.0/24",
+			"level": 1,
+			"size": 64,
+			"maxlength": 256,
+			"type": "text",
+			"fppModes": [
+				"player"
+			],
+			"settingValues": {
+				"MultiSyncEnabled": 1
+			}
+		},
 		"MultiSyncCopyEffects": {
 			"name": "MultiSyncCopyEffects",
 			"gatherStats": true,

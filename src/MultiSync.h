@@ -461,6 +461,8 @@ private:
     // Rebuild the cached "all known remotes" unicast destination list from the
     // currently-known remote systems that support unicast.  Only used when the
     // MultiSyncUnicast ("send to ALL known remotes") setting is enabled.
+    // When MultiSyncUnicastSubnets is set, only remotes inside one of its
+    // subnets are kept.
     // Neither form may be called with m_systemsLock held: they take
     // m_unicastUpdateLock, and that lock is only ever acquired ahead of
     // m_systemsLock, never behind it.  The no-arg form snapshots the addresses
@@ -469,7 +471,8 @@ private:
     // has the lock and passes it to the overload after releasing it.
     void UpdateUnicastDestinations();
     void UpdateUnicastDestinations(const std::vector<std::string>& addrsToResolve);
-    // Re-read the sync send methods (MultiSyncBroadcast/Multicast/Unicast) and
+    // Re-read the sync send methods (MultiSyncBroadcast/Multicast/Unicast, and
+    // the MultiSyncUnicastSubnets filter) and
     // the statically-configured unicast remote list (MultiSyncRemotes plus
     // MultiSyncExtraRemotes) from the settings and swap the resulting
     // destination list into place.  Called once from OpenControlSockets() and

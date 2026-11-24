@@ -122,7 +122,8 @@ input#MultiSyncExtraRemotes {
 	width: 90%;
 }
 
-input#MultiSyncHTTPSubnets {
+input#MultiSyncHTTPSubnets,
+input#MultiSyncUnicastSubnets {
 	width: 90%;
 }
 

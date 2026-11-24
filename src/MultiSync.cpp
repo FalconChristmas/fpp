@@ -189,6 +189,43 @@ static void AddRemotesFromSetting(const char* setting, std::set<std::string>& re
     }
 }
 
+// Parses MultiSyncUnicastSubnets: comma-separated A.B.C.D/N subnets or bare
+// A.B.C.D addresses (a /32).  Each entry is returned as (network, mask) in
+// network byte order.  An entry that doesn't parse is logged and skipped.
+static std::vector<std::pair<uint32_t, uint32_t>> ParseUnicastSubnetFilter() {
+    std::vector<std::pair<uint32_t, uint32_t>> filters;
+    for (auto& token : split(getSetting("MultiSyncUnicastSubnets"), ',')) {
+        TrimWhiteSpace(token);
+        if (token.empty()) {
+            continue;
+        }
+        std::string ip = token;
+        int bits = 32;
+        size_t slash = token.find('/');
+        if (slash != std::string::npos) {
+            ip = token.substr(0, slash);
+            std::string b = token.substr(slash + 1);
+            TrimWhiteSpace(ip);
+            TrimWhiteSpace(b);
+            char* end = nullptr;
+            long v = b.empty() ? -1 : strtol(b.c_str(), &end, 10);
+            if (v < 0 || v > 32 || (end && *end)) {
+                LogWarn(VB_SYNC, "Ignoring invalid MultiSync unicast subnet '%s'\n", token.c_str());
+                continue;
+            }
+            bits = (int)v;
+        }
+        struct in_addr a;
+        if (inet_pton(AF_INET, ip.c_str(), &a) != 1) {
+            LogWarn(VB_SYNC, "Ignoring invalid MultiSync unicast subnet '%s'\n", token.c_str());
+            continue;
+        }
+        uint32_t mask = bits == 0 ? 0 : htonl(0xFFFFFFFFu << (32 - bits));
+        filters.emplace_back(a.s_addr & mask, mask);
+    }
+    return filters;
+}
+
 // Whether `sys` is the device reporting (hostname, fppMode, type, uuid) from
 // some other address.  A ping packet carries no UUID, so a ping alone can only
 // be matched on what it does carry; when both sides do know a UUID of the same
@@ -565,7 +602,8 @@ int MultiSync::Init(void) {
     // (MultiSync disabled, or nothing has needed it), OpenControlSockets()
     // reads the current settings when it does open.
     for (const char* s : { "MultiSyncRemotes", "MultiSyncExtraRemotes",
-                           "MultiSyncBroadcast", "MultiSyncMulticast", "MultiSyncUnicast" }) {
+                           "MultiSyncBroadcast", "MultiSyncMulticast", "MultiSyncUnicast",
+                           "MultiSyncUnicastSubnets" }) {
         registerSettingsListener("MultiSync", s, [this](const std::string& v) {
             {
                 std::unique_lock<std::mutex> lock(s_listenerQuiesceLock);
@@ -3043,7 +3081,8 @@ void MultiSync::ShutdownSync(void) {
     // finish before the sockets below are closed.
     if (!m_settingsListenersRemoved.exchange(true)) {
         for (const char* s : { "MultiSyncRemotes", "MultiSyncExtraRemotes",
-                               "MultiSyncBroadcast", "MultiSyncMulticast", "MultiSyncUnicast" }) {
+                               "MultiSyncBroadcast", "MultiSyncMulticast", "MultiSyncUnicast",
+                               "MultiSyncUnicastSubnets" }) {
             unregisterSettingsListener("MultiSync", s);
         }
         std::unique_lock<std::mutex> lock(s_listenerQuiesceLock);
@@ -3516,6 +3555,11 @@ void MultiSync::UpdateUnicastDestinations(const std::vector<std::string>& addrsT
     // stall every other m_systemsLock caller (notably the frequently-polled
     // GetSystems()) for as long as the lookup took.  GetIPForHost() itself is
     // reentrant/thread-safe, so it's fine to call without any MultiSync lock held.
+    // Optional subnet filter: with one set, only remotes inside it are
+    // unicast to.  Empty (the default) means every known remote.  If no
+    // entry parses, the filter is treated as unset rather than silencing
+    // every remote over a typo.
+    auto subnetFilter = ParseUnicastSubnetFilter();
     std::vector<struct sockaddr_in> newAddrs;
     for (auto& address : addrsToResolve) {
         struct sockaddr_in addr;
@@ -3532,6 +3576,14 @@ void MultiSync::UpdateUnicastDestinations(const std::vector<std::string>& addrsT
         // Skip anything that didn't resolve to a usable IPv4 address
         // (e.g. an IPv6-only peer); sockaddr_in can't represent it.
         if (addr.sin_addr.s_addr == INADDR_NONE || addr.sin_addr.s_addr == 0) {
+            continue;
+        }
+        if (!subnetFilter.empty() &&
+            std::none_of(subnetFilter.begin(), subnetFilter.end(), [&addr](const auto& f) {
+                return (addr.sin_addr.s_addr & f.second) == f.first;
+            })) {
+            LogDebug(VB_SYNC, "Not unicasting MultiSync to %s: outside MultiSyncUnicastSubnets\n",
+                     address.c_str());
             continue;
         }
         newAddrs.push_back(addr);

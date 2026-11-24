@@ -4631,6 +4631,7 @@
                                 PrintSetting('MultiSyncMulticast', 'syncModeUpdated');
                                 PrintSetting('MultiSyncBroadcast', 'syncModeUpdated');
                                 PrintSetting('MultiSyncUnicast', 'syncModeUpdated');
+                                PrintSetting('MultiSyncUnicastSubnets');
                                 PrintSetting('MultiSyncExtraRemotes');
                                 PrintSetting('MultiSyncHTTPSubnets');
                                 PrintSetting('MultiSyncHide10', 'getFPPSystems');
