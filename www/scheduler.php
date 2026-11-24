@@ -48,6 +48,18 @@ error_reporting(E_ALL);
             row.find(".cmdTmplCommand option[value='Start Playlist']").remove();
         }
 
+        // Selects a row's saved playlist or sequence.  One that has been deleted or
+        // renamed is not in the list, which left nothing selected: a sequence row
+        // threw, so no row got its time pickers, and Save wrote null over the name.
+        // Keep it as a "(missing)" choice instead, for ValidateScheduleRow to flag.
+        function SelectSavedName(sel, name, label) {
+            sel.val(name);
+            if (name && sel.val() !== name) {
+                $('<option>').val(name).text(label + ' (missing)').attr('data-missing', '1').appendTo(sel);
+                sel.val(name);
+            }
+        }
+
         function AddScheduleEntry(data = {}) {
             var newEntry = 0;
             if (!data.hasOwnProperty('enabled')) {
@@ -119,21 +131,21 @@ error_reporting(E_ALL);
                 if (data.hasOwnProperty('sequence') && data.sequence == 1) {
                     row.find('.schOptionsPlaylist').hide();
                     row.find('.schOptionsSequence').show();
-                    row.find('.schSequence').val(data.playlist);
                     row.find('.schType').val('sequence');
 
                     var v = row.find('.schSequence');
+                    SelectSavedName(v, data.playlist, (data.playlist || '').replace(/\.fseq$/, ''));
                     v.tooltip();
-                    v.attr("data-bs-original-title", v.val().replace(/.fseq$/, ''));
+                    v.attr("data-bs-original-title", (v.val() || '').replace(/\.fseq$/, ''));
                 } else {
                     row.find('.schOptionsSequence').hide();
                     row.find('.schOptionsPlaylist').show();
-                    row.find('.schPlaylist').val(data.playlist);
                     row.find('.schType').val('playlist');
 
                     var v = row.find('.schPlaylist');
+                    SelectSavedName(v, data.playlist, data.playlist);
                     v.tooltip();
-                    v.attr("data-bs-original-title", v.val());
+                    v.attr("data-bs-original-title", v.val() || '');
                 }
             } else {
                 // FPP Command
@@ -415,6 +427,11 @@ error_reporting(E_ALL);
                 if (!playlistVal || playlistVal === '' || playlistVal === 'null') {
                     $(row).find('.schPlaylist').addClass('inputWarning');
                     isValid = false;
+                } else if ($(row).find('.schPlaylist option:selected').attr('data-missing')) {
+                    $(row).find('.schPlaylist').addClass('inputWarning');
+                    WarningIcon([], 'This playlist is not on this player: it may have been deleted or renamed.', 'schPlaylistWarning')
+                        .insertAfter($(row).find('.schPlaylist'));
+                    isValid = false;
                 } else {
                     // A playlist that exists but would not play cleanly is
                     // flagged (from /api/playlists/validate) but still savable.
@@ -431,6 +448,11 @@ error_reporting(E_ALL);
                 var sequenceVal = $(row).find('.schSequence').val();
                 if (!sequenceVal || sequenceVal === '' || sequenceVal === 'null') {
                     $(row).find('.schSequence').addClass('inputWarning');
+                    isValid = false;
+                } else if ($(row).find('.schSequence option:selected').attr('data-missing')) {
+                    $(row).find('.schSequence').addClass('inputWarning');
+                    WarningIcon([], 'This sequence is not on this player: it may have been deleted or renamed.', 'schPlaylistWarning')
+                        .insertAfter($(row).find('.schSequence'));
                     isValid = false;
                 }
             } else if (schType == 'command') {
