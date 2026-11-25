@@ -478,6 +478,8 @@ APIServer::APIServer() {
 // Set once fppd is stopping: the sync advice registered in Init() then turns
 // every new request (and WebSocket upgrade) away before it reaches a router.
 static std::atomic<bool> s_httpQuiescing{ false };
+// Set by the server thread once drogon::app().run() has returned.
+static std::atomic<bool> s_httpServerStopped{ false };
 
 // drogon's quit() frees its routers on the main loop *before* it stops the IO
 // loops: an IO thread still routing a request (the UI's status poll, say)
@@ -528,7 +530,16 @@ APIServer::~APIServer() {
     StatusWebSocketShutdown();
 
     QuiesceHttpServer();
-    drogon::app().quit();
+    // quit() does nothing until drogon's main loop is running, and the server
+    // thread only gets there at the end of run(), after it has set up the
+    // listeners and IO loops. A stop or restart that comes in sooner (a
+    // scheduled playlist whose first entry restarts fppd) would be lost, and
+    // the join below would wait forever. So keep asking until run() has
+    // returned: once quit() has taken effect, further calls are no-ops.
+    while (m_serverThread && !s_httpServerStopped) {
+        drogon::app().quit();
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
     // Join the server thread so Drogon is fully stopped before we return.
     // PluginManager::Cleanup() (called from main() after MainLoop() exits)
     // will dlclose() plugin libraries; if Drogon IO threads are still running
@@ -1241,6 +1252,7 @@ void APIServer::Init(void) {
 
     m_serverThread = new std::thread([]() {
         drogon::app().run();
+        s_httpServerStopped = true;
     });
     // Do NOT detach: ~APIServer() joins this thread after quit() so Drogon is
     // fully stopped before PluginManager::Cleanup() calls dlclose() on plugin
