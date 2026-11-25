@@ -473,6 +473,27 @@ setSetting() {
     fi
 }
 
+# FPP devices whose hostname another FPP device has too, one per line: name,
+# tab, addresses and type.  multiSyncSystems has a row per address, and keeps a
+# renamed device's old row for a while, so rows are grouped by UUID and the
+# name seen last is the device's name (#3210).
+duplicateHostnames() {
+    curl -s http://127.0.0.1/api/fppd/multiSyncSystems 2>/dev/null | jq -r '
+        def real: (. // "") as $u | $u != "" and $u != "Unknown" and ($u | startswith("MAC:") | not);
+        def clean: gsub("[^A-Za-z0-9._ ,:%()/+-]"; "?");
+        def addrs: map(.address // empty) | unique | (map(select(test("^[0-9.]+$") and (startswith("169.254.") | not)))) as $v4
+            | if ($v4 | length) > 0 then $v4 else . end | join(", ");
+        [.systems[]? | select(.typeId > 0 and .typeId < 128 and (.uuid | real)
+                              and (.hostname // "") != "" and .hostname != .address)]
+        | group_by(.uuid)
+        | map(max_by([.local // 0, .lastSeen // 0]) as $d | map(select(.hostname == $d.hostname))
+              | $d + {addrs: addrs, me: any(.[]; .local == 1)})
+        | group_by(.hostname | ascii_downcase)[]
+        | select(length > 1) | .[0].hostname as $name | .[]
+        | ($name | clean) + "\t" + (.addrs + " (" + (.type // "FPP") + (if .me then ", this device" else "" end) + ")" | clean)
+        ' 2>/dev/null
+}
+
 # Apache that is not running (a container, an image build) is not a failure:
 # it reads the new config when it starts. Config upgrades end with this call,
 # and a non-zero status there stops upgrade_config and every later migration.

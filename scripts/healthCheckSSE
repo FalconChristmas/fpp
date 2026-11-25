@@ -223,13 +223,21 @@ HC_Scheduler() {
 HC_HostName() {
     local status="pass"
     local message=""
+    local details=()
 
-    FPPHOSTNAMES=$(curl -s http://127.0.0.1/api/fppd/multiSyncSystems 2>/dev/null | sed -e "s/},/}\n/g" | grep fppMode | sed -e 's/\(.*\)"hostname":"\([^"]*\)"\(.*\)/\2/' | grep -i "^fpp$" | wc -l)
+    local DUPNAMES=$(duplicateHostnames)
     HOSTNAME=$(getSetting HostName)
 
-    if [ ${FPPHOSTNAMES} -gt 1 ]; then
+    if [ -n "${DUPNAMES}" ]; then
         status="warn"
-        message="Multiple FPP hosts detected"
+        local name device names=""
+        while IFS=$'\t' read -r name device; do
+            case ", ${names}, " in *", ${name}, "*) ;; *) names="${names:+${names}, }${name}" ;; esac
+            details+=("${name}: ${device}")
+        done <<< "${DUPNAMES}"
+        message="Duplicate: ${names}"
+        details+=("Give each FPP device its own hostname, then reboot it.")
+        details+=("If you replaced or swapped a device, its old entry stays for up to 2 hours. It goes by itself, or restart FPPD on this device to clear it now.")
     elif [ "x${HOSTNAME}" = "x" ]; then
         status="warn"
         message="Not set (using default)"
@@ -241,7 +249,7 @@ HC_HostName() {
         message="Using default 'FPP'"
     fi
 
-    emit_event "hostname" "Unique Hostname" "fa-server" "$status" "$message"
+    emit_event_details "hostname" "Unique Hostname" "fa-server" "$status" "$message" "$(build_json_array "${details[@]}")"
 }
 
 HC_CheckGateways() {

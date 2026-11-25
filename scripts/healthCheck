@@ -151,13 +151,13 @@ HC_Scheduler() {
 HC_HostName() {
     PrintItemHead "HostName is unique"
 
-    FPPHOSTNAMES=$(curl -s http://127.0.0.1/api/fppd/multiSyncSystems | sed -e "s/},/}\n/g" | grep fppMode | sed -e 's/\(.*\)"hostname":"\([^"]*\)"\(.*\)/\2/' | grep -i "^fpp$" | wc -l)
+    local DUPNAMES=$(duplicateHostnames)
     HOSTNAME=$(getSetting HostName)
 
-    if [ ${FPPHOSTNAMES} -gt 1 ]
+    if [ -n "${DUPNAMES}" ]
     then
         STATUS=2
-        STATUSSTR="There may be more than one host on the network with the 'FPP' hostname.  Consider changing the hostname of this system"
+        STATUSSTR="More than one FPP device has the same hostname.  Give each device its own hostname, then reboot it.  If you replaced or swapped a device, its old entry stays for up to 2 hours; restart FPPD on this device to clear it now"
     else
         if [ "x${HOSTNAME}" = "x" ]
         then
