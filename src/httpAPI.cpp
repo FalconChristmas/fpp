@@ -534,11 +534,21 @@ APIServer::~APIServer() {
     // thread only gets there at the end of run(), after it has set up the
     // listeners and IO loops. A stop or restart that comes in sooner (a
     // scheduled playlist whose first entry restarts fppd) would be lost, and
-    // the join below would wait forever. So keep asking until run() has
-    // returned: once quit() has taken effect, further calls are no-ops.
-    while (m_serverThread && !s_httpServerStopped) {
-        drogon::app().quit();
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    // the join below would wait forever. So wait for that loop, then ask once.
+    //
+    // Only once: quit() is not idempotent in drogon 1.9 (Debian 13's). Each
+    // call it lets through queues the whole teardown on the main loop, and the
+    // first one frees the listener manager, so a second one dereferences it
+    // (SIGSEGV in ListenerManager::stopListening()). Asking every 10 ms until
+    // run() returned did exactly that whenever the teardown took longer.
+    if (m_serverThread) {
+        trantor::EventLoop* loop = drogon::app().getLoop();
+        while (!s_httpServerStopped && !loop->isRunning()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        if (!s_httpServerStopped) {
+            drogon::app().quit();
+        }
     }
     // Join the server thread so Drogon is fully stopped before we return.
     // PluginManager::Cleanup() (called from main() after MainLoop() exits)
