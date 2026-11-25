@@ -2258,6 +2258,10 @@ void MultiSync::ReconcileDeviceIdentity(const std::string& hostname, FPPMode fpp
     if (hostname.empty()) {
         return;
     }
+    // A player sending MultiSync pings as MASTER_MODE; update() stores PLAYER_MODE
+    if (fppMode == MASTER_MODE) {
+        fppMode = PLAYER_MODE;
+    }
     auto isStandIn = [](const std::string& u) {
         return u.empty() || startsWith(u, MAC_UUID_PREFIX);
     };
