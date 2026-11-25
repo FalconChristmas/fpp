@@ -629,7 +629,10 @@ void VideoDisplay::WorkerLoop() {
     SetThreadName("FPP-VDisplay");
     std::unique_lock<std::mutex> lock(s_mapLock);
     while (!s_shutdown) {
-        std::vector<std::shared_ptr<VideoDisplay>> closing;
+        // With why, decided under the display's lock: once it is out of the
+        // map its bus thread can still mark it failed, so m_failed isn't read
+        // again after the lock is let go.
+        std::vector<std::pair<std::shared_ptr<VideoDisplay>, const char*>> closing;
         uint64_t now = GetMonotonicTimeMS();
         uint64_t nextCheckMs = 1000;
         for (auto it = s_displays.begin(); it != s_displays.end();) {
@@ -644,7 +647,7 @@ void VideoDisplay::WorkerLoop() {
             }
             if (idle || d->m_failed) {
                 DrmCards::RetireLease(d->m_lease);
-                closing.push_back(d);
+                closing.emplace_back(d, d->m_failed ? "failed" : "idle");
                 it = s_displays.erase(it);
                 s_closing++;
                 continue;
@@ -653,8 +656,8 @@ void VideoDisplay::WorkerLoop() {
         }
         if (!closing.empty()) {
             lock.unlock();
-            for (auto& d : closing) {
-                d->Teardown(d->m_failed ? "failed" : "idle");
+            for (auto& [d, why] : closing) {
+                d->Teardown(why);
                 DoneClosing();
             }
             closing.clear();
