@@ -4575,7 +4575,10 @@ int GStreamerOutput::Process(void) {
                 if (remaining < 0.0f) {
                     remaining = 0.0f;
                 }
-                if (!m_loggedSinkLatency && latSec != 0.0f && (!measured || latNs != pos)) {
+                // Not while the position is held at the start (latNs == pos:
+                // none of the track heard yet): that is no correction, and
+                // logged once it stood in for the one that follows.
+                if (!m_loggedSinkLatency && latSec != 0.0f && latNs != pos) {
                     m_loggedSinkLatency = true;
                     LogDebug(VB_MEDIAOUT, "GStreamer: position backed up %.1f ms to the sound (%s)\n",
                             latSec * 1000.0f, measured ? "measured" : "estimated");
