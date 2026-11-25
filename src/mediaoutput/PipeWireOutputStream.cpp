@@ -37,6 +37,7 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <climits>
 #include <cmath>
 #include <ctime>
 #include <cstdio>
@@ -109,6 +110,18 @@ constexpr double kClockMaxPhaseError = 0.050;
 // stops the device and starts it again; the samples a few hundred ms later
 // see that.
 constexpr uint64_t kFlushRestartMs = 1000;
+// The card's queue (MeasureCardQueue()): how often it is read, how often for
+// the first while after the card starts -- its queue deepens for ~2 s as
+// PipeWire settles on the card's pace -- and how many readings are taken the
+// median of.  A correction past kCardQueueMaxCorrMs is a misreading.  The fast
+// readings are spaced at random: at a fixed interval close to the graph's
+// cycle, a run of them all fell at the same point in it.
+constexpr int kCardQueueSampleMs = 250;
+constexpr int kCardQueueFastMs = 20;      // ...plus up to kCardQueueJitterMs
+constexpr int kCardQueueJitterMs = 17;
+constexpr uint64_t kCardQueueSettleMs = 3000;
+constexpr size_t kCardQueueMedianOf = 5;
+constexpr int64_t kCardQueueMaxCorrMs = 250;
 // How long a stopped track's timeline is kept running with silence for the
 // next track to carry on (Release(), ContinueTimeline()).  A playlist's next
 // track starts within tens of ms of the last one stopping; one that comes
@@ -621,6 +634,7 @@ void PipeWireOutputStream::WorkerLoop() {
         }
         bool anyOpening = false;
         bool anyBridging = false;
+        int measureMs = 250;
         uint64_t now = NowMs();
         for (PipeWireOutputStream* s : slots) {
             if (s) {
@@ -642,6 +656,7 @@ void PipeWireOutputStream::WorkerLoop() {
                 }
                 anyBridging |= s->ServiceBridge();
                 s->Service(now);
+                measureMs = std::min(measureMs, s->MeasureCardQueue(NowMs()));
                 std::unique_lock<std::mutex> slock(s->m_lock);
                 anyOpening |= (s->m_state == State::Opening);
             }
@@ -652,8 +667,10 @@ void PipeWireOutputStream::WorkerLoop() {
         }
         // Opening streams are polled every 10 ms; otherwise the only thing to
         // watch for is a linger running out.
-        // A bridge between tracks is topped up every few ms.
-        s_workerWake.wait_for(wlock, std::chrono::milliseconds(anyBridging ? 4 : anyOpening ? 10 : 250),
+        // A bridge between tracks is topped up every few ms.  A card that has
+        // just started is measured often while its queue settles.
+        int waitMs = anyBridging ? 4 : anyOpening ? 10 : std::max(measureMs, 1);
+        s_workerWake.wait_for(wlock, std::chrono::milliseconds(waitMs),
                               [] { return s_workerKick || !s_workerRunning; });
         s_workerKick = false;
         if (!s_workerRunning) {
@@ -807,6 +824,8 @@ bool PipeWireOutputStream::OpenLocked(std::unique_lock<std::mutex>& lock) {
     m_readPos.store(0, std::memory_order_relaxed);
     m_dropTo.store(0, std::memory_order_relaxed);
     m_cycleCount.store(0, std::memory_order_relaxed);
+    m_outFrames = 0;
+    ResetCardQueue();
     m_feedSpans.clear();
     m_warnedFull = false;
     m_pwError = false;
@@ -932,10 +951,14 @@ void PipeWireOutputStream::OnProcess(void* data) {
     // it, and anything the stream's own converter holds or we queued before.
     struct pw_time t = {};
     pw_stream_get_time_n(self->m_pwStream, &t, sizeof(t));
+    // t.delay is the latency the nodes downstream declare, the same in every
+    // cycle; how far the card's queue really is from that is measured apart
+    // (MeasureCardQueue()) and applied when the records are read.
     int64_t heardNs = 0;
+    int64_t deviceNs = 0;
     if (t.rate.denom > 0 && t.now > 0) {
-        heardNs = t.now + t.delay * (int64_t)GST_SECOND * t.rate.num / t.rate.denom +
-                  ((int64_t)t.buffered + (int64_t)(t.queued / kBytesPerFrame)) * (int64_t)GST_SECOND / self->m_rate;
+        deviceNs = t.now + t.delay * (int64_t)GST_SECOND * t.rate.num / t.rate.denom;
+        heardNs = deviceNs + ((int64_t)t.buffered + (int64_t)(t.queued / kBytesPerFrame)) * (int64_t)GST_SECOND / self->m_rate;
     }
 
     uint64_t read = self->m_readPos.load(std::memory_order_relaxed);
@@ -967,6 +990,10 @@ void PipeWireOutputStream::OnProcess(void* data) {
     r.readPos.store(read, std::memory_order_relaxed);
     r.frames.store(take, std::memory_order_relaxed);
     r.heardNs.store(heardNs, std::memory_order_relaxed);
+    self->m_outFrames += n;
+    r.outFrames.store(n, std::memory_order_relaxed);
+    r.outEnd.store(self->m_outFrames, std::memory_order_relaxed);
+    r.deviceNs.store(deviceNs, std::memory_order_relaxed);
     r.seq.fetch_add(1, std::memory_order_release);  // even: done
     self->m_cycleCount.store(count + 1, std::memory_order_release);
     self->m_readPos.store(read + take, std::memory_order_release);
@@ -1013,7 +1040,9 @@ bool PipeWireOutputStream::FrameHeardAt(int64_t nowNs, uint64_t* frame) {
         return false;
     }
     // The newest cycle whose first sample is heard by now; samples go out at
-    // the rate from there, up to the last one that cycle was given.
+    // the rate from there, up to the last one that cycle was given.  What
+    // PipeWire says, put right by what the card's queue really holds.
+    int64_t corrNs = m_cardCorrNs.load(std::memory_order_relaxed);
     uint64_t oldest = count > (uint64_t)kCycleRecords - 4 ? count - (kCycleRecords - 4) : 0;
     for (uint64_t c = count; c-- > oldest;) {
         CycleRecord& r = m_cycles[c % kCycleRecords];
@@ -1025,6 +1054,7 @@ bool PipeWireOutputStream::FrameHeardAt(int64_t nowNs, uint64_t* frame) {
         if ((seq & 1) || r.seq.load(std::memory_order_relaxed) != seq || heardNs == 0) {
             continue;
         }
+        heardNs += corrNs;
         if (heardNs <= nowNs) {
             uint64_t since = (uint64_t)((nowNs - heardNs) * (int64_t)m_rate / (int64_t)GST_SECOND);
             *frame = readPos + std::min<uint64_t>(since, frames);
@@ -1718,6 +1748,179 @@ bool PipeWireOutputStream::DisciplineClock() {
     LogExcess(VB_MEDIAOUT, "PipeWire output stream %d: card %+.1f ppm, phase %+.2f ms, clock %+.1f ppm\n",
               m_slot, (rate - 1.0) * 1e6, phase * 1000.0, (applied - 1.0) * 1e6);
     return lostTime;
+}
+
+// How much later than PipeWire says the card really plays what it is given.
+//
+// PipeWire's delay to the device (pw_stream_get_time_n()) is the latency the
+// nodes downstream declare: the same in every cycle, whatever the card's
+// queue holds.  The card's queue is deeper.  On a BeagleBone with a USB card,
+// PipeWire said 58 ms and the card held 75 ms ahead of each cycle's samples,
+// so the media position -- what the lights follow, what MultiSync sends --
+// led the sound by 17 ms, measured on the wire.  And the queue isn't steady:
+// a card that has just started (every track after a pause, with the card
+// suspending when idle) holds a few ms more than PipeWire declares at first
+// and deepens to its steady depth over ~2 s, so the lead changed through the
+// first seconds of every such song.
+//
+// The card's own pointers say exactly where each cycle's samples are.
+// PipeWire writes each cycle's samples to the card in that cycle, so the
+// card's appl_ptr, less the frames handed to the graph so far, is a constant
+// offset for as long as the card runs.  Read between one cycle's write and the
+// next's, that offset is the one it settled on, and the newest cycle's first
+// sample is then `delay` (the frames the card still has to play) less that
+// cycle's frames from being heard.  A reading that falls just as the next
+// cycle is written gives a different offset and is passed over.
+//
+// None of this applies to a card the graph resamples for (its frames aren't
+// the stream's) or to a group with no card: the correction stays 0 there, and
+// PipeWire's figure is used as it was.
+void PipeWireOutputStream::ResetCardQueue() {
+    m_cqTrigger.clear();
+    m_cqCardRate = 0;
+    m_cqOffsets.clear();
+    m_cqOffsetValid = false;
+    m_cqCorr.clear();
+    m_cqLogged = false;
+    m_cardCorrNs.store(0, std::memory_order_relaxed);
+}
+
+static int64_t StatusField(const std::string& status, const char* key) {
+    std::size_t p = status.find(key);
+    if (p == std::string::npos || (p = status.find(':', p)) == std::string::npos) {
+        return INT64_MIN;
+    }
+    return strtoll(status.c_str() + p + 1, nullptr, 10);
+}
+
+int PipeWireOutputStream::MeasureCardQueue(uint64_t nowMs) {
+    std::string path;
+    int rate;
+    {
+        std::unique_lock<std::mutex> lock(m_lock);
+        if (m_state != State::Ready || m_cardStatusPath.empty() || !m_pwStream) {
+            if (!m_cqPath.empty()) {
+                m_cqPath.clear();
+                ResetCardQueue();
+            }
+            return INT_MAX;
+        }
+        path = m_cardStatusPath;
+        rate = m_rate;
+    }
+    if (path != m_cqPath) {
+        m_cqPath = path;
+        ResetCardQueue();
+    }
+    if (nowMs < m_cqNextMs) {
+        return (int)(m_cqNextMs - nowMs);
+    }
+    // When to read it next: soon while its queue settles, which is from the
+    // moment it is seen to start until a few seconds after.
+    auto next = [this, nowMs]() {
+        bool settling = !m_cqOffsetValid || nowMs - m_cqStartMs < kCardQueueSettleMs;
+        int ms = settling ? kCardQueueFastMs + (int)(random() % (kCardQueueJitterMs + 1)) : kCardQueueSampleMs;
+        m_cqNextMs = nowMs + ms;
+        return ms;
+    };
+
+    uint64_t countBefore = m_cycleCount.load(std::memory_order_acquire);
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    int64_t before = (int64_t)ts.tv_sec * GST_SECOND + ts.tv_nsec;
+    std::string status = GetFileContents(path);
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    int64_t after = (int64_t)ts.tv_sec * GST_SECOND + ts.tv_nsec;
+    uint64_t count = m_cycleCount.load(std::memory_order_acquire);
+
+    if (status.find("state: RUNNING") == std::string::npos) {
+        // Stopped, or not started yet: when it starts its queue starts over.
+        if (!m_cqTrigger.empty() || m_cqOffsetValid) {
+            ResetCardQueue();
+        }
+        m_cqNextMs = nowMs + kCardQueueSampleMs;
+        return kCardQueueSampleMs;
+    }
+    std::string trigger;
+    std::size_t tp = status.find("trigger_time");
+    if (tp != std::string::npos && (tp = status.find(':', tp)) != std::string::npos) {
+        std::size_t e = status.find('\n', tp);
+        trigger = status.substr(tp + 1, e == std::string::npos ? std::string::npos : e - tp - 1);
+        TrimWhiteSpace(trigger);
+    }
+    if (trigger != m_cqTrigger) {
+        // (Re)started: a new queue, which starts shallower than it settles.
+        ResetCardQueue();
+        m_cqTrigger = trigger;
+        m_cqStartMs = nowMs;
+    }
+    if (m_cqCardRate <= 0) {
+        std::string hwParams = GetFileContents(path.substr(0, path.rfind('/')) + "/hw_params");
+        int64_t r = StatusField(hwParams, "rate");
+        m_cqCardRate = r > 0 && r < INT32_MAX ? (int)r : 0;
+        if (m_cqCardRate <= 0) {
+            return next();
+        }
+    }
+    if (m_cqCardRate != rate) {
+        // Resampled on the way: card frames aren't stream frames.
+        m_cqNextMs = nowMs + kCardQueueSampleMs;
+        return kCardQueueSampleMs;
+    }
+    int64_t appl = StatusField(status, "appl_ptr");
+    int64_t delay = StatusField(status, "delay");
+    if (appl == INT64_MIN || delay == INT64_MIN || count == 0 || count != countBefore) {
+        return next();  // a cycle went by while it was read: which one is unclear
+    }
+    CycleRecord& r = m_cycles[(count - 1) % kCycleRecords];
+    uint32_t seq = r.seq.load(std::memory_order_acquire);
+    uint32_t outFrames = r.outFrames.load(std::memory_order_relaxed);
+    uint64_t outEnd = r.outEnd.load(std::memory_order_relaxed);
+    int64_t deviceNs = r.deviceNs.load(std::memory_order_relaxed);
+    std::atomic_thread_fence(std::memory_order_acquire);
+    if ((seq & 1) || r.seq.load(std::memory_order_relaxed) != seq || deviceNs == 0 || outFrames == 0) {
+        return next();
+    }
+
+    // The offset has to agree over a few readings before any is trusted (a
+    // reading taken as a cycle is written is off by that cycle), and a new
+    // one is only taken up the same way -- appl_ptr wrapping, or a restart
+    // that kept its trigger_time.
+    int64_t offset = appl - (int64_t)outEnd;
+    m_cqOffsets.push_back(offset);
+    while (m_cqOffsets.size() > 3) {
+        m_cqOffsets.pop_front();
+    }
+    if (!m_cqOffsetValid || offset != m_cqOffset) {
+        if (m_cqOffsets.size() < 3 || m_cqOffsets[0] != offset || m_cqOffsets[1] != offset) {
+            return next();
+        }
+        m_cqOffset = offset;
+        m_cqOffsetValid = true;
+    }
+
+    int64_t heardNs = before + (after - before) / 2 + (delay - (int64_t)outFrames) * (int64_t)GST_SECOND / m_cqCardRate;
+    int64_t corr = heardNs - deviceNs;
+    if (corr > kCardQueueMaxCorrMs * (int64_t)GST_MSECOND || corr < -kCardQueueMaxCorrMs * (int64_t)GST_MSECOND) {
+        return next();
+    }
+    m_cqCorr.push_back(corr);
+    while (m_cqCorr.size() > kCardQueueMedianOf) {
+        m_cqCorr.pop_front();
+    }
+    std::vector<int64_t> sorted(m_cqCorr.begin(), m_cqCorr.end());
+    std::nth_element(sorted.begin(), sorted.begin() + sorted.size() / 2, sorted.end());
+    int64_t median = sorted[sorted.size() / 2];
+    m_cardCorrNs.store(median, std::memory_order_relaxed);
+    int ms = next();
+    if (!m_cqLogged && ms == kCardQueueSampleMs) {
+        m_cqLogged = true;
+        LogDebug(VB_MEDIAOUT, "PipeWire output stream %d: the card plays %.1f ms later than PipeWire declares\n",
+                 m_slot, (double)median / 1e6);
+    }
+    LogExcess(VB_MEDIAOUT, "PipeWire output stream %d: card queue correction %+.2f ms (median %+.2f)\n",
+              m_slot, (double)corr / 1e6, (double)median / 1e6);
+    return ms;
 }
 
 bool PipeWireOutputStream::CardRunning() {

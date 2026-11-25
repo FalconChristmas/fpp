@@ -235,6 +235,11 @@ private:
                           Seek };
     void Flush(FlushFor why);
     bool CardRunning();
+    // Measure m_cardCorrNs from the card's own pointers; how many ms until it
+    // wants to be called again (INT_MAX: no card to measure).  Worker thread
+    // only.
+    int MeasureCardQueue(uint64_t nowMs);
+    void ResetCardQueue();
     bool StreamLinked();
 
     static GstFlowReturn OnFeedSample(GstElement* appsink, gpointer userData);
@@ -285,17 +290,28 @@ private:
     bool m_warnedFull = false;
     // One per graph cycle, newest at m_cycleCount - 1: the queue position of
     // the first frame given to that cycle, how many were given (the rest was
-    // silence), and when (CLOCK_MONOTONIC ns) the first is heard.  `seq` is
-    // odd while OnProcess() writes the record.
+    // silence), and when (CLOCK_MONOTONIC ns) PipeWire says the first is
+    // heard -- before the card correction below.  For that correction, also
+    // the frames handed to the graph in the cycle (silence included) and in
+    // all cycles up to it, and when PipeWire says the cycle's first sample
+    // reaches the device (its time plus its delay, without what the stream
+    // itself holds).  `seq` is odd while OnProcess() writes the record.
     struct CycleRecord {
         std::atomic<uint32_t> seq{ 0 };
         std::atomic<uint64_t> readPos{ 0 };
         std::atomic<uint32_t> frames{ 0 };
         std::atomic<int64_t> heardNs{ 0 };
+        std::atomic<uint32_t> outFrames{ 0 };
+        std::atomic<uint64_t> outEnd{ 0 };
+        std::atomic<int64_t> deviceNs{ 0 };
     };
     static constexpr int kCycleRecords = 64;
     CycleRecord m_cycles[kCycleRecords];
     std::atomic<uint64_t> m_cycleCount{ 0 };
+    uint64_t m_outFrames = 0;          // frames handed to the graph (OnProcess() only)
+    // How much later than PipeWire says the card really plays each cycle's
+    // samples (MeasureCardQueue()), added to every record's heardNs.
+    std::atomic<int64_t> m_cardCorrNs{ 0 };
     // Where each feed buffer went in the queue, and its running time in the
     // feeding pipeline (HeardRunningTime()); `speed` is the feed's media
     // seconds per second of sound (SetFeedSpeed()).  Under m_lock.
@@ -369,6 +385,17 @@ private:
     GstClockTime m_syncLastInt = 0;
     // (seconds of internal time, seconds of card time) since the anchor.
     std::deque<std::pair<double, double>> m_syncWindow;
+    // MeasureCardQueue()'s state, on the worker thread only.
+    std::string m_cqPath;              // the card being measured
+    std::string m_cqTrigger;           // its trigger_time: a change is a restart
+    int m_cqCardRate = 0;
+    uint64_t m_cqStartMs = 0;          // NowMs() when the card was seen to (re)start
+    uint64_t m_cqNextMs = 0;           // NowMs() when the next reading is due
+    std::deque<int64_t> m_cqOffsets;   // appl_ptr less frames handed over, last few samples
+    bool m_cqOffsetValid = false;
+    int64_t m_cqOffset = 0;            // ...and the value they agree on
+    std::deque<int64_t> m_cqCorr;      // the last few corrections measured
+    bool m_cqLogged = false;
 };
 
 #endif

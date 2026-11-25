@@ -4159,7 +4159,20 @@ void GStreamerOutput::NoteNoSinkLatency(const std::string& why) {
             why.c_str());
 }
 
-int64_t GStreamerOutput::AudioSinkLatencyNs() {
+// The card's queue depth as last read, by status path.  It belongs to the
+// card, not to the track: every track has its own GStreamerOutput, and while
+// the reading was kept per track each one started from no reading at all.
+// The first track after the card had suspended (the default between songs)
+// then found the card still waking, took that as "no correction" for 250 ms,
+// and reported a position the whole queue (50-80 ms) ahead of the sound until
+// the first real reading snapped it back (GH #3212).
+static std::mutex s_cardLatencyLock;
+static std::map<std::string, int64_t> s_cardLatencyNs;
+
+int64_t GStreamerOutput::AudioSinkLatencyNs(bool* notRunning) {
+    if (notRunning) {
+        *notRunning = false;
+    }
     // The queue depth is essentially constant while a track plays; re-reading
     // it on every Process() would put a /proc read in the main loop at frame
     // rate for no benefit.
@@ -4167,9 +4180,9 @@ int64_t GStreamerOutput::AudioSinkLatencyNs() {
     if (m_sinkLatencyCheckedMs != 0 && (now - m_sinkLatencyCheckedMs) < 250) {
         return m_sinkLatencyNs;
     }
-    m_sinkLatencyCheckedMs = now;
 
     if (m_alsaStatusPath.empty()) {
+        m_sinkLatencyCheckedMs = now;
         int card = AlsaSinkCardNumber();
         if (card < 0) {
             // Nothing to read means no correction, which is not a small thing:
@@ -4192,18 +4205,27 @@ int64_t GStreamerOutput::AudioSinkLatencyNs() {
             m_sinkLatencyNs = 0;
             return 0;
         }
+        std::lock_guard<std::mutex> lock(s_cardLatencyLock);
+        auto it = s_cardLatencyNs.find(m_alsaStatusPath);
+        m_sinkLatencyNs = it == s_cardLatencyNs.end() ? 0 : it->second;
     }
 
     std::string status = GetFileContents(m_alsaStatusPath);
-    if (status.empty() || status.compare(0, 6, "closed") == 0) {
-        // Suspended between tracks: keep the last good value rather than
-        // snapping the reported position by tens of ms at every gap.
-        return m_sinkLatencyNs;
-    }
-    int delayFrames = ReadIntField(status, "delay");
+    int delayFrames = status.find("state: RUNNING") == std::string::npos ? 0 : ReadIntField(status, "delay");
     if (delayFrames <= 0) {
+        // Not playing.  Before it has played any of this track (opening, or
+        // waking from suspend) nothing of it is heard yet; later on (an xrun)
+        // the position carries on as it was.  Not cached, so the first
+        // reading once it runs is taken at the next call rather than up to
+        // 250 ms later.  What it queued last time is still the best guess at
+        // what it will queue now.
+        if (notRunning && !m_sinkSeenRunning) {
+            *notRunning = true;
+        }
         return m_sinkLatencyNs;
     }
+    m_sinkLatencyCheckedMs = now;
+    m_sinkSeenRunning = true;
     if (m_alsaRate <= 0) {
         m_alsaRate = ReadIntField(GetFileContents(m_alsaHwParamsPath), "rate");
     }
@@ -4229,6 +4251,8 @@ int64_t GStreamerOutput::AudioSinkLatencyNs() {
     // (~2 s at one every 250 ms): taken raw, they moved the position, and the
     // lights with it, by up to a quantum every quarter second.
     m_sinkLatencyNs = m_sinkLatencyNs > 0 ? m_sinkLatencyNs + (ns - m_sinkLatencyNs) / 8 : ns;
+    std::lock_guard<std::mutex> lock(s_cardLatencyLock);
+    s_cardLatencyNs[m_alsaStatusPath] = m_sinkLatencyNs;
     return m_sinkLatencyNs;
 }
 
@@ -4522,15 +4546,24 @@ int GStreamerOutput::Process(void) {
                         measured = true;
                     }
                 }
-                if (!measured) {
+                if (measured) {
+                    m_measuredLatNs = latNs;
+                    m_measuredLatMs = GetMonotonicTimeMS();
+                } else {
                     // No timing from PipeWire: the card's own queue, and the
-                    // lead a track carrying on the timeline runs ahead.
-                    latNs = AudioSinkLatencyNs();
-                    if (m_timelineShiftNs) {
-                        latNs += m_timelineShiftNs->load();
-                    }
-                    if (m_pwFeed) {
-                        AlignPictureToSound(latNs);
+                    // lead a track carrying on the timeline runs ahead.  A
+                    // card not yet playing has played none of it.
+                    bool notRunning = false;
+                    latNs = AudioSinkLatencyNs(&notRunning);
+                    if (notRunning) {
+                        latNs = pos;
+                    } else {
+                        if (m_timelineShiftNs) {
+                            latNs += m_timelineShiftNs->load();
+                        }
+                        if (m_pwFeed) {
+                            AlignPictureToSound(latNs);
+                        }
                     }
                 }
                 float latSec = (float)latNs / 1000000000.0f;
@@ -5549,10 +5582,25 @@ int GStreamerOutput::AdjustFeedSpeed(float masterMediaPosition) {
     // handed over, less the card's queue) -- but read now: the last
     // Process() can be tens of ms old on a remote, which made every error
     // reading tens of ms off.
+    //
+    // Backed up by what Process() last measured, as Process() does: the card
+    // queue estimate alone isn't what the master's position (or this one's
+    // own reports) are measured by, and at the first song after the card had
+    // suspended it isn't known at all.
     double local = m_mediaOutputStatus->mediaSeconds;
     gint64 pos = 0;
     if (gst_element_query_position(m_pwFeed, GST_FORMAT_TIME, &pos) && pos >= 0) {
-        local = std::max(0.0, (double)(pos - AudioSinkLatencyNs()) / GST_SECOND - mediaOffset);
+        int64_t latNs;
+        if (m_measuredLatMs != 0 && now - m_measuredLatMs < 1000) {
+            latNs = m_measuredLatNs;
+        } else {
+            bool notRunning = false;
+            latNs = AudioSinkLatencyNs(&notRunning);
+            if (notRunning) {
+                latNs = pos;
+            }
+        }
+        local = std::max(0.0, (double)(pos - latNs) / GST_SECOND - mediaOffset);
     }
     double raw = local - masterMediaPosition;  // > 0: this remote is ahead
 

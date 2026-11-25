@@ -277,8 +277,10 @@ private:
 
     // Audio still queued between pipewiresink's reported position and the DAC.
     // Cached: the depth barely moves while a track plays, and Process() runs at
-    // frame rate.
-    int64_t AudioSinkLatencyNs();
+    // frame rate.  *notRunning (if given) is set when the card hasn't started
+    // playing this track yet -- opening, or waking from suspend -- so none of
+    // it is heard.
+    int64_t AudioSinkLatencyNs(bool* notRunning = nullptr);
     // One-shot note that the position is going out uncorrected, and why.
     void NoteNoSinkLatency(const std::string& why);
     int64_t m_sinkLatencyNs = 0;
@@ -287,6 +289,12 @@ private:
     std::string m_alsaHwParamsPath;
     int m_alsaRate = 0;
     bool m_loggedSinkLatency = false;
+    bool m_sinkSeenRunning = false;   // AudioSinkLatencyNs() has seen the card play this track
+    // The latency Process() last backed the position up by, when it was
+    // measured from the output stream, and when (GetMonotonicTimeMS(); 0:
+    // never).  AdjustFeedSpeed() reads the position the same way.
+    int64_t m_measuredLatNs = 0;
+    uint64_t m_measuredLatMs = 0;
     bool m_warnedNoSinkLatency = false;
     uint64_t m_playStartMs = 0;   // when Start() set m_playing=true (GetMonotonicTimeMS()) — anchors the preroll watchdog
     static constexpr int STALL_TIMEOUT_MS = 5000; // 5 seconds before declaring stall
