@@ -9551,6 +9551,9 @@ function DisplayErrorReportDialog () {
 		ErShowBuilding();
 	} else if (erBuiltWhileClosed) {
 		ErShowBuilt(erBuiltWhileClosed.File, erBuiltWhileClosed.Size);
+		if (erBuiltWhileClosed.Minimal) {
+			$('#errorReportStatus').html('<div class="alert alert-warning py-2 mb-0">fppd and the full report builder were unavailable, so this is a minimal report with basic system information only.</div>');
+		}
 		erBuiltWhileClosed = null;
 	}
 
@@ -9628,7 +9631,7 @@ function ErBuildCrashReport () {
 				if (code === 'busy') msg = 'A report build is already running. Please wait a moment and try again.';
 				else if (code === 'rate-limited') msg = 'A report was just built. Please wait a few seconds and try again.';
 				else if (code === 'build-failed') msg = 'The report build failed on the player. Please try again, or check Troubleshooting.';
-				else if (code === 'unavailable') msg = 'fppd is running but did not respond. Try restarting FPPD, then try again.';
+				else if (code === 'unavailable') msg = 'fppd did not respond, and the report could not be built on the player. Please try again.';
 				else if (code === 'bad-request') msg = 'Bad request — please reload the page and try again.';
 				showError(msg);
 				return;
@@ -9636,12 +9639,16 @@ function ErBuildCrashReport () {
 			erBuilding = false;
 			if (errorReportOpen) {
 				ErShowBuilt(data.File, data.Size);
-				if (data.Fppd === 'not-running') {
+				if (data.Minimal) {
+					$('#errorReportStatus').html('<div class="alert alert-warning py-2 mb-0">fppd and the full report builder were unavailable, so this is a minimal report with basic system information only.</div>');
+				} else if (data.Fppd === 'not-running') {
 					$('#errorReportStatus').html('<div class="alert alert-info py-2 mb-0">fppd is not running, so this report was built without it. It includes fppd&rsquo;s status and recent logs.</div>');
+				} else if (data.Fppd === 'unavailable') {
+					$('#errorReportStatus').html('<div class="alert alert-info py-2 mb-0">fppd could not build the report, so this one was built without it. It includes fppd&rsquo;s status and recent logs.</div>');
 				}
 				ErScrollTo(document.getElementById('errorReportDownloadArea'));
 			} else {
-				erBuiltWhileClosed = { File: data.File, Size: data.Size };
+				erBuiltWhileClosed = { File: data.File, Size: data.Size, Minimal: data.Minimal };
 			}
 		})
 		.fail(function (xhr, textStatus) {
