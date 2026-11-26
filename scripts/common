@@ -536,6 +536,6 @@ gracefullyReloadApacheConf() {
 BASENAME=$(basename -- $0)
 if [ "${BASENAME}" = "common" -a -n "${1:-}" ]
 then
-    $@
+    "$@"
 fi
 
