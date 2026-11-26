@@ -517,6 +517,8 @@ private:
     // the stream back from the main loop.
     void AlignPictureToSound(int64_t latNs);
     int64_t m_pictureDelayNs = 0;
+    // How many of a pixel overlay video's frames were dropped late.
+    void LogVideoOverlayDrops();
     // A track that carried on the output stream's timeline
     // (PipeWireOutputStream::ContinueTimeline()) runs on a base time a feed
     // lead earlier than its sound, with its feed's ts-offset at 0 rather than

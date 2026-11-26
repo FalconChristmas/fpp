@@ -711,6 +711,10 @@ static void GuardVideoConvert(GstElement* element) {
 // not play.
 static constexpr int SOFTWARE_HEVC_MAX_PIXELS_PER_SECOND = 1920 * 1080 * 60;
 
+// How late a frame may reach a pixel overlay model's appsink and still be
+// shown (GstBaseSink's max-lateness): GStreamer's own video sinks use 20 ms.
+static constexpr int VIDEO_OVERLAY_MAX_LATENESS_MS = 20;
+
 static bool SkipStatelessHevcDecoder(GstCaps* caps, GstElementFactory* factory) {
     const gchar* name = gst_plugin_feature_get_name(GST_PLUGIN_FEATURE(factory));
     if (!name || strcmp(name, "v4l2slh265dec") != 0 || !caps || gst_caps_is_empty(caps)) {
@@ -1945,9 +1949,24 @@ int GStreamerOutput::Start(int msTime) {
         AttachAES67Branches(tee);
 #endif
 
-        // Build video sub-chain: videoconvert ! videoscale ! capsfilter(RGB,WxH) ! appsink
-        GstElement* videoconvert = gst_element_factory_make("videoconvert", "vconv");
-        GstElement* videoscale = gst_element_factory_make("videoscale", "vscale");
+        // Build video sub-chain: videoconvertscale ! capsfilter(RGB,WxH) ! appsink
+        //
+        // One videoconvertscale, not videoconvert ! videoscale: the caps
+        // pin RGB, so videoscale would scale RGB and videoconvert had to
+        // convert each whole decoded frame to RGB before the scale threw
+        // nearly all of it away.  videoconvertscale scales the decoder's
+        // frame first and converts only the model-sized result: a 1080p60
+        // file to a 384x192 model took 183 s of one Pi 5 core at 1.5 GHz
+        // per 180 s of video, and takes 78.  It takes the same formats as
+        // videoconvert (a Pi 4 decoder's NV12_128C8 included), and
+        // GuardVideoConvert() guards it the same way.  GStreamer before
+        // 1.22 doesn't have it, and keeps the pair.
+        GstElement* videoconvert = gst_element_factory_make("videoconvertscale", "vconv");
+        GstElement* videoscale = nullptr;
+        if (!videoconvert) {
+            videoconvert = gst_element_factory_make("videoconvert", "vconv");
+            videoscale = gst_element_factory_make("videoscale", "vscale");
+        }
         GstElement* capsfilterVideo = gst_element_factory_make("capsfilter", "vcapsf");
         GstElement* videoQueue = gst_element_factory_make("queue", "vq");
         m_videoAppsink = gst_element_factory_make("appsink", "videosink");
@@ -1964,19 +1983,36 @@ int GStreamerOutput::Start(int msTime) {
         // Without sync=TRUE, all frames are consumed immediately and position jumps to EOF,
         // falsely triggering stall detection (especially for video-only files).
         // drop=TRUE ensures old frames are discarded if ProcessVideoOverlay can't keep up.
+        //
+        // qos + max-lateness: a frame that reaches the sink later than that
+        // is dropped, and the QoS events that go upstream let the converter
+        // and the decoder skip the frames that would only be late too.  An
+        // appsink renders late frames by default, so a box that couldn't
+        // decode and convert the video in real time showed every frame
+        // late: the full queue held up the demuxer, which starved the sound,
+        // and picture, sound and the lights following them all fell behind
+        // the clock for good -- seconds over a song.  Dropping keeps them on
+        // time and shows what the box can manage.
         g_object_set(m_videoAppsink, "emit-signals", TRUE, "sync", TRUE,
-                     "max-buffers", 2, "drop", TRUE, NULL);
+                     "max-buffers", 2, "drop", TRUE,
+                     "qos", TRUE, "max-lateness", (gint64)(VIDEO_OVERLAY_MAX_LATENESS_MS * GST_MSECOND), NULL);
 
         // Add video elements to pipeline
-        gst_bin_add_many(GST_BIN(m_pipeline), videoQueue, videoconvert, videoscale,
+        gst_bin_add_many(GST_BIN(m_pipeline), videoQueue, videoconvert,
                          capsfilterVideo, m_videoAppsink, NULL);
+        if (videoscale) {
+            gst_bin_add(GST_BIN(m_pipeline), videoscale);
+        }
 
         // Take our own ref on the video appsink pointer
         gst_object_ref(m_videoAppsink);
 
         // Link video chain
-        if (!gst_element_link_many(videoQueue, videoconvert, videoscale, capsfilterVideo,
-                              m_videoAppsink, NULL)) {
+        bool linked = videoscale ? gst_element_link_many(videoQueue, videoconvert, videoscale, capsfilterVideo,
+                                                         m_videoAppsink, NULL)
+                                 : gst_element_link_many(videoQueue, videoconvert, capsfilterVideo,
+                                                         m_videoAppsink, NULL);
+        if (!linked) {
             LogErr(VB_MEDIAOUT, "GStreamer: Failed to link video chain\n");
         }
 
@@ -3491,6 +3527,7 @@ int GStreamerOutput::Stop(void) {
                 m_videoAppsinkSignalId = 0;
             }
             g_object_set(m_videoAppsink, "emit-signals", FALSE, NULL);
+            LogVideoOverlayDrops();
         }
 
         // Remove bus sync handler before state change
@@ -3699,6 +3736,34 @@ std::string GStreamerOutput::OverlayListenerId() const {
 
 bool GStreamerOutput::SetPipelineToNullBounded(GstElement* pipeline, int timeoutMs) {
     return SetPipelineToNullSupervised(pipeline, timeoutMs);
+}
+
+// A video played to a pixel overlay model drops the frames it can't show on
+// time (see the video appsink's max-lateness).  A box that drops many can't
+// decode and scale the file in real time; say so once per track, so a report
+// of a choppy matrix comes with the reason.
+void GStreamerOutput::LogVideoOverlayDrops() {
+    GstStructure* stats = nullptr;
+    g_object_get(m_videoAppsink, "stats", &stats, NULL);
+    if (!stats) {
+        return;
+    }
+    guint64 rendered = 0, dropped = 0;
+    gst_structure_get_uint64(stats, "rendered", &rendered);
+    gst_structure_get_uint64(stats, "dropped", &dropped);
+    gst_structure_free(stats);
+    // The decoder skips frames for the QoS events too, and those never reach
+    // the sink, so its counts are a floor on what was lost, not a share of
+    // the file.
+    if (dropped * 20 > rendered + dropped) {
+        LogInfo(VB_MEDIAOUT, "GStreamer: %s showed %" G_GUINT64_FORMAT " video frames on %s and dropped %" G_GUINT64_FORMAT
+                             " that came late (the decoder may have skipped more): this box can't decode and scale it in "
+                             "real time; a lower resolution or frame rate would play whole\n",
+                m_mediaFilename.c_str(), rendered, m_videoOut.c_str(), dropped);
+    } else {
+        LogDebug(VB_MEDIAOUT, "GStreamer: %s showed %" G_GUINT64_FORMAT " video frames on %s, dropped %" G_GUINT64_FORMAT " late\n",
+                 m_mediaFilename.c_str(), rendered, m_videoOut.c_str(), dropped);
+    }
 }
 
 // A video whose sound feeds the output stream shows each frame when the feed
