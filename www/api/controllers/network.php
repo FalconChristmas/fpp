@@ -1473,7 +1473,7 @@ function network_set_interface()
     // The page sends these only at Advanced UI level: keep the saved ones.
     // A DHCP server only serves from a static address.
     $dhcpServerSent = isset($data['DHCPSERVER']);
-    $keep = array('ROUTEMETRIC', 'IPFORWARDING');
+    $keep = array('ROUTEMETRIC', 'IPFORWARDING', 'INTERNETSTATUS');
     if (isset($data['PROTO']) && $data['PROTO'] == 'static') {
         $keep = array_merge($keep, array('DHCPSERVER', 'DHCPOFFSET', 'DHCPPOOLSIZE'));
     }
@@ -1562,6 +1562,22 @@ function network_set_interface()
             $data['BACKUPHIDDEN'],
             $data['BACKUPWPA3']
         );
+    }
+    // INTERNETSTATUS is a Basic setting saved for every interface, so validate
+    // it once here rather than inside the WiFi-only block above.  Write an
+    // explicit 1/0: an empty value would read back as "on" (the default for a
+    // config that has never saved this key), so an unchecked box must be 0.
+    if (isset($data['INTERNETSTATUS']) &&
+        !is_bool($data['INTERNETSTATUS']) && $data['INTERNETSTATUS'] !== 0 && $data['INTERNETSTATUS'] !== 1 &&
+        $data['INTERNETSTATUS'] !== "0" && $data['INTERNETSTATUS'] !== "1" && $data['INTERNETSTATUS'] !== "" &&
+        strcasecmp((string)$data['INTERNETSTATUS'], "true") !== 0 && strcasecmp((string)$data['INTERNETSTATUS'], "false") !== 0) {
+        return json(array("status" => "ERROR: invalid value for INTERNETSTATUS"));
+    }
+    if (isset($data['INTERNETSTATUS'])) {
+        $internetStatusOn = is_bool($data['INTERNETSTATUS'])
+            ? $data['INTERNETSTATUS']
+            : filter_var($data['INTERNETSTATUS'], FILTER_VALIDATE_BOOLEAN);
+        $out .= sprintf("INTERNETSTATUS=%d\n", $internetStatusOn ? 1 : 0);
     }
     if (isset($data['DHCPSERVER'])) {
         $out .= sprintf("DHCPSERVER=%d\n", $data['DHCPSERVER'] ? "1" : 0);

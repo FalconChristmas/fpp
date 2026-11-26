@@ -87,6 +87,7 @@ OBJECTS_fpp_so += \
 	mqtt.o \
 	NetworkController.o \
  	NetworkMonitor.o \
+	InternetConnectivityMonitor.o \
 	ping.o \
 	MDNSManager.o \
 	MDNSBackendAvahi.o \

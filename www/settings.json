@@ -79,7 +79,8 @@
 			"description": "Host Settings",
 			"settings": [
 				"HostName",
-				"HostDescription"
+				"HostDescription",
+				"NetworkInternetProbe"
 			]
 		},
 		"hostDesktop": {
@@ -525,6 +526,17 @@
 			"uncheckedValue": "0",
 			"default": "1",
 			"type": "checkbox"
+		},
+		"NetworkInternetProbe": {
+			"name": "NetworkInternetProbe",
+			"description": "Internet Connectivity Indicator",
+			"tip": "Show a green dot on the header's network icons when FPP can reach the internet through that interface. When enabled, FPP periodically sends a small reachability probe through each interface. Turn this off to stop all outbound connectivity probes.",
+			"type": "checkbox",
+			"default": 1,
+			"gatherStats": false,
+			"level": 0,
+			"restart": 0,
+			"reboot": 0
 		},
 		"WifiAntenna": {
 			"name": "WifiAntenna",

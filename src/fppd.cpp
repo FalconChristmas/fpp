@@ -68,6 +68,7 @@
 #include "Events.h"
 #include "FileMonitor.h"
 #include "FPPLocale.h"
+#include "InternetConnectivityMonitor.h"
 #include "MultiSync.h"
 #include "NetworkMonitor.h"
 #include "OutputMonitor.h"
@@ -1680,6 +1681,10 @@ int main(int argc, char* argv[]) {
     // events while we are shutting down
     Events::PrepareForShutdown();
 
+    // Stop the probe worker before settings, network state and curl are torn
+    // down underneath it; it joins, so no thread outlives this point.
+    InternetConnectivityMonitor::INSTANCE.Shutdown();
+
     // Scheduled commands run on detached threads; give any still running a
     // moment to finish before the media, outputs and command registry below go
     // away under them.  Bounded so a stuck command can't hold up shutdown.
@@ -2369,6 +2374,10 @@ void MainLoop(void) {
     GPIOManager::INSTANCE.Initialize(callbacks);
     PluginManager::INSTANCE.addControlCallbacks(callbacks);
     NetworkMonitor::INSTANCE.Init(callbacks);
+    // Own background worker: probes interfaces off-loop and publishes the
+    // internetState field consumed by GetCurrentFPPDStatus()/fppdws.  Registered
+    // after NetworkMonitor so its netlink-change callback can wake the worker.
+    InternetConnectivityMonitor::INSTANCE.Init();
     Sensors::INSTANCE.Init(callbacks);
     Variables::INSTANCE.Init();
     RecurringTasks::INSTANCE.Init();
