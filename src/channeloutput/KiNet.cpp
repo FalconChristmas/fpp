@@ -89,6 +89,22 @@ KiNetOutputData::KiNetOutputData(const Json::Value& config) :
     if (portCount > 255) {
         portCount = 255;
     }
+    // A KiNet port is one byte in both the v1 and v2 header.  Writing
+    // port + x into it without checking wraps id 250 + 10 universes around
+    // to ports 0-3, which collide with unrelated outputs.  Keep the ports
+    // that fit instead and say what was dropped; a port that cannot be
+    // represented at all disables the output.
+    if (port < 0 || port > 255) {
+        AddOutputConfigWarning(26, "KiNet output " + description + ": id " + std::to_string(port) +
+                                       " is outside the one-byte KiNet port range 0-255 - output disabled");
+        active = false;
+    } else if (port + portCount > 256) {
+        int available = 256 - port;
+        AddOutputConfigWarning(26, "KiNet output " + description + ": id " + std::to_string(port) + " with " +
+                                       std::to_string(portCount) + " universes exceeds KiNet port 255 - reducing universeCount to " +
+                                       std::to_string(available));
+        portCount = available;
+    }
     if (channelCount > 512) {
         channelCount = 512;
     }
