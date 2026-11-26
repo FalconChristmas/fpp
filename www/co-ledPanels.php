@@ -2995,7 +2995,6 @@
 
                         //save the new panel matrix to the server (does all panels currently - could refine in future to just add the new one to the json)
                         SaveChannelOutputsJSON();
-                        UpdateChannelOutputsFromConfigJSON();
                         DisplaySaveWarningIfRequired();
 
 
@@ -3168,7 +3167,6 @@
         $(`#matrixPanelTab${panelMatrixID}`).hide();
         //logic to save json config file to remove old matrix config
         SaveChannelOutputsJSON();
-        UpdateChannelOutputsFromConfigJSON();
         SetMatrixDisplayDefault();
 
     }

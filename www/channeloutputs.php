@@ -254,7 +254,6 @@
             ).done(function (data) {
                 $.jGrowl(" Channel Output configuration saved", { themeState: 'success' });
                 channelOutputs = JSON.parse(configStr);
-                //UpdateChannelOutputsFromConfigJSON();
                 HandleChangesInUIValues();
                 //PopulateChannelOutputLookup();
                 //DisplaySaveWarningIfRequired();
@@ -275,23 +274,6 @@
             }).fail(function () {
                 DialogError("Save Channel Output Config", "Save Failed");
             });
-        }
-
-        function UpdateChannelOutputsFromConfigJSON() {
-            if (verboseDebug) {
-                console.trace("UpdateChannelOutputsFromConfigJSON called");
-            }
-            const path = "<? echo $settings['channelOutputsJSON']; ?>";
-            const $filename = path.split('/').pop();
-            var channelOutputsJSON = $.getJSON("api/configfile/" + $filename, function (data) {
-                console.log("Channel Outputs JSON loaded");
-                console.log(data);
-                channelOutputs = data;
-                if (channelOutputs == null || channelOutputs.channelOutputs == null) {
-                    channelOutputs = { "channelOutputs": [] };
-                }
-            });
-
         }
 
         function inputsAreSane() {
