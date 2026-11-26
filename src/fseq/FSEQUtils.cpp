@@ -1,4 +1,5 @@
 
+#include <errno.h>
 #include <getopt.h>
 #include <inttypes.h>
 #include <stdio.h>
@@ -82,17 +83,51 @@ static void warnIfBeyondChannelSpace(const std::vector<std::pair<uint32_t, uint3
     }
 }
 
-static void parseRanges(std::vector<std::pair<uint32_t, uint32_t>>& ranges, char* rng) {
-    char* end = rng;
-    int startc = strtol(rng, &end, 10);
-    int r = *end == '-';
-    end++;
-    int endc = strtol(end, &end, 10);
-    if (r) {
-        ranges.push_back(std::pair<uint32_t, uint32_t>(startc - 1, endc - startc + 1));
-    } else {
-        ranges.push_back(std::pair<uint32_t, uint32_t>(startc - 1, endc));
+static bool parseRanges(std::vector<std::pair<uint32_t, uint32_t>>& ranges, char* rng) {
+    char* p = rng;
+    errno = 0;
+    long start = strtol(p, &p, 10);
+    if (p == rng || errno == ERANGE || start < 1 || (uint64_t)start > UINT32_MAX) {
+        return false;
     }
+
+    // The CLI documents exactly two forms: start-end and start+count.  Only
+    // skip a separator we actually saw: advancing unconditionally walked past
+    // the NUL of a bare number and made the next strtol() read out of bounds.
+    if (*p != '-' && *p != '+') {
+        return false;
+    }
+    char separator = *p++;
+
+    char* numberStart = p;
+    errno = 0;
+    long end = strtol(p, &p, 10);
+    if (p == numberStart || errno == ERANGE || end < 1 || (uint64_t)end > UINT32_MAX) {
+        return false;
+    }
+    while (*p == ' ' || *p == '\t') {
+        p++;
+    }
+    if (*p != '\0') {
+        return false;
+    }
+
+    uint32_t first = (uint32_t)(start - 1);
+    uint64_t count;
+    if (separator == '-') {
+        if (end < start) {
+            return false;
+        }
+        count = (uint64_t)end - (uint64_t)start + 1;
+    } else {
+        count = (uint64_t)end;
+    }
+    if (count == 0 || count > UINT32_MAX) {
+        return false;
+    }
+
+    ranges.emplace_back(first, (uint32_t)count);
+    return true;
 }
 
 int parseArguments(int argc, char** argv) {
@@ -115,13 +150,14 @@ int parseArguments(int argc, char** argv) {
         }
 
         switch (c) {
-        case 'r':
-            if (mergeFseqs.empty()) {
-                parseRanges(ranges, optarg);
-            } else {
-                parseRanges(mergeFseqs.back().ranges, optarg);
+        case 'r': {
+            auto& rangeList = mergeFseqs.empty() ? ranges : mergeFseqs.back().ranges;
+            if (!parseRanges(rangeList, optarg)) {
+                printf("Invalid channel range '%s' (expected #-# or #+#)\n", optarg);
+                exit(EXIT_FAILURE);
             }
             break;
+        }
         case 'j':
             json = true;
             break;
