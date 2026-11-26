@@ -703,6 +703,31 @@
             ShowNetworkApplyPrompt();
         }
 
+        // With "Use hostname as tether SSID" checked, the tether SSID is a
+        // read-only copy of the host name. The settings API writes TetherSSID
+        // when HostName or the checkbox is saved; this only keeps the field
+        // on this page in step with the host name being edited.
+        function tetherSSIDFromHostname() {
+            var hostname = $('#HostName').val() || '';
+            // Drop anything from the first dot on (FPP.local -> FPP), keep
+            // host-name characters, and match TetherSSID's maxlength.
+            return hostname.split('.')[0].replace(/[^a-zA-Z0-9-]/g, '').substring(0, 32);
+        }
+
+        function updateTetherSSIDState() {
+            var useHostname = $('#TetherUseHostname').is(':checked');
+            var ssidField = $('#TetherSSID');
+            if (useHostname) {
+                var ssid = tetherSSIDFromHostname();
+                // Never blank the field: on a fresh install there may be no
+                // host name yet, and the default tether SSID must stay usable.
+                if (ssid !== '') {
+                    ssidField.val(ssid);
+                }
+            }
+            ssidField.prop('disabled', useHostname);
+        }
+
         function ApplyNetworkConfig() {
             DoModalDialog({
                 id: "applyNetworkConfirm",
@@ -1750,6 +1775,11 @@
 
             // Initial state on page load
             updateDNSInputVisibility();
+
+            // The tether SSID follows the host name while that option is on.
+            updateTetherSSIDState();
+            $('#TetherUseHostname').on('change', updateTetherSSIDState);
+            $('#HostName').on('change input', updateTetherSSIDState);
         });
 
         function DisableDNSFields(disabled) {

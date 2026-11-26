@@ -225,6 +225,37 @@ function SigningAPIHost()
     return 'api.FalconPlayer.com';
 }
 
+/**
+ * The SSID to use when "Use hostname as tether SSID" is on: everything before
+ * the first dot (so FPP.local becomes FPP), reduced to the characters a host
+ * name may contain and to TetherSSID's maxlength.  An empty result means there
+ * is no usable name to copy; callers must leave TetherSSID alone so a fresh
+ * install keeps the "FPP" default fppinit needs on first boot.
+ */
+function TetherSSIDFromHostname($hostname)
+{
+    $parts = explode('.', (string)$hostname);
+    $ssid = preg_replace('/[^a-zA-Z0-9-]/', '', $parts[0]);
+    return substr($ssid, 0, 32);
+}
+
+/**
+ * Effective "Use hostname as tether SSID" setting.  New installs and installs
+ * already using FPP (or their hostname) as the SSID get the new default; an
+ * install with a custom SSID keeps that name and the option stays off.  An
+ * explicit choice, once saved, always wins over this derivation.
+ */
+function TetherUseHostnameDefault()
+{
+    global $settings;
+    $ssid = isset($settings['TetherSSID']) ? trim((string)$settings['TetherSSID']) : '';
+    $host = TetherSSIDFromHostname(isset($settings['HostName']) ? $settings['HostName'] : '');
+    if ($ssid === '' || strcasecmp($ssid, 'FPP') === 0) {
+        return 1;
+    }
+    return ($host !== '' && strcasecmp($ssid, $host) === 0) ? 1 : 0;
+}
+
 function ReadSettingFromFile($settingName, $plugin = "")
 {
     global $settingsFile;

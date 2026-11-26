@@ -38,9 +38,18 @@
 
 <p><b>Reboot If USB WiFi Adapter Fails</b> — Some USB WiFi adapters lose their USB connection while booting, so the interface appears but never connects. When FPP sees USB errors and no other connection has an address, it reboots to recover. It gives up after two tries, so it can never get stuck in a reboot loop.</p>
 
+<h4>Tethering Settings</h4>
+
+<p><b>Tethering Mode</b> — Turns this FPP into its own WiFi network for field configuration. It creates an access point with a passphrase and assigns addresses to clients; the tethered interface should not also have a separate Gateway beyond the tether subnet.</p>
+
+<p><b>Tethering Interface</b> — The WiFi adapter used for the access point.</p>
+
+<p><b>Use hostname as tether SSID</b> — On by default for new installs, and for installs still using <code>FPP</code> or their own host name as the tether SSID. It stays off if you already set a different SSID, so changing the host name will not overwrite it. When enabled, the <b>Tethering SSID</b> is set to this player's host name, with anything from the first dot onward removed (so <code>FPP.local</code> becomes <code>FPP</code>), and the SSID field is greyed out. Changing the host name updates the SSID automatically. Uncheck this to use a custom SSID instead.</p>
+
+<p><b>Tethering SSID</b> and <b>Tethering Pre Shared Key (PSK)</b> — The network name and passphrase a client uses to join the hotspot. The SSID can only be edited when "Use hostname as tether SSID" is off; the PSK defaults to <code>Christmas</code>.</p>
+
 <h4>Extra topics shown on this page</h4>
 <ul>
-    <li><b>Tethering / Access Point</b> (when supported) — Turns this FPP into its own WiFi network for field configuration. It creates an SSID/passphrase and assigns addresses to clients; the tethered interface should not also have a separate Gateway beyond the tether subnet.</li>
     <li><b>Advanced Interface knobs</b> — Routing metrics, IP forwarding/NAT, and DHCP server settings appear under Advanced when the UI level permits. Leave them at defaults unless your network design requires them; they control packet forwarding between interfaces and whether this FPP hands out addresses to other devices.</li>
 </ul>
 
