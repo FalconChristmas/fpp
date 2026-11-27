@@ -11,13 +11,14 @@
  * included LICENSE.LGPL file.
  */
 
+#include "fpp-json-fwd.h"
+#include <atomic>
 #include <mutex>
 #include <string>
-#include "fpp-json-fwd.h"
 
 #include "PlaylistEntryBase.h"
-#include "mediaoutput/mediaoutput.h"
 #include "mediaoutput/StreamSlotManager.h"
+#include "mediaoutput/mediaoutput.h"
 
 class PlaylistEntryMedia : public PlaylistEntryBase {
 public:
@@ -102,12 +103,12 @@ private:
     std::string m_mediaFilename;
     std::string m_mediaPrefix;
     std::string m_videoOutput;
-    int m_streamSlot;         // stream slot (1-5), default 1
+    int m_streamSlot;                // stream slot (1-5), default 1
     MediaOutputStatus* m_slotStatus; // per-slot status pointer
     MediaOutputBase* m_mediaOutput;
     std::mutex m_mediaOutputLock;
 
-    uint64_t m_duration;
+    std::atomic<uint64_t> m_duration;
 
     std::string m_fileMode;
     std::vector<std::string> m_files;
@@ -115,6 +116,6 @@ private:
     // plays instead of drawing again.
     std::string m_preparedFile;
 
-    int m_pausedTime;
+    std::atomic<int> m_pausedTime;
     MediaOutputStatus m_pausedStatus;
 };
