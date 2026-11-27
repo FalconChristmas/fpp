@@ -273,14 +273,24 @@ int PlaylistEntryMedia::StartPlaying(void) {
         return 0;
     }
 
-    float f = m_slotStatus->mediaSeconds * 1000;
-    if (m_duration == 0) {
-        float f = m_slotStatus->minutesTotal * 60 + m_slotStatus->secondsTotal;
-        f *= 1000;
-        m_duration = f;
+    // The status is written by the output's Process() under FieldsLock();
+    // copy it under the same lock before using it here on the playlist thread.
+    MediaOutputStatus status;
+    {
+        std::lock_guard<std::mutex> lock(MediaOutputStatus::FieldsLock());
+        status = *m_slotStatus;
     }
-    if (f > m_duration) {
-        m_duration = f;
+    float f = status.mediaSeconds * 1000;
+    uint64_t duration = m_duration.load();
+    if (duration == 0) {
+        float total = status.minutesTotal * 60 + status.secondsTotal;
+        total *= 1000;
+        duration = total;
+        m_duration.store(duration);
+    }
+    if (f > duration) {
+        duration = f;
+        m_duration.store(duration);
     }
     std::unique_lock<std::mutex> lock(m_mediaOutputLock);
 
@@ -372,10 +382,12 @@ int32_t PlaylistEntryMedia::GetMediaOffsetMS() {
 }
 
 uint64_t PlaylistEntryMedia::GetLengthInMS() {
-    if (m_duration == 0) {
+    uint64_t duration = m_duration.load();
+    if (duration == 0) {
         MediaDetails details;
         details.ParseMedia(m_mediaFilename.c_str());
-        m_duration = details.lengthMS;
+        duration = details.lengthMS;
+        m_duration.store(duration);
     }
     // Always try to refine from the running media output status.
     // Some backends (e.g. GStreamer) may not have the duration available
@@ -383,33 +395,58 @@ uint64_t PlaylistEntryMedia::GetLengthInMS() {
     // asynchronously.  Re-checking here prevents GetElapsedMS()'s
     // "if (f > m_duration)" guard from permanently caching a wrong value
     // (i.e., the elapsed time) before the real duration was known.
-    if (m_slotStatus->minutesTotal > 0 || m_slotStatus->secondsTotal > 0) {
-        uint64_t d = ((uint64_t)m_slotStatus->minutesTotal * 60 + m_slotStatus->secondsTotal) * 1000;
-        if (d > m_duration) {
-            m_duration = d;
+    // FieldsLock() is a leaf: copy the fields, then release it before any
+    // other lock or a call into MediaDetails.
+    MediaOutputStatus status;
+    {
+        std::lock_guard<std::mutex> lock(MediaOutputStatus::FieldsLock());
+        status = *m_slotStatus;
+    }
+    if (status.minutesTotal > 0 || status.secondsTotal > 0) {
+        uint64_t d = ((uint64_t)status.minutesTotal * 60 + status.secondsTotal) * 1000;
+        if (d > duration) {
+            duration = d;
+            m_duration.store(duration);
         }
     }
-    return m_duration;
+    return duration;
 }
 uint64_t PlaylistEntryMedia::GetElapsedMS() {
     // Before m_mediaOutput: Pause() closes the media output.
-    if (IsPaused()) {
-        return m_pausedTime;
+    int paused = m_pausedTime.load();
+    if (paused >= 0) {
+        return paused;
     }
-    if (m_mediaOutput) {
-        float f = m_slotStatus->secondsElapsed * 1000;
-        f += m_slotStatus->subSecondsElapsed * 10; // subSec is in 1/100th second
-        if (m_duration == 0) {
-            float f = m_slotStatus->minutesTotal * 60 + m_slotStatus->secondsTotal;
-            f *= 1000;
-            m_duration = f;
-        }
-        if (f > m_duration) {
-            m_duration = f;
-        }
-        return f;
+    // The output can be deleted by CloseMediaOutput() on another thread, so
+    // only test the pointer under its lock -- the fields come from the status
+    // snapshot below, exactly as GetConfig() does.
+    bool hasMediaOutput;
+    {
+        std::lock_guard<std::mutex> lock(m_mediaOutputLock);
+        hasMediaOutput = (m_mediaOutput != nullptr);
     }
-    return 0;
+    if (!hasMediaOutput) {
+        return 0;
+    }
+    MediaOutputStatus status;
+    {
+        std::lock_guard<std::mutex> lock(MediaOutputStatus::FieldsLock());
+        status = *m_slotStatus;
+    }
+    float f = status.secondsElapsed * 1000;
+    f += status.subSecondsElapsed * 10; // subSec is in 1/100th second
+    uint64_t duration = m_duration.load();
+    if (duration == 0) {
+        float d = status.minutesTotal * 60 + status.secondsTotal;
+        d *= 1000;
+        duration = d;
+        m_duration.store(duration);
+    }
+    if (f > duration) {
+        duration = f;
+        m_duration.store(duration);
+    }
+    return f;
 }
 
 /*
