@@ -140,11 +140,14 @@ void WLEDAudioSync::Reconfigure() {
     WarningHolder::RemoveWarning(46, "WLED Audio Sync: could not open the receive socket");
     WarningHolder::RemoveWarning(46, "WLED Audio Sync: invalid destination address");
 
-    m_mode = newMode;
+    // m_mode is what the effects read, so it only says Receive (or Send) once
+    // that socket is open: set early, a failed bind left a window in which
+    // InjectCachedFrame() answered for a receiver that never existed.
+    m_mode = Off;
     m_port = newPort;
     m_destAddr = newDest;
 
-    if (m_mode == Off) {
+    if (newMode == Off) {
         LogInfo(VB_GENERAL, "WLEDAudioSync: disabled\n");
         return;
     }
@@ -152,28 +155,28 @@ void WLEDAudioSync::Reconfigure() {
     CacheLocalIPs();
     m_running = true;
 
-    if (m_mode == Send) {
+    if (newMode == Send) {
         if (!OpenSendSocket()) {
             LogErr(VB_GENERAL, "WLEDAudioSync: send socket open failed\n");
             WarningHolder::AddWarning(46, "WLED Audio Sync: could not open the send socket");
-            m_mode = Off;
             m_running = false;
             return;
         }
+        m_mode = Send;
         m_sendThread = new std::thread([this]() {
             SetThreadName("FPP-WLEDAudio-S");
             SendLoop();
         });
         LogInfo(VB_GENERAL, "WLEDAudioSync: SEND mode, %s:%d\n",
                 m_destAddr.c_str(), m_port);
-    } else if (m_mode == Receive) {
+    } else if (newMode == Receive) {
         if (!OpenReceiveSocket()) {
             LogErr(VB_GENERAL, "WLEDAudioSync: receive socket open failed\n");
             WarningHolder::AddWarning(46, "WLED Audio Sync: could not open the receive socket");
-            m_mode = Off;
             m_running = false;
             return;
         }
+        m_mode = Receive;
         m_recvThread = new std::thread([this]() {
             SetThreadName("FPP-WLEDAudio-R");
             ReceiveLoop();
@@ -201,6 +204,13 @@ void WLEDAudioSync::StopAllThreads() {
     if (m_recvSocket >= 0) {
         ::close(m_recvSocket);
         m_recvSocket = -1;
+    }
+    // A cached frame belongs to the listener that received it. Kept, it
+    // stayed live for kFrameTtlMs after the port moved or receive was
+    // switched off and on, and drew the old source's packets.
+    {
+        std::unique_lock<std::mutex> lock(m_cacheLock);
+        m_cacheTimestampMs = 0;
     }
     if (m_sendThread) {
         if (m_sendThread->joinable()) m_sendThread->join();
