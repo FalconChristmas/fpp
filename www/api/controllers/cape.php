@@ -307,11 +307,25 @@ function GetEEPROMFilename()
         }
     }
     if (!file_exists($eepromFile) && str_starts_with($eepromFile, "/sys/bus/i2c/devices/")) {
-        $target = "/sys/bus/i2c/devices/i2c-1/new_device";
-        if ($settings['BeaglePlatform']) {
-            $target = "/sys/bus/i2c/devices/i2c-2/new_device";
+        // CapeUtils deletes the 0x50 device after copying the EEPROM, so it has
+        // to be registered again -- on the bus it was found on, not the platform's
+        // default.  A BBB cape whose EEPROM is on i2c1 records 1-0050; registering
+        // on i2c-2 there never creates it and the key can't be activated.
+        $bus = -1;
+        if (preg_match('#^/sys/bus/i2c/devices/([0-9]{1,4})-0050/eeprom$#', $eepromFile, $m)) {
+            $bus = intval($m[1]);
+        } else {
+            $bus = $settings['BeaglePlatform'] ? 2 : 1;
         }
-        system("sudo bash -c \"echo '24c256 0x50' > $target\"");
+        $target = "/sys/bus/i2c/devices/i2c-$bus/new_device";
+        if (file_exists($target)) {
+            system("sudo bash -c \"echo '24c256 0x50' > $target\"");
+            // the sysfs node shows up asynchronously once the at24 driver binds
+            for ($x = 0; $x < 50 && !file_exists($eepromFile); $x++) {
+                usleep(100000);
+                clearstatcache(true, $eepromFile);
+            }
+        }
     }
 
     if (!file_exists($eepromFile) && file_exists("/home/fpp/media/config/cape-eeprom.bin")) {
